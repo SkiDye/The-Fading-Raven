@@ -1,0 +1,408 @@
+/* ============================================
+   SECTOR MAP PAGE
+   ============================================ */
+
+.sector-page {
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #0a0a12 0%, #0f0f1a 100%);
+}
+
+/* Top HUD */
+.sector-hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+    background: rgba(0, 0, 0, 0.6);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.sector-hud.bottom-hud {
+    border-bottom: none;
+    border-top: 1px solid var(--color-border);
+}
+
+.hud-left, .hud-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.hud-center h1 {
+    font-size: 1.5rem;
+    color: var(--color-primary);
+    letter-spacing: 3px;
+}
+
+.stat-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-sm) var(--space-lg);
+    background: var(--color-bg-section);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    min-width: 100px;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.stat-value.credits {
+    color: var(--color-warning);
+}
+
+/* Main Map Area */
+.sector-main {
+    flex: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.map-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#sector-map-canvas {
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+/* Storm Warning */
+.storm-warning {
+    position: absolute;
+    bottom: var(--space-lg);
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-lg);
+    background: rgba(246, 173, 85, 0.15);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-md);
+    color: var(--color-warning);
+    font-weight: 600;
+    letter-spacing: 1px;
+    animation: warningPulse 2s ease-in-out infinite;
+}
+
+.storm-warning.active {
+    display: flex;
+}
+
+.warning-icon {
+    font-size: 1.2rem;
+}
+
+@keyframes warningPulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 10px rgba(246, 173, 85, 0.3); }
+    50% { opacity: 0.7; box-shadow: 0 0 20px rgba(246, 173, 85, 0.5); }
+}
+
+/* Node Popup */
+.node-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 380px;
+    background: var(--color-bg-panel);
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+    display: none;
+    z-index: var(--z-dropdown);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    animation: popupIn 0.2s ease-out;
+}
+
+.node-popup.active {
+    display: block;
+}
+
+@keyframes popupIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.popup-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--color-bg-section);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.node-icon {
+    font-size: 2rem;
+}
+
+.popup-header h2 {
+    font-size: 1.3rem;
+    color: var(--color-text);
+}
+
+.popup-content {
+    padding: var(--space-lg);
+}
+
+.popup-desc {
+    font-size: 1.1rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-md);
+}
+
+.popup-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 1.05rem;
+}
+
+.popup-stat:last-child {
+    border-bottom: none;
+}
+
+.popup-stat span:last-child {
+    color: var(--color-text);
+    font-weight: 500;
+}
+
+.difficulty-stars {
+    color: var(--color-warning);
+    letter-spacing: 2px;
+}
+
+.popup-rewards {
+    margin-top: var(--space-md);
+    padding: var(--space-md);
+    background: rgba(72, 187, 120, 0.1);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    color: var(--color-success);
+    font-size: 1rem;
+}
+
+.popup-actions {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.popup-actions button {
+    flex: 1;
+}
+
+/* Bottom HUD - Crew Roster */
+.crew-roster {
+    display: flex;
+    gap: var(--space-md);
+    overflow-x: auto;
+    padding: var(--space-sm) 0;
+}
+
+.crew-card-mini {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-section);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.crew-card-mini:hover {
+    border-color: var(--color-primary);
+}
+
+.crew-card-mini.selected {
+    border-color: var(--color-primary);
+    background: rgba(74, 158, 255, 0.1);
+}
+
+.crew-card-mini.deployed {
+    opacity: 0.5;
+}
+
+.crew-portrait-mini {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+    font-size: 0.9rem;
+}
+
+.crew-portrait-mini.guardian { background: var(--color-guardian); }
+.crew-portrait-mini.sentinel { background: var(--color-sentinel); }
+.crew-portrait-mini.ranger { background: var(--color-ranger); }
+.crew-portrait-mini.engineer { background: var(--color-engineer); }
+.crew-portrait-mini.bionic { background: var(--color-bionic); }
+
+.crew-mini-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.crew-mini-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.crew-mini-class {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+.crew-mini-health {
+    width: 60px;
+    height: 4px;
+    background: var(--color-bg-dark);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    margin-top: 2px;
+}
+
+.crew-mini-health-fill {
+    height: 100%;
+    background: var(--color-success);
+}
+
+/* Crew Mini Card - Used by JS */
+.crew-mini-card {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-section);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.crew-mini-card:hover {
+    border-color: var(--color-primary);
+}
+
+.crew-mini-card .crew-portrait {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+    font-size: 1rem;
+}
+
+.crew-mini-card .crew-portrait.guardian { background: var(--color-guardian); }
+.crew-mini-card .crew-portrait.sentinel { background: var(--color-sentinel); }
+.crew-mini-card .crew-portrait.ranger { background: var(--color-ranger); }
+.crew-mini-card .crew-portrait.engineer { background: var(--color-engineer); }
+.crew-mini-card .crew-portrait.bionic { background: var(--color-bionic); }
+
+.crew-mini-card .crew-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 100px;
+}
+
+.crew-mini-card .crew-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.crew-mini-card .crew-health {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    background: var(--color-bg-dark);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.crew-mini-card .health-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: var(--color-success);
+    border-radius: var(--radius-full);
+}
+
+.crew-mini-card .health-text {
+    position: absolute;
+    right: 0;
+    top: -16px;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .sector-hud {
+        flex-wrap: wrap;
+        gap: var(--space-sm);
+    }
+
+    .hud-center {
+        order: -1;
+        width: 100%;
+        text-align: center;
+    }
+
+    .stat-box {
+        min-width: 60px;
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    .stat-value {
+        font-size: 1.1rem;
+    }
+
+    .node-popup {
+        width: 90%;
+        max-width: 320px;
+    }
+}

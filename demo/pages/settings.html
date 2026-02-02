@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - The Fading Raven</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/pages/panel.css">
+</head>
+<body>
+    <div class="page-container">
+        <div class="panel-wrapper">
+            <div class="panel">
+                <header class="panel-header">
+                    <h1>SETTINGS</h1>
+                </header>
+
+                <div class="panel-content">
+                    <div class="setting-group">
+                        <label for="setting-difficulty">Default Difficulty</label>
+                        <select id="setting-difficulty">
+                            <option value="normal">Normal</option>
+                            <option value="hard">Hard</option>
+                            <option value="veryhard">Very Hard</option>
+                            <option value="nightmare">Nightmare</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="setting-speed">Game Speed</label>
+                        <div class="range-control">
+                            <input type="range" id="setting-speed" min="0.5" max="2" step="0.25" value="1">
+                            <span class="range-value" id="speed-value">1.0x</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="setting-volume">Sound Volume</label>
+                        <div class="range-control">
+                            <input type="range" id="setting-volume" min="0" max="100" value="70">
+                            <span class="range-value" id="volume-value">70%</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="setting-music">Music Volume</label>
+                        <div class="range-control">
+                            <input type="range" id="setting-music" min="0" max="100" value="50">
+                            <span class="range-value" id="music-value">50%</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="setting-tutorial">Show Tutorial</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="setting-tutorial" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="setting-screenshake">Screen Shake</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="setting-screenshake" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>Reset Progress</label>
+                        <button class="btn-danger" id="btn-reset-progress">RESET ALL</button>
+                    </div>
+                </div>
+
+                <footer class="panel-footer">
+                    <button class="btn-secondary" id="btn-back">BACK</button>
+                    <button class="btn-primary" id="btn-save">SAVE</button>
+                </footer>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/core/utils.js"></script>
+    <script src="../js/core/game-state.js"></script>
+    <script src="../js/pages/settings.js"></script>
+</body>
+</html>

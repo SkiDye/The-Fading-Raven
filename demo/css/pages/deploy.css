@@ -1,0 +1,407 @@
+/* ============================================
+   DEPLOYMENT PAGE
+   ============================================ */
+
+.deploy-page {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.deploy-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+    background: var(--color-bg-panel);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.header-left {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-md);
+}
+
+.header-left h1 {
+    font-size: 1.4rem;
+    color: var(--color-primary);
+    letter-spacing: 2px;
+}
+
+.station-name {
+    color: var(--color-text-secondary);
+    font-size: 1.05rem;
+}
+
+.wave-preview {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.wave-label {
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+}
+
+.enemy-icons {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.enemy-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--color-danger);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+/* Main Content */
+.deploy-main {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Station Map */
+.station-map-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-lg);
+    position: relative;
+}
+
+#station-canvas {
+    width: 100%;
+    height: 100%;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: crosshair;
+}
+
+.tile-tooltip {
+    position: absolute;
+    padding: var(--space-sm) var(--space-md);
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    pointer-events: none;
+    display: none;
+    z-index: var(--z-tooltip);
+}
+
+.tile-tooltip.active {
+    display: block;
+}
+
+.tile-type {
+    font-weight: 600;
+    color: var(--color-text);
+    display: block;
+}
+
+.tile-info {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+/* Sidebar */
+.deploy-sidebar {
+    width: 340px;
+    background: var(--color-bg-panel);
+    border-left: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-lg);
+}
+
+.sidebar-section {
+    margin-bottom: var(--space-md);
+}
+
+.sidebar-section h3 {
+    font-size: 1rem;
+    color: var(--color-primary);
+    letter-spacing: 1px;
+    margin-bottom: var(--space-md);
+}
+
+.crew-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.crew-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-section);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.crew-card:hover {
+    border-color: var(--color-primary);
+}
+
+.crew-card.selected {
+    border-color: var(--color-primary);
+    background: rgba(74, 158, 255, 0.1);
+}
+
+.crew-card.deployed {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.crew-card.deployed::after {
+    content: '✓';
+    margin-left: auto;
+    color: var(--color-success);
+}
+
+.crew-portrait {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+}
+
+.crew-portrait.guardian { background: var(--color-guardian); }
+.crew-portrait.sentinel { background: var(--color-sentinel); }
+.crew-portrait.ranger { background: var(--color-ranger); }
+.crew-portrait.engineer { background: var(--color-engineer); }
+.crew-portrait.bionic { background: var(--color-bionic); }
+
+.crew-card-info {
+    flex: 1;
+}
+
+.crew-card-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-text);
+}
+
+.crew-card-class {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+/* Crew Deploy Card - Used by JS */
+.crew-deploy-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--color-bg-section);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.crew-deploy-card:hover {
+    border-color: var(--color-primary);
+    background: var(--color-bg-hover);
+}
+
+.crew-deploy-card.selected {
+    border-color: var(--color-primary);
+    background: rgba(74, 158, 255, 0.15);
+    box-shadow: 0 0 10px rgba(74, 158, 255, 0.3);
+}
+
+.crew-deploy-card.deployed {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.crew-deploy-card .crew-details {
+    flex: 1;
+}
+
+.crew-deploy-card .crew-name {
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--color-text);
+    margin-bottom: 2px;
+}
+
+.crew-deploy-card .crew-class {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xs);
+}
+
+.crew-deploy-card .crew-health-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--color-bg-dark);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    position: relative;
+    margin-top: var(--space-xs);
+}
+
+.crew-deploy-card .health-fill {
+    height: 100%;
+    background: var(--color-success);
+    transition: width var(--transition-fast);
+}
+
+.crew-deploy-card .health-text {
+    position: absolute;
+    right: 0;
+    top: -18px;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.crew-deploy-card .deploy-status {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--color-bg-dark);
+    border-radius: var(--radius-sm);
+}
+
+.crew-deploy-card.deployed .deploy-status {
+    color: var(--color-success);
+    background: rgba(72, 187, 120, 0.1);
+}
+
+.deployment-info {
+    padding: var(--space-md);
+    background: rgba(74, 158, 255, 0.05);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.info-text {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xs);
+}
+
+.info-text:last-child {
+    margin-bottom: 0;
+}
+
+/* Sidebar Actions */
+.sidebar-actions {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.btn-large {
+    padding: var(--space-md);
+}
+
+/* Battle Info Section */
+.battle-info {
+    margin-top: var(--space-md);
+    padding: var(--space-md);
+    background: var(--color-bg-section);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.battle-info .info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-xs) 0;
+}
+
+.battle-info .info-item:not(:last-child) {
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+.battle-info .info-label {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+}
+
+.battle-info .info-value {
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+/* Selected Crew Panel */
+.selected-crew-panel {
+    position: fixed;
+    bottom: var(--space-lg);
+    left: var(--space-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: none;
+}
+
+.selected-crew-panel.active {
+    display: flex;
+}
+
+.selected-crew-panel .crew-portrait {
+    width: 50px;
+    height: 50px;
+    font-size: 1.2rem;
+}
+
+.crew-info h4 {
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+}
+
+.crew-class {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .deploy-main {
+        flex-direction: column;
+    }
+
+    .deploy-sidebar {
+        width: 100%;
+        max-height: 40vh;
+        border-left: none;
+        border-top: 1px solid var(--color-border);
+    }
+
+    .selected-crew-panel {
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(40vh + var(--space-md));
+    }
+}

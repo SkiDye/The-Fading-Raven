@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Victory - The Fading Raven</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/pages/endscreen.css">
+</head>
+<body>
+    <div class="page-container endscreen-page victory">
+        <div class="endscreen-bg victory-bg"></div>
+
+        <main class="endscreen-content">
+            <header class="endscreen-header">
+                <h1 class="title-victory">VICTORY</h1>
+                <p class="endscreen-message">You reached the Jump Gate and escaped the storm!</p>
+            </header>
+
+            <section class="final-score">
+                <div class="score-display">
+                    <span class="score-label">FINAL SCORE</span>
+                    <span class="score-value" id="final-score">12,450</span>
+                </div>
+            </section>
+
+            <section class="run-stats">
+                <h2>RUN STATISTICS</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-stations">18</span>
+                        <span class="stat-label">Stations Defended</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-commanders">4/6</span>
+                        <span class="stat-label">Commanders Saved</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-enemies">547</span>
+                        <span class="stat-label">Enemies Defeated</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-perfect">8</span>
+                        <span class="stat-label">Perfect Defenses</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="surviving-crew">
+                <h2>SURVIVING COMMANDERS</h2>
+                <div class="crew-portraits" id="surviving-crew">
+                    <!-- Commander portraits -->
+                </div>
+            </section>
+
+            <section class="run-info">
+                <div class="info-row">
+                    <span>Difficulty</span>
+                    <span id="run-difficulty">Normal</span>
+                </div>
+                <div class="info-row">
+                    <span>Seed</span>
+                    <span id="run-seed" class="seed">ABCD-1234-WXYZ</span>
+                </div>
+                <div class="info-row">
+                    <span>Time</span>
+                    <span id="run-time">45:32</span>
+                </div>
+            </section>
+
+            <section class="unlocks" id="unlocks-section">
+                <h2>NEW UNLOCKS</h2>
+                <div class="unlock-list" id="unlock-list">
+                    <!-- Unlocked content -->
+                </div>
+            </section>
+
+            <footer class="endscreen-actions">
+                <button class="btn-primary btn-large" id="btn-new-run">NEW RUN</button>
+                <button class="btn-secondary" id="btn-menu">MAIN MENU</button>
+            </footer>
+        </main>
+    </div>
+
+    <script src="../js/core/utils.js"></script>
+    <script src="../js/core/game-state.js"></script>
+    <script src="../js/pages/victory.js"></script>
+</body>
+</html>

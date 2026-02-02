@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sector Map - The Fading Raven</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/pages/sector.css">
+</head>
+<body>
+    <div class="page-container sector-page">
+        <!-- Top HUD -->
+        <header class="sector-hud top-hud">
+            <div class="hud-left">
+                <div class="stat-box">
+                    <span class="stat-label">Turn</span>
+                    <span class="stat-value" id="turn-display">1</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Credits</span>
+                    <span class="stat-value credits" id="credits-display">0</span>
+                </div>
+            </div>
+            <div class="hud-center">
+                <h1>SECTOR MAP</h1>
+            </div>
+            <div class="hud-right">
+                <button class="btn-hud" id="btn-upgrade">UPGRADE</button>
+                <button class="btn-hud" id="btn-rest">REST</button>
+                <button class="btn-hud" id="btn-menu">MENU</button>
+            </div>
+        </header>
+
+        <!-- Main Map Area -->
+        <main class="sector-main">
+            <div class="map-container">
+                <canvas id="sector-map-canvas"></canvas>
+
+                <!-- Storm Warning -->
+                <div class="storm-warning" id="storm-warning">
+                    <span class="warning-icon">⚡</span>
+                    <span class="warning-text">STORM APPROACHING - <span id="storm-turns">3</span> TURNS</span>
+                </div>
+            </div>
+
+            <!-- Node Info Popup -->
+            <div class="modal node-popup" id="node-popup">
+                <div class="modal-content">
+                    <div class="popup-header">
+                        <h2 id="popup-title">Station Alpha</h2>
+                    </div>
+                    <div class="popup-content">
+                        <p class="popup-desc" id="popup-desc">전투</p>
+                        <div class="popup-stat">
+                            <span>난이도</span>
+                            <span id="popup-difficulty" class="difficulty-stars">⭐⭐</span>
+                        </div>
+                        <div class="popup-rewards" id="popup-reward">
+                            <!-- Rewards shown here -->
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="btn-cancel-node">취소</button>
+                        <button class="btn btn-primary" id="btn-enter-node">진입</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom HUD - Crew Summary -->
+        <footer class="sector-hud bottom-hud">
+            <div class="crew-roster" id="crew-roster">
+                <!-- Crew cards generated here -->
+            </div>
+        </footer>
+
+        <!-- Rest Confirmation Modal -->
+        <div class="modal" id="rest-modal">
+            <div class="modal-content">
+                <h2>REST</h2>
+                <p>End your turn and advance the storm?</p>
+                <p class="warning-text">Stations behind the storm line will be lost!</p>
+                <div class="modal-actions">
+                    <button class="btn-secondary" id="btn-rest-cancel">CANCEL</button>
+                    <button class="btn-primary" id="btn-rest-confirm">REST</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Modal -->
+        <div class="modal" id="menu-modal">
+            <div class="modal-content">
+                <h2>MENU</h2>
+                <div class="modal-buttons">
+                    <button class="btn-secondary" id="btn-resume">RESUME</button>
+                    <button class="btn-secondary" id="btn-settings">SETTINGS</button>
+                    <button class="btn-danger" id="btn-abandon">ABANDON RUN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/core/utils.js"></script>
+    <script src="../js/core/rng.js"></script>
+    <script src="../js/core/game-state.js"></script>
+    <script src="../js/pages/sector.js"></script>
+</body>
+</html>

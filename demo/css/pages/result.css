@@ -1,0 +1,259 @@
+/* ============================================
+   BATTLE RESULT PAGE
+   ============================================ */
+
+.result-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-xl);
+    background: linear-gradient(180deg, #0a0a12 0%, #0f1520 100%);
+}
+
+.result-wrapper {
+    width: 100%;
+    max-width: 600px;
+    animation: slideUp 0.5s ease-out;
+}
+
+/* Header */
+.result-header {
+    text-align: center;
+    margin-bottom: var(--space-xl);
+}
+
+.result-header h1 {
+    font-size: 3rem;
+    letter-spacing: 6px;
+    margin-bottom: var(--space-sm);
+}
+
+.result-header h1#result-title {
+    color: var(--color-success);
+    text-shadow: 0 0 30px rgba(72, 187, 120, 0.5);
+}
+
+.result-header.defeat h1 {
+    color: var(--color-danger);
+    text-shadow: 0 0 30px rgba(252, 129, 129, 0.5);
+}
+
+.result-subtitle {
+    color: var(--color-text-secondary);
+    font-size: 1.1rem;
+}
+
+/* Main Content */
+.result-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+/* Stats Panel */
+.stats-panel, .rewards-panel, .crew-status-panel, .new-commander-panel, .item-panel {
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+}
+
+.stats-panel h2, .rewards-panel h2, .crew-status-panel h2, .new-commander-panel h2, .item-panel h2 {
+    font-size: 0.9rem;
+    color: var(--color-primary);
+    letter-spacing: 2px;
+    margin-bottom: var(--space-md);
+    text-align: center;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-md);
+    background: var(--color-bg-section);
+    border-radius: var(--radius-md);
+}
+
+.stat-icon {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-xs);
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+/* Rewards */
+.rewards-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.reward-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--color-bg-section);
+    border-radius: var(--radius-md);
+}
+
+.reward-item.credits {
+    background: rgba(246, 173, 85, 0.1);
+    border: 1px solid rgba(246, 173, 85, 0.3);
+}
+
+.reward-icon {
+    font-size: 1.5rem;
+}
+
+.reward-text {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.reward-item.credits .reward-text {
+    color: var(--color-warning);
+}
+
+/* Crew Status */
+.crew-status-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.crew-status-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-section);
+    border-radius: var(--radius-md);
+}
+
+.crew-status-item.healthy {
+    border-left: 3px solid var(--color-success);
+}
+
+.crew-status-item.wounded {
+    border-left: 3px solid var(--color-warning);
+}
+
+.crew-status-item.dead {
+    border-left: 3px solid var(--color-danger);
+    opacity: 0.6;
+}
+
+.status-portrait {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+}
+
+.status-portrait.guardian { background: var(--color-guardian); }
+.status-portrait.sentinel { background: var(--color-sentinel); }
+.status-portrait.ranger { background: var(--color-ranger); }
+.status-portrait.engineer { background: var(--color-engineer); }
+.status-portrait.bionic { background: var(--color-bionic); }
+
+.status-info {
+    flex: 1;
+}
+
+.status-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.status-detail {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.status-health {
+    width: 80px;
+    text-align: right;
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+/* New Commander / Item */
+.new-commander-panel, .item-panel {
+    display: none;
+}
+
+.new-commander-panel.active, .item-panel.active {
+    display: block;
+}
+
+.commander-card, .item-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: rgba(74, 158, 255, 0.1);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+}
+
+.commander-portrait, .item-icon {
+    width: 60px;
+    height: 60px;
+    background: var(--color-bg-section);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+.commander-info, .item-info {
+    flex: 1;
+}
+
+.commander-info h3, .item-info h3 {
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+}
+
+.commander-info p, .item-info p {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+.commander-trait, .item-effect {
+    margin-top: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--color-bg-section);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    display: inline-block;
+}
+
+/* Footer */
+.result-footer {
+    margin-top: var(--space-xl);
+    text-align: center;
+}
