@@ -418,12 +418,18 @@ const BattleController = {
     },
 
     bindEvents() {
+        // Mouse events
         this.canvas?.addEventListener('click', (e) => this.handleCanvasClick(e));
         this.canvas?.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             this.handleCanvasRightClick(e);
         });
         this.canvas?.addEventListener('mousemove', (e) => this.handleCanvasMouseMove(e));
+
+        // Touch events for mobile support
+        this.canvas?.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+        this.canvas?.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+        this.canvas?.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
 
         this.elements.crewButtons?.addEventListener('click', (e) => {
             const btn = e.target.closest('.crew-btn');
@@ -454,6 +460,79 @@ const BattleController = {
         window.addEventListener('resize', Utils.debounce(() => {
             this.resizeCanvas();
         }, 200));
+    },
+
+    // ==========================================
+    // TOUCH SUPPORT
+    // ==========================================
+
+    touchStartTime: 0,
+    touchStartPos: null,
+    isDragging: false,
+
+    handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        this.touchStartTime = Date.now();
+        this.touchStartPos = { x: touch.clientX, y: touch.clientY };
+        this.isDragging = false;
+    },
+
+    handleTouchMove(e) {
+        e.preventDefault();
+        if (!this.touchStartPos) return;
+
+        const touch = e.touches[0];
+        const dx = touch.clientX - this.touchStartPos.x;
+        const dy = touch.clientY - this.touchStartPos.y;
+
+        // Start dragging if moved more than 10px
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+            this.isDragging = true;
+        }
+
+        // Update targeting position during drag
+        if (this.targetingMode) {
+            const rect = this.canvas.getBoundingClientRect();
+            this.targetPosition = {
+                x: touch.clientX - rect.left - this.shakeOffset.x,
+                y: touch.clientY - rect.top - this.shakeOffset.y,
+            };
+        }
+    },
+
+    handleTouchEnd(e) {
+        e.preventDefault();
+        if (!this.touchStartPos) return;
+
+        const touch = e.changedTouches[0];
+        const touchDuration = Date.now() - this.touchStartTime;
+
+        // Create a fake event for position handling
+        const fakeEvent = {
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+        };
+
+        if (this.isDragging) {
+            // Handle drag end
+            if (this.targetingMode) {
+                const { x, y } = this.getAdjustedClickPosition(fakeEvent);
+                this.executeTargetedAction(x, y);
+            }
+        } else {
+            // Handle tap
+            if (touchDuration < 300) {
+                // Short tap = click
+                this.handleCanvasClick(fakeEvent);
+            } else {
+                // Long press = right click (cancel/attack)
+                this.handleCanvasRightClick(fakeEvent);
+            }
+        }
+
+        this.touchStartPos = null;
+        this.isDragging = false;
     },
 
     /**
@@ -581,22 +660,61 @@ const BattleController = {
         const startTile = this.tileGrid.pixelToTile(crew.x, crew.y, this.offsetX, this.offsetY);
         const endTile = this.tileGrid.pixelToTile(x, y, this.offsetX, this.offsetY);
 
+        // Check if target tile is walkable
+        if (!this.tileGrid.isWalkable(endTile.x, endTile.y)) {
+            this.showMovementFeedback(x, y, 'blocked');
+            return;
+        }
+
         const path = this.tileGrid.findPath(startTile.x, startTile.y, endTile.x, endTile.y);
 
         if (path.length > 0) {
             crew.path = path.slice(1); // Remove start position
             crew.state = 'moving';
             crew.targetEnemy = null;
-        }
 
-        // Move indicator effect
+            // Store path for visual display
+            crew.displayPath = path.map(tile =>
+                this.tileGrid.tileToPixel(tile.x, tile.y, this.offsetX, this.offsetY)
+            );
+
+            // Move indicator effect
+            this.addEffect({
+                type: 'move_indicator',
+                x: x,
+                y: y,
+                duration: 500,
+                timer: 0,
+            });
+        } else {
+            // Path not found - show feedback
+            this.showMovementFeedback(x, y, 'no_path');
+        }
+    },
+
+    /**
+     * Show movement feedback (blocked, no path, out of range)
+     */
+    showMovementFeedback(x, y, reason) {
+        const messages = {
+            blocked: '이동 불가',
+            no_path: '경로 없음',
+            out_of_range: '사거리 초과',
+        };
+
         this.addEffect({
-            type: 'move_indicator',
+            type: 'move_blocked',
             x: x,
             y: y,
-            duration: 500,
+            message: messages[reason] || '이동 불가',
+            duration: 800,
             timer: 0,
         });
+
+        // Optional: Show toast
+        if (typeof Toast !== 'undefined') {
+            Toast.warning(messages[reason] || '이동할 수 없습니다');
+        }
     },
 
     // ==========================================
@@ -1414,6 +1532,9 @@ const BattleController = {
         // Draw mines
         this.renderMines();
 
+        // Draw movement paths
+        this.renderMovementPaths();
+
         // Draw turrets
         if (TurretSystem) TurretSystem.render(ctx, this);
 
@@ -1750,6 +1871,48 @@ const BattleController = {
         }
     },
 
+    /**
+     * Render movement paths for crews
+     */
+    renderMovementPaths() {
+        const ctx = this.ctx;
+
+        for (const crew of this.crews) {
+            if (!crew.displayPath || crew.displayPath.length < 2) continue;
+            if (crew.state !== 'moving') {
+                crew.displayPath = null;
+                continue;
+            }
+
+            // Draw path line
+            ctx.strokeStyle = crew.color || '#4a9eff';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.4;
+            ctx.setLineDash([5, 5]);
+
+            ctx.beginPath();
+            ctx.moveTo(crew.x, crew.y);
+
+            for (const point of crew.displayPath) {
+                ctx.lineTo(point.x, point.y);
+            }
+            ctx.stroke();
+
+            // Draw waypoint dots
+            ctx.fillStyle = crew.color || '#4a9eff';
+            for (let i = 0; i < crew.displayPath.length; i++) {
+                const point = crew.displayPath[i];
+                const size = i === crew.displayPath.length - 1 ? 5 : 3;
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 1;
+        }
+    },
+
     renderTargetingIndicator() {
         const ctx = this.ctx;
         const pos = this.targetPosition;
@@ -1845,6 +2008,28 @@ const BattleController = {
                 ctx.beginPath();
                 ctx.arc(effect.x, effect.y, 5 + progress * 10, 0, Math.PI * 2);
                 ctx.stroke();
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'move_blocked':
+                // Red X indicator
+                ctx.strokeStyle = '#fc8181';
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 1 - progress;
+                const xSize = 12;
+                ctx.beginPath();
+                ctx.moveTo(effect.x - xSize, effect.y - xSize);
+                ctx.lineTo(effect.x + xSize, effect.y + xSize);
+                ctx.moveTo(effect.x + xSize, effect.y - xSize);
+                ctx.lineTo(effect.x - xSize, effect.y + xSize);
+                ctx.stroke();
+                // Message text
+                if (effect.message) {
+                    ctx.fillStyle = '#fc8181';
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(effect.message, effect.x, effect.y - 20 - progress * 10);
+                }
                 ctx.globalAlpha = 1;
                 break;
 
