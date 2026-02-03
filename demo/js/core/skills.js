@@ -34,6 +34,10 @@ const SkillSystem = {
                     ? 999 // Unlimited
                     : effects.distance * battle.tileSize;
 
+                // Store original position for visual effect
+                const startX = caster.x;
+                const startY = caster.y;
+
                 // Find enemies along dash path
                 let dashEndX = caster.x;
                 let dashEndY = caster.y;
@@ -96,8 +100,8 @@ const SkillSystem = {
                 // Visual effect
                 battle.addEffect({
                     type: 'dash_trail',
-                    startX: caster.x - (dashEndX - caster.x),
-                    startY: caster.y - (dashEndY - caster.y),
+                    startX: startX,
+                    startY: startY,
                     endX: dashEndX,
                     endY: dashEndY,
                     duration: 300,

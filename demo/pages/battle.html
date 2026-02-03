@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle - The Fading Raven</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/ui-components.css">
+    <link rel="stylesheet" href="../css/effects.css">
+    <link rel="stylesheet" href="../css/pages/battle.css">
+</head>
+<body>
+    <div class="page-container battle-page">
+        <!-- Top HUD -->
+        <header class="battle-hud top">
+            <div class="hud-left">
+                <div class="hud-stat">
+                    <span class="stat-label">웨이브</span>
+                    <span class="stat-value" id="hud-wave">1/3</span>
+                </div>
+                <div class="hud-stat">
+                    <span class="stat-label">남은 적</span>
+                    <span class="stat-value" id="hud-enemies">0</span>
+                </div>
+            </div>
+            <div class="hud-center">
+                <div class="station-health">
+                    <span class="stat-label">스테이션</span>
+                    <div class="health-bar-container">
+                        <div class="health-bar-fill" id="station-health-bar"></div>
+                    </div>
+                    <span class="stat-value" id="hud-station">100%</span>
+                </div>
+            </div>
+            <div class="hud-right">
+                <button class="btn btn-hud" id="btn-pause" title="일시정지 (Space)">⏸ 일시정지</button>
+            </div>
+        </header>
+
+        <!-- Battle Canvas -->
+        <main class="battle-main">
+            <canvas id="battle-canvas"></canvas>
+
+            <!-- Wave Announcement -->
+            <div class="wave-announcement" id="wave-announcement">
+                <span class="wave-text" id="wave-text">웨이브 1</span>
+            </div>
+
+            <!-- Damage Numbers Container -->
+            <div class="damage-numbers" id="damage-numbers"></div>
+        </main>
+
+        <!-- Bottom HUD -->
+        <footer class="battle-hud bottom">
+            <!-- Selected Unit Panel -->
+            <div class="selected-unit-panel" id="selected-panel">
+                <button class="deselect-btn" id="btn-deselect" title="선택 해제 (ESC)">✕</button>
+                <div class="unit-portrait" id="unit-portrait">
+                    <div class="portrait-icon">G</div>
+                    <div class="health-ring" id="health-ring"></div>
+                </div>
+                <div class="unit-info">
+                    <h4 class="unit-name" id="unit-name">Guardian Squad</h4>
+                    <div class="unit-health">
+                        <div class="health-bar">
+                            <div class="health-fill" id="unit-health"></div>
+                        </div>
+                        <span class="health-text" id="health-text">8/8</span>
+                    </div>
+                    <span class="unit-status" id="unit-status">Ready</span>
+                </div>
+                <div class="unit-actions">
+                    <button class="skill-btn" id="btn-skill" disabled>
+                        <span class="skill-icon" id="skill-icon">🛡️</span>
+                        <span class="skill-name" id="skill-name">Shield Bash</span>
+                        <span class="skill-cooldown" id="skill-cooldown"></span>
+                    </button>
+                </div>
+                <span class="deselect-hint">ESC로 선택 해제</span>
+            </div>
+
+            <!-- Crew Quick Select -->
+            <div class="crew-quick-select" id="crew-buttons">
+                <!-- Quick select buttons generated here -->
+            </div>
+
+            <!-- Raven Drone Panel -->
+            <div class="raven-panel" id="raven-panel">
+                <h4>RAVEN</h4>
+                <div class="raven-abilities">
+                    <button class="raven-btn" id="btn-scout" title="Scout next wave">
+                        <span class="icon">🔭</span>
+                        <span class="uses">∞</span>
+                    </button>
+                    <button class="raven-btn" id="btn-flare" title="Flare">
+                        <span class="icon">🔦</span>
+                        <span class="uses" id="flare-uses">2</span>
+                    </button>
+                    <button class="raven-btn" id="btn-resupply" title="Emergency Resupply">
+                        <span class="icon">📦</span>
+                        <span class="uses" id="resupply-uses">1</span>
+                    </button>
+                    <button class="raven-btn" id="btn-strike" title="Orbital Strike">
+                        <span class="icon">💥</span>
+                        <span class="uses" id="strike-uses">1</span>
+                    </button>
+                </div>
+            </div>
+        </footer>
+
+        <!-- Pause Menu -->
+        <div class="modal" id="pause-menu">
+            <div class="modal-content">
+                <h2>일시정지</h2>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="btn-resume">계속하기</button>
+                    <button class="btn btn-danger" id="btn-retreat-battle">후퇴</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wave Complete Overlay -->
+        <div class="overlay" id="wave-complete-overlay">
+            <div class="overlay-content">
+                <h2>WAVE COMPLETE</h2>
+                <p id="wave-complete-text">Prepare for the next wave!</p>
+                <button class="btn-primary" id="btn-next-wave">NEXT WAVE</button>
+            </div>
+        </div>
+
+        <!-- Targeting Overlay (for skills) -->
+        <div class="targeting-indicator" id="targeting-indicator">
+            <span>Select Target</span>
+        </div>
+    </div>
+
+    <script src="../js/core/utils.js"></script>
+    <script src="../js/core/rng.js"></script>
+    <!-- Data Modules -->
+    <script src="../js/data/crews.js"></script>
+    <script src="../js/data/equipment.js"></script>
+    <script src="../js/data/traits.js"></script>
+    <script src="../js/data/enemies.js"></script>
+    <script src="../js/data/facilities.js"></script>
+    <script src="../js/data/balance.js"></script>
+    <!-- Core -->
+    <script src="../js/core/game-state.js"></script>
+    <script src="../js/core/tile-grid.js"></script>
+    <script src="../js/core/skills.js"></script>
+    <script src="../js/core/equipment-effects.js"></script>
+    <script src="../js/core/raven.js"></script>
+    <!-- Entities -->
+    <script src="../js/entities/turret.js"></script>
+    <!-- Wave System (Session 3) -->
+    <script src="../js/core/wave-generator.js"></script>
+    <script src="../js/core/wave-manager.js"></script>
+    <!-- Station (Session 4) -->
+    <script src="../js/core/station-generator.js"></script>
+    <!-- UI Systems -->
+    <script src="../js/ui/ui-components.js"></script>
+    <script src="../js/ui/effects.js"></script>
+    <!-- Battle -->
+    <script src="../js/pages/battle.js"></script>
+    <script src="../js/ui/battle-effects-integration.js"></script>
+</body>
+</html>

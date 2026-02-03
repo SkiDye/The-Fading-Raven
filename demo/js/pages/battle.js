@@ -54,6 +54,10 @@ const BattleController = {
     // RNG
     rng: null,
 
+    // Wave management
+    waveGenerator: null,
+    waveManager: null,
+
     // Screen shake
     shakeAmount: 0,
     shakeDuration: 0,
@@ -162,6 +166,73 @@ const BattleController = {
         // Initialize Raven system
         if (RavenSystem) {
             RavenSystem.init(GameState.currentRun?.difficulty || 'normal');
+        }
+
+        // Initialize wave generation system
+        this.initWaveSystem();
+    },
+
+    initWaveSystem() {
+        const combatRng = this.rng.get('combat');
+        const difficulty = GameState.currentRun?.difficulty || 'normal';
+
+        // Get spawn point positions in pixels
+        const spawnPoints = this.stationLayout.spawnPoints.map(sp => ({
+            x: this.offsetX + sp.x * this.tileSize + this.tileSize / 2,
+            y: this.offsetY + sp.y * this.tileSize + this.tileSize / 2,
+            direction: sp.direction,
+        }));
+
+        // Create wave generator
+        if (typeof WaveGenerator !== 'undefined') {
+            this.waveGenerator = new WaveGenerator(combatRng);
+
+            const waveConfig = {
+                depth: this.battleInfo.difficultyScore || this.battleInfo.difficulty || 1,
+                difficulty: difficulty,
+                isStorm: this.battleInfo.isStorm || this.battleInfo.type === 'storm',
+                isBoss: this.battleInfo.isBoss || this.battleInfo.type === 'boss',
+                spawnPoints: spawnPoints,
+                tileSize: this.tileSize,
+            };
+
+            const waves = this.waveGenerator.generateWaves(waveConfig);
+            this.totalWaves = waves.length;
+
+            // Create wave manager
+            this.waveManager = new WaveManager();
+            this.waveManager.initialize(waves);
+
+            // Set up event handlers
+            this.waveManager.on('waveStart', (data) => {
+                this.waveNumber = data.waveIndex + 1;
+                this.showWaveAnnouncement(data.wave?.isBoss);
+            });
+
+            this.waveManager.on('enemySpawned', (data) => {
+                if (data.enemy) {
+                    this.enemies.push(data.enemy);
+                }
+            });
+
+            console.log('Wave system initialized:', {
+                totalWaves: this.totalWaves,
+                isStorm: waveConfig.isStorm,
+                isBoss: waveConfig.isBoss,
+            });
+        } else {
+            // Fallback to basic wave system
+            console.warn('WaveGenerator not available, using fallback');
+            this.useFallbackWaves = true;
+            this.totalWaves = 2 + (this.battleInfo.difficulty || 1);
+            if (this.battleInfo.type === 'boss') {
+                this.totalWaves = 1;
+            }
+
+            // Show warning to user
+            if (typeof Toast !== 'undefined') {
+                Toast.warning('웨이브 시스템 제한 모드로 실행 중');
+            }
         }
     },
 
@@ -374,15 +445,30 @@ const BattleController = {
         this.elements.btnResume?.addEventListener('click', () => this.togglePause());
         this.elements.btnRetreatBattle?.addEventListener('click', () => this.retreatFromBattle());
 
+        // Deselect button
+        document.getElementById('btn-deselect')?.addEventListener('click', () => {
+            this.selectedCrew = null;
+            this.updateCrewButtonSelection();
+        });
+
         window.addEventListener('resize', Utils.debounce(() => {
             this.resizeCanvas();
         }, 200));
     },
 
-    handleCanvasClick(e) {
+    /**
+     * Get click position adjusted for screen shake offset
+     */
+    getAdjustedClickPosition(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        return {
+            x: e.clientX - rect.left - this.shakeOffset.x,
+            y: e.clientY - rect.top - this.shakeOffset.y,
+        };
+    },
+
+    handleCanvasClick(e) {
+        const { x, y } = this.getAdjustedClickPosition(e);
 
         // Handle targeting mode
         if (this.targetingMode) {
@@ -405,9 +491,7 @@ const BattleController = {
     },
 
     handleCanvasRightClick(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = this.getAdjustedClickPosition(e);
 
         // Cancel targeting mode
         if (this.targetingMode) {
@@ -430,11 +514,7 @@ const BattleController = {
     handleCanvasMouseMove(e) {
         if (!this.targetingMode) return;
 
-        const rect = this.canvas.getBoundingClientRect();
-        this.targetPosition = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-        };
+        this.targetPosition = this.getAdjustedClickPosition(e);
     },
 
     handleKeyDown(e) {
@@ -524,6 +604,9 @@ const BattleController = {
     // ==========================================
 
     startSkillTargeting(crew) {
+        // Block during pause
+        if (this.paused) return;
+
         if (!SkillSystem || !SkillSystem.isSkillReady(crew.id)) {
             return;
         }
@@ -535,6 +618,9 @@ const BattleController = {
     },
 
     startEquipmentTargeting(crew) {
+        // Block during pause
+        if (this.paused) return;
+
         if (!EquipmentEffects || !EquipmentEffects.canUse(crew.id)) {
             return;
         }
@@ -546,6 +632,9 @@ const BattleController = {
     },
 
     startRavenTargeting(abilityId) {
+        // Block during pause
+        if (this.paused) return;
+
         if (!RavenSystem || !RavenSystem.canUse(abilityId)) {
             return;
         }
@@ -698,11 +787,30 @@ const BattleController = {
         // Update screen shake
         this.updateScreenShake(dt);
 
-        // Update wave timer
-        if (this.enemies.length === 0 && this.waveNumber < this.totalWaves) {
-            this.waveTimer += dt;
-            if (this.waveTimer >= this.waveDelay) {
-                this.spawnNextWave();
+        // Update wave spawning
+        if (this.waveManager) {
+            // Use WaveManager for spawning
+            const difficulty = GameState.currentRun?.difficulty || 'normal';
+            this.waveManager.update(dt, difficulty);
+
+            // Check if wave is cleared and start next
+            if (this.waveManager.isWaveCleared(this.enemies) && !this.waveManager.isAllWavesComplete()) {
+                this.waveTimer += dt;
+                if (this.waveTimer >= this.waveDelay) {
+                    this.spawnNextWave();
+                }
+            }
+
+            // Update progress
+            const progress = this.waveManager.getProgress();
+            this.waveNumber = progress.currentWave;
+        } else {
+            // Fallback wave logic
+            if (this.enemies.length === 0 && this.waveNumber < this.totalWaves) {
+                this.waveTimer += dt;
+                if (this.waveTimer >= this.waveDelay) {
+                    this.spawnNextWave();
+                }
             }
         }
 
@@ -1036,12 +1144,25 @@ const BattleController = {
     },
 
     spawnNextWave() {
-        this.waveNumber++;
         this.waveTimer = 0;
 
+        // Use WaveManager if available
+        if (this.waveManager) {
+            const difficulty = GameState.currentRun?.difficulty || 'normal';
+            const started = this.waveManager.startNextWave(difficulty);
+
+            if (!started) {
+                // All waves complete
+                return;
+            }
+            return;
+        }
+
+        // Fallback spawning
+        this.waveNumber++;
         this.showWaveAnnouncement();
 
-        const enemyCount = 3 + this.waveNumber * 2 + this.battleInfo.difficulty;
+        const enemyCount = 3 + this.waveNumber * 2 + (this.battleInfo.difficulty || 1);
         const combatRng = this.rng.get('combat');
 
         this.stationLayout.spawnPoints.forEach(spawn => {
@@ -1073,16 +1194,30 @@ const BattleController = {
         });
     },
 
-    showWaveAnnouncement() {
+    showWaveAnnouncement(isBossWave = false) {
         if (this.elements.waveAnnouncement && this.elements.waveText) {
-            this.elements.waveText.textContent = this.battleInfo.type === 'boss'
-                ? '보스 등장!'
-                : `웨이브 ${this.waveNumber}/${this.totalWaves}`;
+            let text;
+            if (isBossWave || this.battleInfo.type === 'boss') {
+                text = '💀 보스 등장!';
+                this.elements.waveAnnouncement.classList.add('boss');
+            } else if (this.battleInfo.type === 'storm' || this.battleInfo.isStorm) {
+                text = `⚡ 웨이브 ${this.waveNumber}/${this.totalWaves}`;
+                this.elements.waveAnnouncement.classList.add('storm');
+            } else {
+                text = `웨이브 ${this.waveNumber}/${this.totalWaves}`;
+            }
+
+            this.elements.waveText.textContent = text;
             this.elements.waveAnnouncement.classList.add('active');
 
+            // Screen shake for boss
+            if (isBossWave || this.battleInfo.type === 'boss') {
+                this.screenShake(10, 500);
+            }
+
             setTimeout(() => {
-                this.elements.waveAnnouncement.classList.remove('active');
-            }, 2000);
+                this.elements.waveAnnouncement.classList.remove('active', 'boss', 'storm');
+            }, 2500);
         }
     },
 
@@ -1160,14 +1295,35 @@ const BattleController = {
     },
 
     checkBattleEnd() {
-        if (this.waveNumber >= this.totalWaves && this.enemies.length === 0) {
+        // Victory condition
+        const allWavesComplete = this.waveManager
+            ? this.waveManager.isAllWavesComplete() && this.enemies.length === 0
+            : this.waveNumber >= this.totalWaves && this.enemies.length === 0;
+
+        if (allWavesComplete) {
             this.endBattle(true);
             return;
         }
 
-        if (this.stationHealth <= 0 || this.crews.length === 0) {
+        // Defeat conditions
+        if (this.stationHealth <= 0) {
             this.endBattle(false);
             return;
+        }
+
+        if (this.crews.length === 0) {
+            this.endBattle(false);
+            return;
+        }
+
+        // Check facilities if using new station layout
+        if (this.stationLayout.facilities) {
+            const allFacilitiesDestroyed = this.stationLayout.facilities.every(f => f.destroyed);
+            if (allFacilitiesDestroyed) {
+                this.stationHealth = 0;
+                this.endBattle(false);
+                return;
+            }
         }
     },
 
@@ -1295,28 +1451,94 @@ const BattleController = {
     renderStation() {
         const ctx = this.ctx;
 
+        // Tile type colors (supports both old format and new StationGenerator format)
+        const tileColors = {
+            // Old format
+            'floor': '#1a1a2e',
+            'wall': '#2d2d44',
+            'cover': '#252538',
+            // New StationGenerator format (numeric types)
+            0: '#0a0a12',     // VOID - space
+            1: '#1a1a2e',     // FLOOR
+            2: '#2d2d44',     // WALL
+            3: '#1e3a5f',     // FACILITY
+            4: '#3d1a1a',     // AIRLOCK (spawn)
+            5: '#252538',     // ELEVATED (high ground)
+            6: '#12121a',     // LOWERED
+            7: '#1a1a2e',     // CORRIDOR
+        };
+
         for (let y = 0; y < this.stationLayout.height; y++) {
             for (let x = 0; x < this.stationLayout.width; x++) {
                 const tile = this.stationLayout.tiles[y][x];
                 const px = this.offsetX + x * this.tileSize;
                 const py = this.offsetY + y * this.tileSize;
 
-                switch (tile.type) {
-                    case 'floor':
-                        ctx.fillStyle = '#1a1a2e';
-                        break;
-                    case 'wall':
-                        ctx.fillStyle = '#2d2d44';
-                        break;
-                    case 'cover':
-                        ctx.fillStyle = '#252538';
-                        break;
-                }
-
+                // Support both object format ({type: 'floor'}) and numeric format
+                const tileType = typeof tile === 'object' ? tile.type : tile;
+                ctx.fillStyle = tileColors[tileType] || '#1a1a2e';
                 ctx.fillRect(px + 1, py + 1, this.tileSize - 2, this.tileSize - 2);
+
+                // Add visual indicators for special tiles
+                if (tileType === 5 || tileType === 'elevated') {
+                    // High ground indicator
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    ctx.fillRect(px + 1, py + 1, this.tileSize - 2, this.tileSize - 2);
+                } else if (tileType === 6 || tileType === 'lowered') {
+                    // Low ground shadow
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.fillRect(px + 1, py + 1, this.tileSize - 2, this.tileSize - 2);
+                }
             }
         }
 
+        // Render facilities with credit values
+        if (this.stationLayout.facilities) {
+            this.stationLayout.facilities.forEach(facility => {
+                if (facility.destroyed) return;
+
+                const px = this.offsetX + facility.x * this.tileSize;
+                const py = this.offsetY + facility.y * this.tileSize;
+                const width = (facility.width || 1) * this.tileSize;
+                const height = (facility.height || 1) * this.tileSize;
+
+                // Facility background
+                ctx.fillStyle = '#1e4d3d';
+                ctx.fillRect(px + 2, py + 2, width - 4, height - 4);
+
+                // Facility border
+                ctx.strokeStyle = '#48bb78';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(px + 2, py + 2, width - 4, height - 4);
+
+                // Credit value
+                if (facility.credits) {
+                    ctx.fillStyle = '#f6e05e';
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`$${facility.credits}`, px + width / 2, py + height / 2);
+                }
+
+                // Facility icon (if available)
+                if (facility.type) {
+                    const icons = {
+                        residential: '🏠',
+                        medical: '🏥',
+                        armory: '🔫',
+                        commTower: '📡',
+                        powerPlant: '⚡',
+                    };
+                    const icon = icons[facility.type];
+                    if (icon) {
+                        ctx.font = '12px sans-serif';
+                        ctx.fillText(icon, px + width / 2, py + height / 2 - 8);
+                    }
+                }
+            });
+        }
+
+        // Render spawn points
         this.stationLayout.spawnPoints.forEach(spawn => {
             const px = this.offsetX + spawn.x * this.tileSize + this.tileSize / 2;
             const py = this.offsetY + spawn.y * this.tileSize + this.tileSize / 2;
@@ -1325,6 +1547,18 @@ const BattleController = {
             ctx.beginPath();
             ctx.arc(px, py, this.tileSize / 2, 0, Math.PI * 2);
             ctx.fill();
+
+            // Direction indicator
+            if (spawn.direction) {
+                const dirs = { north: -Math.PI/2, south: Math.PI/2, east: 0, west: Math.PI };
+                const angle = dirs[spawn.direction] || 0;
+                ctx.strokeStyle = 'rgba(252, 129, 129, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(px + Math.cos(angle) * this.tileSize * 0.8, py + Math.sin(angle) * this.tileSize * 0.8);
+                ctx.stroke();
+            }
         });
     },
 
@@ -1721,6 +1955,145 @@ const BattleController = {
                 ctx.beginPath();
                 ctx.arc(effect.x, effect.y, 10 + 20 * progress, 0, Math.PI * 2);
                 ctx.stroke();
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'dash_trail':
+            case 'lance_trail':
+                ctx.strokeStyle = effect.color || '#4a9eff';
+                ctx.lineWidth = effect.type === 'lance_trail' ? 6 : 4;
+                ctx.globalAlpha = 1 - progress;
+                ctx.beginPath();
+                ctx.moveTo(effect.startX, effect.startY);
+                ctx.lineTo(effect.endX, effect.endY);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'scan_pulse':
+                ctx.strokeStyle = effect.color || '#4a9eff';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 1 - progress;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * progress, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'flare_drop':
+                const flareGradient = ctx.createRadialGradient(
+                    effect.x, effect.y, 0,
+                    effect.x, effect.y, effect.radius
+                );
+                flareGradient.addColorStop(0, `rgba(246, 173, 85, ${0.4 * (1 - progress * 0.5)})`);
+                flareGradient.addColorStop(1, 'rgba(246, 173, 85, 0)');
+                ctx.fillStyle = flareGradient;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            case 'supply_drop':
+                ctx.strokeStyle = effect.color || '#48bb78';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.globalAlpha = 1 - progress;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                // Falling crate icon
+                ctx.fillStyle = '#48bb78';
+                ctx.font = '20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('📦', effect.x, effect.y - (1 - progress) * 50);
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'mine_placed':
+                ctx.strokeStyle = '#68d391';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 1 - progress;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 15 * (1 - progress), 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'grenade_throw':
+                const throwProgress = Math.min(1, progress * 2);
+                const arcHeight = 50;
+                const grenadeX = effect.startX + (effect.endX - effect.startX) * throwProgress;
+                const grenadeY = effect.startY + (effect.endY - effect.startY) * throwProgress
+                    - Math.sin(throwProgress * Math.PI) * arcHeight;
+                ctx.fillStyle = '#4a5568';
+                ctx.beginPath();
+                ctx.arc(grenadeX, grenadeY, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                break;
+
+            case 'muzzle_flash':
+                ctx.fillStyle = effect.color || '#f6e05e';
+                ctx.globalAlpha = 1 - progress;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 8 * (1 - progress), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'stun_indicator':
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.globalAlpha = 0.5 + Math.sin(effect.timer / 100) * 0.5;
+                ctx.fillText('💫', effect.x, effect.y - 25);
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'revive':
+                ctx.strokeStyle = effect.color || '#68d391';
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 1 - progress;
+                // Rising rings
+                for (let i = 0; i < 3; i++) {
+                    const ringProgress = (progress + i * 0.2) % 1;
+                    ctx.beginPath();
+                    ctx.arc(effect.x, effect.y - ringProgress * 40, 15 * (1 - ringProgress), 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'shield_activate':
+                ctx.strokeStyle = effect.color || '#63b3ed';
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 1 - progress;
+                // Expanding shield bubble
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 30 + progress * 70, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = `rgba(99, 179, 237, ${0.2 * (1 - progress)})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 30 + progress * 70, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                break;
+
+            case 'hacking':
+                ctx.strokeStyle = effect.color || '#68d391';
+                ctx.lineWidth = 2;
+                // Rotating data streams
+                for (let i = 0; i < 4; i++) {
+                    const angle = (Math.PI * 2 / 4) * i + effect.timer / 200;
+                    ctx.globalAlpha = 0.5 + Math.sin(effect.timer / 100 + i) * 0.3;
+                    ctx.beginPath();
+                    ctx.moveTo(effect.x + Math.cos(angle) * 15, effect.y + Math.sin(angle) * 15);
+                    ctx.lineTo(effect.x + Math.cos(angle) * 30, effect.y + Math.sin(angle) * 30);
+                    ctx.stroke();
+                }
                 ctx.globalAlpha = 1;
                 break;
         }
