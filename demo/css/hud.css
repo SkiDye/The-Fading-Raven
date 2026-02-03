@@ -1,0 +1,659 @@
+/* ============================================
+   THE FADING RAVEN - HUD STYLES
+   ============================================ */
+
+/* ============================================
+   HUD CONTAINER
+   ============================================ */
+.hud-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.hud-container.hidden {
+    display: none;
+}
+
+.hud-container > * {
+    pointer-events: auto;
+}
+
+/* ============================================
+   TOP BAR
+   ============================================ */
+.hud-top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+}
+
+.hud-left,
+.hud-center,
+.hud-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Wave Info */
+.hud-wave-info {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    font-family: 'Consolas', monospace;
+}
+
+.hud-wave-info .wave-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    letter-spacing: 2px;
+    margin-right: 8px;
+}
+
+.hud-wave-info .wave-current {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.hud-wave-info .wave-separator {
+    color: var(--color-text-muted);
+}
+
+.hud-wave-info .wave-total {
+    font-size: 1rem;
+    color: var(--color-text-secondary);
+}
+
+/* Enemy Count */
+.hud-enemy-count {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(252, 129, 129, 0.2);
+    border: 1px solid var(--color-danger);
+    border-radius: 4px;
+}
+
+.hud-enemy-count .enemy-icon {
+    color: var(--color-danger);
+    font-weight: bold;
+}
+
+.hud-enemy-count .enemy-value {
+    color: var(--color-danger);
+    font-weight: bold;
+    font-family: 'Consolas', monospace;
+}
+
+.hud-enemy-count.warning {
+    animation: pulse 1s ease infinite;
+}
+
+/* Facility Status */
+.hud-facility-status {
+    display: flex;
+    gap: 8px;
+}
+
+.facility-icon {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-success);
+    border-radius: 4px;
+    background: rgba(72, 187, 120, 0.2);
+    overflow: hidden;
+}
+
+.facility-icon .facility-health {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-success);
+    transition: height 0.3s ease;
+}
+
+.facility-icon.danger {
+    border-color: var(--color-warning);
+}
+
+.facility-icon.danger .facility-health {
+    background: var(--color-warning);
+}
+
+.facility-icon.destroyed {
+    border-color: var(--color-danger);
+    background: rgba(252, 129, 129, 0.2);
+    opacity: 0.5;
+}
+
+.facility-icon.destroyed .facility-health {
+    display: none;
+}
+
+/* Credits */
+.hud-credits {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 4px;
+}
+
+.hud-credits .credits-icon {
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.hud-credits .credits-value {
+    color: #ffd700;
+    font-weight: bold;
+    font-family: 'Consolas', monospace;
+    font-size: 1.1rem;
+    min-width: 50px;
+}
+
+.hud-credits .credits-value.increase {
+    color: #48bb78;
+    animation: creditPop 0.3s ease;
+}
+
+.hud-credits .credits-value.decrease {
+    color: #fc8181;
+}
+
+@keyframes creditPop {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+/* Controls */
+.hud-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.hud-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.hud-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.hud-btn.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.hud-btn .pause-icon,
+.hud-btn .speed-icon {
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+/* ============================================
+   BOTTOM BAR
+   ============================================ */
+.hud-bottom-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 16px 20px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+}
+
+/* Crew List */
+.hud-crew-list {
+    display: flex;
+    gap: 10px;
+}
+
+.hud-crew-btn {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 3px solid var(--color-border);
+    background: var(--color-bg-section);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.hud-crew-btn:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-primary);
+}
+
+.hud-crew-btn.selected {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
+}
+
+.hud-crew-btn .crew-key {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 20px;
+    height: 20px;
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-secondary);
+}
+
+.hud-crew-btn .crew-initial {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: white;
+}
+
+.hud-crew-btn .crew-health-ring {
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: var(--color-success);
+    transform: rotate(-90deg);
+    clip-path: inset(0 calc(100% - var(--health, 100%)) 0 0);
+}
+
+/* Class Colors */
+.hud-crew-btn.guardian { background: linear-gradient(135deg, var(--color-guardian), #2d6bb3); }
+.hud-crew-btn.sentinel { background: linear-gradient(135deg, var(--color-sentinel), #c4792a); }
+.hud-crew-btn.ranger { background: linear-gradient(135deg, var(--color-ranger), #38a169); }
+.hud-crew-btn.engineer { background: linear-gradient(135deg, var(--color-engineer), #c45050); }
+.hud-crew-btn.bionic { background: linear-gradient(135deg, var(--color-bionic), #805ad5); }
+
+/* Health Status */
+.hud-crew-btn.wounded .crew-health-ring {
+    border-top-color: var(--color-warning);
+}
+
+.hud-crew-btn.critical {
+    animation: lowHealth 1s ease infinite;
+}
+
+.hud-crew-btn.critical .crew-health-ring {
+    border-top-color: var(--color-danger);
+}
+
+/* Crew Panel */
+.hud-crew-panel {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(18, 18, 31, 0.95);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    min-width: 320px;
+}
+
+.hud-crew-panel.hidden {
+    display: none;
+}
+
+.crew-panel-portrait {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.crew-panel-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+}
+
+.crew-panel-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.crew-panel-class {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.crew-panel-health {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.crew-panel-health .health-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--color-bg-dark);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.crew-panel-health .health-fill {
+    height: 100%;
+    background: var(--color-success);
+    transition: width 0.3s ease;
+}
+
+.crew-panel-health .health-fill.wounded {
+    background: var(--color-warning);
+}
+
+.crew-panel-health .health-fill.critical {
+    background: var(--color-danger);
+    animation: pulse 1s ease infinite;
+}
+
+.crew-panel-health .health-text {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    font-family: 'Consolas', monospace;
+    min-width: 50px;
+}
+
+.crew-panel-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.crew-panel-actions .skill-btn,
+.crew-panel-actions .equipment-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: all 0.2s ease;
+}
+
+.crew-panel-actions .skill-btn {
+    background: var(--color-primary);
+    color: white;
+}
+
+.crew-panel-actions .skill-btn:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+}
+
+.crew-panel-actions .equipment-btn {
+    background: var(--color-purple);
+    color: white;
+}
+
+.crew-panel-actions .equipment-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.crew-panel-actions button:disabled {
+    background: var(--color-text-muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.crew-panel-actions .skill-name,
+.crew-panel-actions .equipment-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.crew-panel-actions .skill-cooldown {
+    font-size: 0.7rem;
+    opacity: 0.8;
+}
+
+/* ============================================
+   WAVE ANNOUNCEMENT
+   ============================================ */
+.hud-wave-announce {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.5s ease;
+    pointer-events: none;
+}
+
+.hud-wave-announce.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.hud-wave-announce .wave-announce-text {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--color-primary);
+    text-shadow: 0 0 30px rgba(74, 158, 255, 0.8);
+    letter-spacing: 8px;
+    animation: waveAnnounce 2s ease forwards;
+}
+
+.hud-wave-announce .wave-announce-sub {
+    font-size: 1rem;
+    color: var(--color-text-secondary);
+    margin-top: 10px;
+    letter-spacing: 2px;
+}
+
+@keyframes waveAnnounce {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    20% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+    80% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   ALERTS
+   ============================================ */
+.hud-alerts {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.hud-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: rgba(18, 18, 31, 0.95);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.hud-alert.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.hud-alert .alert-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.hud-alert .alert-message {
+    font-size: 0.9rem;
+    color: var(--color-text);
+}
+
+.hud-alert-info .alert-icon {
+    background: var(--color-primary);
+    color: white;
+}
+
+.hud-alert-success {
+    border-color: var(--color-success);
+}
+
+.hud-alert-success .alert-icon {
+    background: var(--color-success);
+    color: white;
+}
+
+.hud-alert-warning {
+    border-color: var(--color-warning);
+}
+
+.hud-alert-warning .alert-icon {
+    background: var(--color-warning);
+    color: #1a1a2e;
+}
+
+.hud-alert-danger {
+    border-color: var(--color-danger);
+    animation: alertPulse 0.5s ease;
+}
+
+.hud-alert-danger .alert-icon {
+    background: var(--color-danger);
+    color: white;
+}
+
+@keyframes alertPulse {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(0) scale(1.05); }
+}
+
+/* ============================================
+   MINI MAP
+   ============================================ */
+.mini-map-container {
+    position: absolute;
+    bottom: 100px;
+    right: 20px;
+    background: rgba(18, 18, 31, 0.9);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.mini-map-canvas {
+    display: block;
+    border-radius: 4px;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    .hud-top-bar {
+        padding: 8px 12px;
+    }
+
+    .hud-center {
+        display: none;
+    }
+
+    .hud-bottom-bar {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .hud-crew-list {
+        justify-content: center;
+    }
+
+    .hud-crew-btn {
+        width: 48px;
+        height: 48px;
+    }
+
+    .hud-crew-panel {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .hud-wave-announce .wave-announce-text {
+        font-size: 2rem;
+    }
+}

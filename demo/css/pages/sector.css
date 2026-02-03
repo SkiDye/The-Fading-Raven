@@ -122,32 +122,43 @@
 
 /* Node Popup */
 .node-popup {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 380px;
-    background: var(--color-bg-panel);
-    border: 2px solid var(--color-primary);
-    border-radius: var(--radius-lg);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
     display: none;
-    z-index: var(--z-dropdown);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
-    animation: popupIn 0.2s ease-out;
+    justify-content: center;
+    align-items: center;
+    z-index: var(--z-modal);
+    padding: var(--space-lg);
 }
 
 .node-popup.active {
-    display: block;
+    display: flex;
+}
+
+.node-popup .modal-content {
+    width: 100%;
+    max-width: 360px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--color-bg-panel);
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    animation: popupIn 0.2s ease-out;
 }
 
 @keyframes popupIn {
     from {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(0.9);
+        transform: scale(0.9);
     }
     to {
         opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
+        transform: scale(1);
     }
 }
 
@@ -158,6 +169,7 @@
     padding: var(--space-md);
     background: var(--color-bg-section);
     border-bottom: 1px solid var(--color-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .node-icon {
@@ -204,23 +216,26 @@
 
 .popup-rewards {
     margin-top: var(--space-md);
-    padding: var(--space-md);
+    padding: var(--space-sm);
     background: rgba(72, 187, 120, 0.1);
     border-radius: var(--radius-sm);
     text-align: center;
     color: var(--color-success);
-    font-size: 1rem;
+    font-size: 0.9rem;
 }
 
-.popup-actions {
+.node-popup .modal-actions {
     display: flex;
-    gap: var(--space-md);
+    gap: var(--space-sm);
     padding: var(--space-md);
     border-top: 1px solid var(--color-border);
+    background: var(--color-bg-section);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
-.popup-actions button {
+.node-popup .modal-actions button {
     flex: 1;
+    padding: var(--space-sm) var(--space-md);
 }
 
 /* Bottom HUD - Crew Roster */
@@ -379,11 +394,162 @@
     color: var(--color-text-secondary);
 }
 
+/* L-011: Storm Node Detailed Info */
+.popup-storm-info {
+    margin: var(--space-md) 0;
+    padding: var(--space-md);
+    background: rgba(237, 137, 54, 0.1);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-md);
+}
+
+.popup-storm-info h4 {
+    color: var(--color-warning);
+    font-size: 0.95rem;
+    margin-bottom: var(--space-sm);
+    text-align: center;
+}
+
+.storm-risks, .storm-rewards {
+    margin-bottom: var(--space-sm);
+}
+
+.storm-risks:last-child, .storm-rewards:last-child {
+    margin-bottom: 0;
+}
+
+.risk-title {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--color-danger);
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+}
+
+.reward-title {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--color-success);
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+}
+
+.popup-storm-info ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.popup-storm-info li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    padding: 2px 0;
+}
+
+.risk-icon, .reward-icon {
+    font-size: 0.9rem;
+}
+
+/* Popup Warning */
+.popup-warning {
+    margin-top: var(--space-sm);
+    padding: var(--space-sm);
+    background: rgba(229, 62, 62, 0.1);
+    border-radius: var(--radius-sm);
+    color: var(--color-danger);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* L-012: Map Controls (Zoom/Pan) */
+.map-controls {
+    position: absolute;
+    top: var(--space-md);
+    right: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs);
+    z-index: 10;
+}
+
+.map-control-btn {
+    width: 44px;
+    height: 44px;
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    font-size: 1.4rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.map-control-btn:hover {
+    background: var(--color-bg-section);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.map-control-btn:active {
+    transform: scale(0.95);
+}
+
+.zoom-level {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-panel);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+}
+
+/* Depth Indicator */
+.depth-indicator {
+    position: absolute;
+    top: var(--space-md);
+    left: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    z-index: 10;
+}
+
+/* Pan Hint */
+.pan-hint {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--space-sm) var(--space-md);
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: 10;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .sector-hud {
         flex-wrap: wrap;
         gap: var(--space-sm);
+        padding: var(--space-sm);
     }
 
     .hud-center {
@@ -392,17 +558,153 @@
         text-align: center;
     }
 
+    .hud-center h1 {
+        font-size: 1.2rem;
+    }
+
+    .hud-left, .hud-right {
+        flex: 1;
+        justify-content: center;
+    }
+
     .stat-box {
-        min-width: 60px;
+        min-width: 70px;
         padding: var(--space-xs) var(--space-sm);
     }
 
-    .stat-value {
-        font-size: 1.1rem;
+    .stat-label {
+        font-size: 0.7rem;
     }
 
+    .stat-value {
+        font-size: 1rem;
+    }
+
+    .btn-hud {
+        padding: var(--space-xs) var(--space-sm);
+        font-size: 0.75rem;
+    }
+
+    /* Map Controls */
+    .map-controls {
+        top: var(--space-sm);
+        right: var(--space-sm);
+    }
+
+    .map-control-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+
+    .depth-indicator {
+        top: var(--space-sm);
+        left: var(--space-sm);
+        font-size: 0.8rem;
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    /* Node Popup */
     .node-popup {
-        width: 90%;
-        max-width: 320px;
+        padding: var(--space-md);
+    }
+
+    .node-popup .modal-content {
+        max-width: 100%;
+        max-height: 85vh;
+    }
+
+    .popup-header {
+        padding: var(--space-sm);
+    }
+
+    .popup-header h2 {
+        font-size: 1rem;
+    }
+
+    .popup-content {
+        padding: var(--space-sm);
+    }
+
+    .popup-desc {
+        font-size: 0.95rem;
+    }
+
+    .popup-stat {
+        font-size: 0.9rem;
+    }
+
+    /* Storm Info */
+    .popup-storm-info {
+        padding: var(--space-sm);
+        margin: var(--space-sm) 0;
+    }
+
+    .popup-storm-info h4 {
+        font-size: 0.8rem;
+    }
+
+    .popup-storm-info li {
+        font-size: 0.75rem;
+    }
+
+    .popup-rewards {
+        font-size: 0.85rem;
+        padding: var(--space-xs);
+    }
+
+    .node-popup .modal-actions {
+        padding: var(--space-sm);
+    }
+
+    /* Crew Roster */
+    .crew-roster {
+        gap: var(--space-sm);
+        padding: var(--space-xs) 0;
+    }
+
+    .crew-mini-card {
+        padding: var(--space-xs) var(--space-sm);
+        gap: var(--space-sm);
+    }
+
+    .crew-mini-card .crew-portrait {
+        width: 32px;
+        height: 32px;
+        font-size: 0.85rem;
+    }
+
+    .crew-mini-card .crew-name {
+        font-size: 0.85rem;
+    }
+
+    /* Storm Warning */
+    .storm-warning {
+        bottom: var(--space-md);
+        padding: var(--space-xs) var(--space-md);
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .hud-left, .hud-right {
+        gap: var(--space-xs);
+    }
+
+    .stat-box {
+        min-width: 55px;
+    }
+
+    .btn-hud {
+        padding: 6px 8px;
+        font-size: 0.7rem;
+    }
+
+    .crew-mini-card .crew-info {
+        display: none;
+    }
+
+    .crew-mini-card .crew-portrait {
+        margin: 0;
     }
 }

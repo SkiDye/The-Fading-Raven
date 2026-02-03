@@ -20,6 +20,7 @@ const DifficultyController = {
             modifiers: ['+25% 적 체력', '+20% 보상', '빠른 웨이브'],
             multiplier: 1.5,
             requiresUnlock: true,
+            unlockCondition: '보통 난이도 클리어',
         },
         veryhard: {
             name: '매우 어려움',
@@ -27,6 +28,7 @@ const DifficultyController = {
             modifiers: ['+50% 적 체력', '+40% 보상', '매우 빠른 웨이브', '정예 적 증가'],
             multiplier: 2.0,
             requiresUnlock: true,
+            unlockCondition: '어려움 난이도 클리어',
         },
         nightmare: {
             name: '악몽',
@@ -34,6 +36,7 @@ const DifficultyController = {
             modifiers: ['+100% 적 체력', '+80% 보상', '극한 웨이브', '보스 강화'],
             multiplier: 3.0,
             requiresUnlock: true,
+            unlockCondition: '매우 어려움 난이도 클리어',
         },
     },
 
@@ -105,6 +108,7 @@ const DifficultyController = {
                 card.classList.add('selected');
             }
 
+            const unlockText = diff.unlockCondition || '이전 난이도 클리어 필요';
             card.innerHTML = `
                 <div class="difficulty-header">
                     <h3 class="difficulty-name">${diff.name}</h3>
@@ -114,7 +118,7 @@ const DifficultyController = {
                 <ul class="difficulty-modifiers">
                     ${diff.modifiers.map(mod => `<li>${mod}</li>`).join('')}
                 </ul>
-                ${!isUnlocked ? '<div class="locked-overlay"><span>🔒 이전 난이도 클리어 필요</span></div>' : ''}
+                ${!isUnlocked ? `<div class="locked-overlay"><span>🔒 ${unlockText}</span></div>` : ''}
             `;
 
             if (isUnlocked) {

@@ -257,3 +257,624 @@
     margin-top: var(--space-xl);
     text-align: center;
 }
+
+/* Extended Stats (L-005) */
+.stat-breakdown {
+    grid-column: 1 / -1;
+    padding: var(--space-md);
+    background: var(--color-bg-section);
+    border-radius: var(--radius-md);
+    margin-top: var(--space-sm);
+}
+
+.stat-breakdown .stat-label {
+    display: block;
+    margin-bottom: var(--space-sm);
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+}
+
+.breakdown-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+}
+
+.enemy-type {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+/* Unlocks Panel */
+.unlocks-panel {
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+}
+
+.unlocks-panel h3 {
+    font-size: 0.9rem;
+    color: var(--color-primary);
+    letter-spacing: 2px;
+    margin-bottom: var(--space-md);
+    text-align: center;
+}
+
+.unlock-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: rgba(74, 158, 255, 0.1);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+    animation: unlockPulse 0.5s ease;
+}
+
+.unlock-item:last-child {
+    margin-bottom: 0;
+}
+
+.unlock-icon {
+    font-size: 1.5rem;
+}
+
+.unlock-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.unlock-text strong {
+    color: var(--color-primary);
+    font-size: 0.9rem;
+}
+
+.unlock-name {
+    color: var(--color-text);
+    font-size: 0.85rem;
+}
+
+.unlock-item.achievement {
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.unlock-item.achievement .unlock-text strong {
+    color: #ffd700;
+}
+
+@keyframes unlockPulse {
+    0% { transform: scale(0.9); opacity: 0; }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* M-012: Recruitment Panel */
+.recruitment-panel {
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-success);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+}
+
+.recruitment-panel h2 {
+    font-size: 0.9rem;
+    color: var(--color-success);
+    letter-spacing: 2px;
+    margin-bottom: var(--space-md);
+    text-align: center;
+}
+
+.recruitment-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.crew-card.new-recruit {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: rgba(72, 187, 120, 0.1);
+    border: 1px solid var(--color-success);
+    border-radius: var(--radius-md);
+}
+
+.crew-card .crew-portrait {
+    width: 60px;
+    height: 60px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white;
+}
+
+.crew-card .crew-portrait.guardian { background: var(--color-guardian); }
+.crew-card .crew-portrait.sentinel { background: var(--color-sentinel); }
+.crew-card .crew-portrait.ranger { background: var(--color-ranger); }
+.crew-card .crew-portrait.engineer { background: var(--color-engineer); }
+.crew-card .crew-portrait.bionic { background: var(--color-bionic); }
+
+.crew-details h3 {
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+}
+
+.crew-details .crew-class {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--color-bg-section);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.crew-details .crew-stats {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.crew-details .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--color-bg-dark);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+}
+
+.crew-details .stat .label {
+    color: var(--color-text-secondary);
+}
+
+.crew-details .stat .value {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.crew-details .crew-desc {
+    margin-top: var(--space-sm);
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+/* Crew Comparison */
+.crew-comparison h4 {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.comparison-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.comparison-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm);
+    background: var(--color-bg-section);
+    border-radius: var(--radius-sm);
+}
+
+.comparison-row.dead {
+    opacity: 0.5;
+}
+
+.crew-mini {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.crew-portrait-mini {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: white;
+}
+
+.crew-portrait-mini.guardian { background: var(--color-guardian); }
+.crew-portrait-mini.sentinel { background: var(--color-sentinel); }
+.crew-portrait-mini.ranger { background: var(--color-ranger); }
+.crew-portrait-mini.engineer { background: var(--color-engineer); }
+.crew-portrait-mini.bionic { background: var(--color-bionic); }
+
+.crew-mini .crew-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.crew-mini .crew-class {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+}
+
+.stat-comparison {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.stat-diff {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-dark);
+}
+
+.stat-diff.positive {
+    color: var(--color-success);
+}
+
+.stat-diff.negative {
+    color: var(--color-danger);
+}
+
+.crew-count {
+    margin-top: var(--space-sm);
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    text-align: right;
+}
+
+.recruitment-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-md);
+    margin-top: var(--space-md);
+}
+
+/* M-013: Equipment Panel */
+.equipment-panel {
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+}
+
+.equipment-panel h2 {
+    font-size: 0.9rem;
+    color: var(--color-warning);
+    letter-spacing: 2px;
+    margin-bottom: var(--space-md);
+    text-align: center;
+}
+
+.equipment-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.equipment-card {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: rgba(246, 173, 85, 0.1);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-md);
+}
+
+.equipment-card .equipment-icon {
+    width: 60px;
+    height: 60px;
+    background: var(--color-bg-section);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+.equipment-details h3 {
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+}
+
+.equipment-details .equipment-type {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--color-bg-section);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    color: var(--color-warning);
+    margin-bottom: var(--space-sm);
+}
+
+.equipment-details .equipment-desc {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.equipment-stats {
+    display: flex;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+}
+
+.equip-stat {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    background: var(--color-bg-dark);
+    border-radius: var(--radius-sm);
+}
+
+.equip-stat.positive {
+    color: var(--color-success);
+}
+
+.equip-stat.negative {
+    color: var(--color-danger);
+}
+
+/* Equip Options */
+.equip-options h4 {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.equip-crew-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.equip-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm);
+    background: var(--color-bg-section);
+    border-radius: var(--radius-sm);
+}
+
+.equip-option .crew-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.equip-option .crew-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.current-equip {
+    font-size: 0.8rem;
+}
+
+.current-equip .has-equip {
+    color: var(--color-text-secondary);
+}
+
+.current-equip .no-equip {
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.btn-equip {
+    padding: 4px 12px;
+    font-size: 0.8rem;
+}
+
+.equipment-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-md);
+    margin-top: var(--space-md);
+}
+
+.no-equipment, .no-crews, .no-comparison {
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-style: italic;
+    padding: var(--space-md);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+    .result-page {
+        padding: var(--space-md);
+    }
+
+    .result-wrapper {
+        max-width: 100%;
+    }
+
+    /* Header */
+    .result-header {
+        margin-bottom: var(--space-lg);
+    }
+
+    .result-header h1 {
+        font-size: 2rem;
+        letter-spacing: 3px;
+    }
+
+    .result-subtitle {
+        font-size: 0.95rem;
+    }
+
+    /* Main Content */
+    .result-main {
+        gap: var(--space-md);
+    }
+
+    .stats-panel, .rewards-panel, .crew-status-panel,
+    .recruitment-panel, .equipment-panel, .unlocks-panel {
+        padding: var(--space-md);
+        border-radius: var(--radius-md);
+    }
+
+    .stats-panel h2, .rewards-panel h2, .crew-status-panel h2 {
+        font-size: 0.8rem;
+        margin-bottom: var(--space-sm);
+    }
+
+    /* Stats */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-sm);
+    }
+
+    .stat-item {
+        padding: var(--space-sm);
+    }
+
+    .stat-value {
+        font-size: 1.2rem;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+    }
+
+    /* Rewards */
+    .reward-item {
+        padding: var(--space-sm);
+        gap: var(--space-sm);
+    }
+
+    .reward-icon {
+        font-size: 1.2rem;
+    }
+
+    .reward-text {
+        font-size: 0.9rem;
+    }
+
+    /* Crew Status */
+    .crew-result-card {
+        padding: var(--space-sm);
+        gap: var(--space-sm);
+    }
+
+    .crew-result-card .crew-portrait {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
+    /* Recruitment Panel */
+    .recruitment-panel, .equipment-panel {
+        padding: var(--space-md);
+    }
+
+    .crew-card.new-recruit {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .crew-card .crew-portrait {
+        width: 50px;
+        height: 50px;
+        font-size: 1.4rem;
+    }
+
+    .crew-details .crew-stats {
+        justify-content: center;
+    }
+
+    .comparison-row {
+        flex-direction: column;
+        gap: var(--space-xs);
+        align-items: stretch;
+    }
+
+    .stat-comparison {
+        justify-content: center;
+    }
+
+    .recruitment-actions,
+    .equipment-actions {
+        flex-direction: column;
+    }
+
+    .recruitment-actions button,
+    .equipment-actions button {
+        width: 100%;
+    }
+
+    /* Equipment Panel */
+    .equipment-card {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .equipment-card .equipment-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.6rem;
+    }
+
+    .equip-option {
+        flex-direction: column;
+        gap: var(--space-xs);
+        align-items: stretch;
+    }
+
+    .btn-equip {
+        width: 100%;
+        padding: var(--space-sm);
+    }
+
+    /* Footer */
+    .result-footer {
+        margin-top: var(--space-lg);
+    }
+
+    .result-footer button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .result-header h1 {
+        font-size: 1.6rem;
+    }
+
+    .stats-grid {
+        gap: var(--space-xs);
+    }
+
+    .stat-item {
+        padding: var(--space-xs);
+    }
+
+    .stat-value {
+        font-size: 1rem;
+    }
+
+    .crew-details .stat {
+        padding: 4px 6px;
+        font-size: 0.7rem;
+    }
+}

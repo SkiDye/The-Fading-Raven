@@ -5,8 +5,8 @@
 .difficulty-wrapper {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    padding: var(--space-xl);
+    min-height: 100%;
+    padding: var(--space-lg);
     max-width: 1000px;
     margin: 0 auto;
 }
@@ -37,8 +37,9 @@
 .difficulty-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-lg);
+    gap: var(--space-md);
     flex: 1;
+    align-content: start;
 }
 
 .difficulty-card {
@@ -206,15 +207,33 @@
 .page-footer {
     display: flex;
     justify-content: center;
-    gap: var(--space-lg);
-    margin-top: var(--space-xl);
-    padding: var(--space-md);
+    gap: var(--space-md);
+    margin-top: var(--space-lg);
+    padding: var(--space-md) 0;
+    flex-shrink: 0;
+}
+
+.page-footer .btn {
+    min-width: 120px;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
+    .difficulty-wrapper {
+        padding: var(--space-md);
+    }
+
+    .page-header {
+        margin-bottom: var(--space-lg);
+    }
+
+    .page-header h1 {
+        font-size: 1.4rem;
+    }
+
     .difficulty-grid {
         grid-template-columns: 1fr;
+        gap: var(--space-sm);
     }
 
     .difficulty-card {
@@ -223,9 +242,55 @@
 
     .diff-icon {
         font-size: 2rem;
+        margin-bottom: var(--space-sm);
     }
 
-    .diff-name {
+    .diff-name,
+    .difficulty-name {
+        font-size: 1.1rem;
+    }
+
+    .diff-features li,
+    .difficulty-modifiers li {
+        font-size: 0.85rem;
+    }
+
+    .difficulty-modifiers {
+        padding: var(--space-sm);
+    }
+
+    .page-footer {
+        flex-direction: row;
+        gap: var(--space-sm);
+        padding: var(--space-sm) 0;
+        margin-top: var(--space-md);
+    }
+
+    .page-footer .btn {
+        flex: 1;
+        min-width: auto;
+        padding: var(--space-sm) var(--space-md);
+    }
+}
+
+@media (max-width: 480px) {
+    .difficulty-wrapper {
+        padding: var(--space-sm);
+    }
+
+    .page-header h1 {
         font-size: 1.2rem;
+    }
+
+    .seed-display {
+        font-size: 0.9rem;
+    }
+
+    .difficulty-card {
+        padding: var(--space-sm);
+    }
+
+    .diff-icon {
+        font-size: 1.5rem;
     }
 }

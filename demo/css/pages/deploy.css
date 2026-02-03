@@ -386,22 +386,145 @@
     color: var(--color-text-secondary);
 }
 
-/* Responsive */
+/* Responsive - Tablet */
+@media (max-width: 1024px) {
+    .deploy-sidebar {
+        width: 300px;
+        padding: var(--space-md);
+    }
+
+    .crew-list {
+        max-height: 250px;
+    }
+}
+
+/* Responsive - Mobile */
 @media (max-width: 768px) {
+    .deploy-header {
+        flex-direction: column;
+        gap: var(--space-sm);
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .header-left {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .header-left h1 {
+        font-size: 1.2rem;
+    }
+
+    .wave-preview {
+        width: 100%;
+        justify-content: center;
+    }
+
     .deploy-main {
         flex-direction: column;
     }
 
+    .station-map-container {
+        flex: 1;
+        min-height: 40vh;
+        padding: var(--space-sm);
+    }
+
     .deploy-sidebar {
         width: 100%;
-        max-height: 40vh;
+        max-height: 45vh;
         border-left: none;
         border-top: 1px solid var(--color-border);
+        padding: var(--space-md);
+        overflow-y: auto;
+    }
+
+    .sidebar-section h3 {
+        font-size: 0.9rem;
+        margin-bottom: var(--space-sm);
+    }
+
+    .crew-list {
+        max-height: 150px;
+        gap: var(--space-xs);
+    }
+
+    .crew-card,
+    .crew-deploy-card {
+        padding: var(--space-sm);
+        gap: var(--space-sm);
+    }
+
+    .crew-portrait {
+        width: 36px;
+        height: 36px;
+    }
+
+    .crew-card-name,
+    .crew-deploy-card .crew-name {
+        font-size: 0.85rem;
+    }
+
+    .crew-card-class,
+    .crew-deploy-card .crew-class {
+        font-size: 0.75rem;
+    }
+
+    .sidebar-actions {
+        padding-top: var(--space-sm);
+    }
+
+    .sidebar-actions .btn-primary,
+    .sidebar-actions .btn-secondary {
+        padding: var(--space-sm) var(--space-md);
+        font-size: 0.9rem;
     }
 
     .selected-crew-panel {
         left: 50%;
         transform: translateX(-50%);
-        bottom: calc(40vh + var(--space-md));
+        bottom: calc(45vh + var(--space-sm));
+        padding: var(--space-sm);
+        gap: var(--space-sm);
+    }
+
+    .selected-crew-panel .crew-portrait {
+        width: 40px;
+        height: 40px;
+    }
+
+    .battle-info {
+        padding: var(--space-sm);
+    }
+
+    .battle-info .info-item {
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .deploy-sidebar {
+        max-height: 50vh;
+        padding: var(--space-sm);
+    }
+
+    .crew-list {
+        flex-direction: row;
+        flex-wrap: wrap;
+        max-height: 120px;
+    }
+
+    .crew-card,
+    .crew-deploy-card {
+        flex: 1 1 calc(50% - var(--space-xs));
+        min-width: 140px;
+    }
+
+    .deployment-info {
+        padding: var(--space-sm);
+    }
+
+    .info-text {
+        font-size: 0.8rem;
     }
 }

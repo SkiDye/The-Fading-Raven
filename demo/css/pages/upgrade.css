@@ -57,8 +57,8 @@
 
 .crew-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--space-lg);
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-md);
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -348,14 +348,132 @@
     margin-top: var(--space-lg);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* Responsive - Tablet */
+@media (max-width: 1024px) {
+    .upgrade-main {
+        padding: var(--space-md);
+    }
+
+    .crew-grid {
+        gap: var(--space-md);
+    }
+
     .detail-panel {
-        width: 100%;
-        right: -100%;
+        width: 340px;
+    }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 768px) {
+    .upgrade-header {
+        flex-direction: column;
+        gap: var(--space-sm);
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .upgrade-header h1 {
+        font-size: 1.1rem;
+    }
+
+    .credits-display {
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    .credits-value {
+        font-size: 1.1rem;
+    }
+
+    .upgrade-main {
+        padding: var(--space-sm);
     }
 
     .crew-grid {
         grid-template-columns: 1fr;
+        gap: var(--space-sm);
+    }
+
+    .upgrade-card {
+        border-radius: var(--radius-md);
+    }
+
+    .card-header {
+        padding: var(--space-sm);
+        gap: var(--space-sm);
+    }
+
+    .card-portrait {
+        width: 44px;
+        height: 44px;
+        font-size: 1rem;
+    }
+
+    .card-name {
+        font-size: 0.95rem;
+    }
+
+    .card-body {
+        padding: var(--space-sm);
+    }
+
+    .card-stats {
+        gap: var(--space-sm);
+    }
+
+    .card-stat {
+        padding: var(--space-xs);
+    }
+
+    .card-stat-value {
+        font-size: 0.95rem;
+    }
+
+    .card-stat-label {
+        font-size: 0.65rem;
+    }
+
+    /* Detail Panel */
+    .detail-panel {
+        width: 100%;
+        right: -100%;
+        padding: var(--space-md);
+    }
+
+    .detail-header {
+        gap: var(--space-sm);
+        margin-bottom: var(--space-md);
+        padding-bottom: var(--space-md);
+    }
+
+    .crew-portrait.large {
+        width: 60px;
+        height: 60px;
+    }
+
+    .portrait-letter {
+        font-size: 1.5rem;
+    }
+
+    .crew-basic-info h2 {
+        font-size: 1rem;
+    }
+
+    .upgrade-option {
+        flex-direction: column;
+        gap: var(--space-sm);
+        align-items: stretch;
+    }
+
+    .btn-upgrade {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .card-stats {
+        flex-wrap: wrap;
+    }
+
+    .card-stat {
+        flex: 1 1 calc(50% - var(--space-xs));
     }
 }

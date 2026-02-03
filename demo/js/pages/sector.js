@@ -1,12 +1,39 @@
 /**
  * THE FADING RAVEN - Sector Map Controller
  * Handles sector map navigation and node selection
+ * Integrates with SectorGenerator for DAG-based map generation
  */
 
 const SectorController = {
     elements: {},
     selectedNode: null,
     rng: null,
+    nodePositions: [],
+
+    // L-012: Zoom/Pan state
+    zoom: 1.0,
+    panX: 0,
+    panY: 0,
+    isDragging: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    lastPanX: 0,
+    lastPanY: 0,
+    MIN_ZOOM: 0.5,
+    MAX_ZOOM: 2.0,
+    ZOOM_STEP: 0.1,
+
+    // Node type display configuration
+    NODE_CONFIG: {
+        start: { color: '#48bb78', icon: '🚀', name: '출발점' },
+        battle: { color: '#4a9eff', icon: '⚔️', name: '전투' },
+        commander: { color: '#f6e05e', icon: '🚩', name: '팀장 영입' },
+        equipment: { color: '#9f7aea', icon: '❓', name: '장비 획득' },
+        storm: { color: '#ed8936', icon: '⚡', name: '폭풍 스테이지' },
+        boss: { color: '#e53e3e', icon: '💀', name: '보스 전투' },
+        rest: { color: '#fc8181', icon: '💚', name: '휴식' },
+        gate: { color: '#38b2ac', icon: '🚪', name: '점프 게이트' },
+    },
 
     init() {
         this.checkActiveRun();
@@ -29,11 +56,17 @@ const SectorController = {
     cacheElements() {
         this.elements = {
             mapCanvas: document.getElementById('sector-map-canvas'),
+            mapContainer: document.getElementById('map-container'),
             nodePopup: document.getElementById('node-popup'),
             popupTitle: document.getElementById('popup-title'),
             popupDesc: document.getElementById('popup-desc'),
             popupReward: document.getElementById('popup-reward'),
             popupDifficulty: document.getElementById('popup-difficulty'),
+            popupWarning: document.getElementById('popup-warning'),
+            // L-011: Storm info elements
+            popupStormInfo: document.getElementById('popup-storm-info'),
+            stormRisksList: document.getElementById('storm-risks-list'),
+            stormRewardsList: document.getElementById('storm-rewards-list'),
             btnEnterNode: document.getElementById('btn-enter-node'),
             btnCancelNode: document.getElementById('btn-cancel-node'),
             turnDisplay: document.getElementById('turn-display'),
@@ -42,12 +75,21 @@ const SectorController = {
             stormWarning: document.getElementById('storm-warning'),
             stormTurns: document.getElementById('storm-turns'),
             btnMenu: document.getElementById('btn-menu'),
+            depthDisplay: document.getElementById('depth-display'),
+            // L-012: Zoom/Pan elements
+            btnZoomIn: document.getElementById('btn-zoom-in'),
+            btnZoomOut: document.getElementById('btn-zoom-out'),
+            btnZoomReset: document.getElementById('btn-zoom-reset'),
+            zoomLevel: document.getElementById('zoom-level'),
+            panHint: document.getElementById('pan-hint'),
         };
     },
 
     bindEvents() {
         // Canvas click
-        this.elements.mapCanvas?.addEventListener('click', (e) => this.handleMapClick(e));
+        this.elements.mapCanvas?.addEventListener('click', (e) => {
+            if (!this.isDragging) this.handleMapClick(e);
+        });
 
         // Node popup
         this.elements.btnEnterNode?.addEventListener('click', () => this.enterSelectedNode());
@@ -63,6 +105,35 @@ const SectorController = {
             }
         });
 
+        // L-012: Zoom controls
+        this.elements.btnZoomIn?.addEventListener('click', () => this.zoomIn());
+        this.elements.btnZoomOut?.addEventListener('click', () => this.zoomOut());
+        this.elements.btnZoomReset?.addEventListener('click', () => this.resetZoom());
+
+        // L-012: Mouse wheel zoom
+        this.elements.mapCanvas?.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                this.zoomIn();
+            } else {
+                this.zoomOut();
+            }
+        }, { passive: false });
+
+        // L-012: Pan with mouse drag
+        this.elements.mapCanvas?.addEventListener('mousedown', (e) => this.startPan(e));
+        this.elements.mapCanvas?.addEventListener('mousemove', (e) => this.doPan(e));
+        this.elements.mapCanvas?.addEventListener('mouseup', () => this.endPan());
+        this.elements.mapCanvas?.addEventListener('mouseleave', () => this.endPan());
+
+        // L-012: Touch pan support
+        this.elements.mapCanvas?.addEventListener('touchstart', (e) => this.startPan(e.touches[0]));
+        this.elements.mapCanvas?.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            this.doPan(e.touches[0]);
+        }, { passive: false });
+        this.elements.mapCanvas?.addEventListener('touchend', () => this.endPan());
+
         // Keyboard
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -72,6 +143,10 @@ const SectorController = {
                     this.showPauseMenu();
                 }
             }
+            // L-012: Keyboard zoom
+            if (e.key === '+' || e.key === '=') this.zoomIn();
+            if (e.key === '-') this.zoomOut();
+            if (e.key === '0') this.resetZoom();
         });
 
         // Window resize
@@ -88,255 +163,218 @@ const SectorController = {
         if (!GameState.currentRun) return;
 
         if (!GameState.currentRun.sectorMap) {
-            GameState.currentRun.sectorMap = this.generateSectorMap();
+            // Use new SectorGenerator
+            const mapRng = this.rng.get('sectorMap');
+            const difficulty = GameState.currentRun.difficulty || 'normal';
+
+            GameState.currentRun.sectorMap = SectorGenerator.generate(mapRng, difficulty);
             GameState.saveCurrentRun();
         }
     },
 
-    generateSectorMap() {
-        const mapRng = this.rng.get('sectorMap');
-        const rows = 7;
-        const nodesPerRow = [1, 2, 3, 3, 3, 2, 1];
-        const nodeTypes = ['battle', 'elite', 'shop', 'event', 'rest'];
-
-        const nodes = [];
-        let nodeId = 0;
-
-        // Generate nodes for each row
-        for (let row = 0; row < rows; row++) {
-            const rowNodes = [];
-            const numNodes = nodesPerRow[row];
-
-            for (let i = 0; i < numNodes; i++) {
-                let type;
-                if (row === 0) {
-                    type = 'start';
-                } else if (row === rows - 1) {
-                    type = 'boss';
-                } else {
-                    // Weight node types
-                    const weights = [50, 10, 15, 15, 10]; // battle, elite, shop, event, rest
-                    type = mapRng.weightedPick(nodeTypes, weights);
-                }
-
-                const node = {
-                    id: nodeId++,
-                    row: row,
-                    col: i,
-                    type: type,
-                    connections: [],
-                    visited: row === 0, // Start node is visited
-                    accessible: row === 0 || row === 1, // First two rows accessible
-                    reward: this.generateNodeReward(type, row, mapRng),
-                    difficulty: Math.min(row + 1, 5),
-                    name: this.getNodeName(type, mapRng),
-                };
-
-                rowNodes.push(node);
-            }
-
-            nodes.push(rowNodes);
-        }
-
-        // Generate connections
-        for (let row = 0; row < rows - 1; row++) {
-            const currentRow = nodes[row];
-            const nextRow = nodes[row + 1];
-
-            currentRow.forEach((node, i) => {
-                // Connect to nodes in next row
-                const connections = [];
-                const startIdx = Math.max(0, i - 1);
-                const endIdx = Math.min(nextRow.length - 1, i + 1);
-
-                for (let j = startIdx; j <= endIdx; j++) {
-                    if (mapRng.chance(0.7) || connections.length === 0) {
-                        connections.push(nextRow[j].id);
-                    }
-                }
-
-                node.connections = connections;
-            });
-        }
-
-        // Set current node to start
-        if (!GameState.currentRun.currentNodeId) {
-            GameState.currentRun.currentNodeId = 0;
-            GameState.currentRun.visitedNodes = [0];
-        }
-
-        return nodes;
-    },
-
-    generateNodeReward(type, row, rng) {
-        const baseReward = 50 + row * 25;
-        switch (type) {
-            case 'battle':
-                return { credits: rng.range(baseReward, baseReward + 30) };
-            case 'elite':
-                return { credits: rng.range(baseReward * 1.5, baseReward * 2), equipment: true };
-            case 'boss':
-                return { credits: baseReward * 3, equipment: true };
-            case 'shop':
-                return { shop: true };
-            case 'event':
-                return { event: true };
-            case 'rest':
-                return { heal: true };
-            default:
-                return {};
-        }
-    },
-
-    getNodeName(type, rng) {
-        const names = {
-            start: ['출발점'],
-            battle: ['우주 정거장', '채굴 기지', '보급 정거장', '통신 중계소', '연구 시설'],
-            elite: ['강화된 기지', '요새화된 정거장', '전략 거점'],
-            shop: ['무역 허브', '상인 정거장', '암시장'],
-            event: ['표류 우주선', '이상 신호', '미확인 객체', '긴급 구조 신호'],
-            rest: ['안전 지대', '은신처', '수리 시설'],
-            boss: ['적 본거지'],
-        };
-        return rng.pick(names[type] || ['알 수 없음']);
-    },
+    // ==========================================
+    // RENDERING
+    // ==========================================
 
     renderMap() {
         const canvas = this.elements.mapCanvas;
-        if (!canvas || !GameState.currentRun?.sectorMap) return;
+        const sectorMap = GameState.currentRun?.sectorMap;
+        if (!canvas || !sectorMap) return;
 
         const ctx = canvas.getContext('2d');
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width;
         canvas.height = rect.height;
 
-        const map = GameState.currentRun.sectorMap;
-        const padding = 60;
-        const rowHeight = (canvas.height - padding * 2) / (map.length - 1);
+        const padding = 40;
+        const totalDepth = sectorMap.totalDepth;
+        // Limit vertical spacing for more compact map
+        const maxDepthHeight = 60;
+        const calculatedDepthHeight = (canvas.height - padding * 2) / totalDepth;
+        const depthHeight = Math.min(maxDepthHeight, calculatedDepthHeight);
 
         // Clear canvas
         ctx.fillStyle = '#0a0a12';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+        // L-012: Apply zoom and pan transformations
+        ctx.save();
+        ctx.translate(canvas.width / 2 + this.panX, canvas.height / 2 + this.panY);
+        ctx.scale(this.zoom, this.zoom);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
         // Draw grid lines (subtle)
+        this._drawGridLines(ctx, canvas);
+
+        // Draw storm front
+        this._drawStormFront(ctx, canvas, sectorMap, padding, depthHeight);
+
+        // Reset node positions
+        this.nodePositions = [];
+
+        // Group nodes by depth for rendering
+        const nodesByDepth = this._groupNodesByDepth(sectorMap.nodes);
+
+        // Draw connections first
+        this._drawConnections(ctx, sectorMap.nodes, nodesByDepth, canvas, padding, depthHeight);
+
+        // Draw nodes
+        this._drawNodes(ctx, sectorMap.nodes, nodesByDepth, canvas, padding, depthHeight);
+
+        // L-012: Restore canvas state
+        ctx.restore();
+
+        // Update cursor style based on zoom level
+        if (this.zoom > 1 && !this.isDragging) {
+            canvas.style.cursor = 'grab';
+        } else if (!this.isDragging) {
+            canvas.style.cursor = 'pointer';
+        }
+    },
+
+    _drawGridLines(ctx, canvas) {
         ctx.strokeStyle = 'rgba(74, 158, 255, 0.05)';
         ctx.lineWidth = 1;
-        for (let i = 0; i < 10; i++) {
-            const y = (canvas.height / 10) * i;
+        for (let i = 0; i < 20; i++) {
+            const y = (canvas.height / 20) * i;
             ctx.beginPath();
             ctx.moveTo(0, y);
             ctx.lineTo(canvas.width, y);
             ctx.stroke();
         }
+    },
 
-        // Draw storm line
-        const stormLine = GameState.currentRun.stormLine || 0;
-        if (stormLine > 0) {
-            const stormY = padding + rowHeight * (stormLine - 1);
-            ctx.fillStyle = 'rgba(252, 129, 129, 0.1)';
+    _drawStormFront(ctx, canvas, sectorMap, padding, depthHeight) {
+        const stormPosition = sectorMap.stormFrontPosition || 0;
+        if (stormPosition > 0) {
+            const stormY = padding + depthHeight * stormPosition;
+
+            // Consumed area
+            ctx.fillStyle = 'rgba(252, 129, 129, 0.15)';
             ctx.fillRect(0, 0, canvas.width, stormY);
 
-            ctx.strokeStyle = 'rgba(252, 129, 129, 0.5)';
-            ctx.lineWidth = 2;
+            // Storm line
+            ctx.strokeStyle = 'rgba(252, 129, 129, 0.7)';
+            ctx.lineWidth = 3;
             ctx.setLineDash([10, 5]);
             ctx.beginPath();
             ctx.moveTo(0, stormY);
             ctx.lineTo(canvas.width, stormY);
             ctx.stroke();
             ctx.setLineDash([]);
+
+            // Warning zone (next depth to be consumed)
+            const warningY = stormY + depthHeight;
+            ctx.fillStyle = 'rgba(252, 129, 129, 0.05)';
+            ctx.fillRect(0, stormY, canvas.width, depthHeight);
         }
-
-        // Store node positions for click detection
-        this.nodePositions = [];
-
-        // Draw connections first
-        map.forEach((row, rowIndex) => {
-            row.forEach((node) => {
-                const x = this.getNodeX(node.col, row.length, canvas.width, padding);
-                const y = padding + rowIndex * rowHeight;
-
-                node.connections.forEach(targetId => {
-                    const targetNode = this.findNodeById(targetId, map);
-                    if (targetNode) {
-                        const targetRow = map[targetNode.row];
-                        const tx = this.getNodeX(targetNode.col, targetRow.length, canvas.width, padding);
-                        const ty = padding + targetNode.row * rowHeight;
-
-                        ctx.strokeStyle = node.visited ? 'rgba(74, 158, 255, 0.5)' : 'rgba(74, 158, 255, 0.2)';
-                        ctx.lineWidth = node.visited ? 2 : 1;
-                        ctx.beginPath();
-                        ctx.moveTo(x, y);
-                        ctx.lineTo(tx, ty);
-                        ctx.stroke();
-                    }
-                });
-            });
-        });
-
-        // Draw nodes
-        map.forEach((row, rowIndex) => {
-            row.forEach((node) => {
-                const x = this.getNodeX(node.col, row.length, canvas.width, padding);
-                const y = padding + rowIndex * rowHeight;
-                const radius = node.type === 'boss' ? 25 : 20;
-
-                this.nodePositions.push({ node, x, y, radius });
-                this.drawNode(ctx, node, x, y, radius);
-            });
-        });
     },
 
-    getNodeX(col, totalInRow, canvasWidth, padding) {
-        if (totalInRow === 1) {
-            return canvasWidth / 2;
-        }
-        const availableWidth = canvasWidth - padding * 2;
-        const spacing = availableWidth / (totalInRow - 1);
-        return padding + col * spacing;
-    },
-
-    findNodeById(id, map) {
-        for (const row of map) {
-            for (const node of row) {
-                if (node.id === id) return node;
+    _groupNodesByDepth(nodes) {
+        const grouped = {};
+        nodes.forEach(node => {
+            if (!grouped[node.depth]) {
+                grouped[node.depth] = [];
             }
-        }
-        return null;
+            grouped[node.depth].push(node);
+        });
+        return grouped;
     },
 
-    drawNode(ctx, node, x, y, radius) {
-        const colors = {
-            start: '#48bb78',
-            battle: '#4a9eff',
-            elite: '#f6ad55',
-            shop: '#68d391',
-            event: '#9f7aea',
-            rest: '#fc8181',
-            boss: '#e53e3e',
-        };
+    _drawConnections(ctx, nodes, nodesByDepth, canvas, padding, depthHeight) {
+        nodes.forEach(node => {
+            const pos = this._getNodePosition(node, nodesByDepth, canvas, padding, depthHeight);
 
-        const color = colors[node.type] || '#4a9eff';
-        const isAccessible = this.isNodeAccessible(node);
-        const isCurrent = node.id === GameState.currentRun.currentNodeId;
+            node.connections.forEach(targetId => {
+                const targetNode = nodes.find(n => n.id === targetId);
+                if (!targetNode) return;
 
-        // Node glow for accessible nodes
-        if (isAccessible && !node.visited) {
-            ctx.shadowColor = color;
-            ctx.shadowBlur = 15;
+                const targetPos = this._getNodePosition(targetNode, nodesByDepth, canvas, padding, depthHeight);
+
+                // Connection style based on visited state
+                if (node.visited) {
+                    ctx.strokeStyle = 'rgba(74, 158, 255, 0.6)';
+                    ctx.lineWidth = 2;
+                } else if (node.accessible) {
+                    ctx.strokeStyle = 'rgba(74, 158, 255, 0.4)';
+                    ctx.lineWidth = 1.5;
+                } else {
+                    ctx.strokeStyle = 'rgba(74, 158, 255, 0.15)';
+                    ctx.lineWidth = 1;
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                ctx.lineTo(targetPos.x, targetPos.y);
+                ctx.stroke();
+            });
+        });
+    },
+
+    _drawNodes(ctx, nodes, nodesByDepth, canvas, padding, depthHeight) {
+        nodes.forEach(node => {
+            const pos = this._getNodePosition(node, nodesByDepth, canvas, padding, depthHeight);
+            const config = this.NODE_CONFIG[node.type] || this.NODE_CONFIG.battle;
+            const radius = node.type === 'boss' || node.type === 'gate' ? 22 : 18;
+
+            // Store position for click detection
+            this.nodePositions.push({ node, x: pos.x, y: pos.y, radius });
+
+            // Draw node
+            this._drawNode(ctx, node, pos.x, pos.y, radius, config);
+        });
+    },
+
+    _getNodePosition(node, nodesByDepth, canvas, padding, depthHeight) {
+        const depthNodes = nodesByDepth[node.depth] || [node];
+        const nodeIndex = depthNodes.indexOf(node);
+        const nodesInDepth = depthNodes.length;
+
+        const y = padding + node.depth * depthHeight;
+        let x;
+
+        const centerX = canvas.width / 2;
+
+        if (nodesInDepth === 1) {
+            x = centerX;
+        } else {
+            // Limit max spread to prevent spider-web effect
+            const maxSpread = Math.min(canvas.width - padding * 2, 400);
+            const nodeSpacing = Math.min(80, maxSpread / (nodesInDepth - 1));
+            const totalWidth = nodeSpacing * (nodesInDepth - 1);
+            const startX = centerX - totalWidth / 2;
+            x = startX + nodeIndex * nodeSpacing;
+        }
+
+        return { x, y };
+    },
+
+    _drawNode(ctx, node, x, y, radius, config) {
+        const isAccessible = node.accessible && !node.visited && !node.consumed;
+        const isCurrent = node.id === GameState.currentRun?.sectorMap?.currentNodeId;
+        const isConsumed = node.consumed;
+
+        // Glow effect for accessible nodes
+        if (isAccessible) {
+            ctx.shadowColor = config.color;
+            ctx.shadowBlur = 20;
         }
 
         // Node circle
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
 
-        if (node.visited) {
+        if (isConsumed) {
+            ctx.fillStyle = 'rgba(50, 50, 50, 0.5)';
+            ctx.strokeStyle = 'rgba(252, 129, 129, 0.3)';
+        } else if (node.visited) {
             ctx.fillStyle = 'rgba(30, 30, 50, 0.8)';
-            ctx.strokeStyle = 'rgba(74, 158, 255, 0.3)';
+            ctx.strokeStyle = 'rgba(74, 158, 255, 0.4)';
         } else if (isAccessible) {
-            ctx.fillStyle = color;
+            ctx.fillStyle = config.color;
             ctx.strokeStyle = '#fff';
         } else {
-            ctx.fillStyle = 'rgba(30, 30, 50, 0.5)';
+            ctx.fillStyle = 'rgba(30, 30, 50, 0.6)';
             ctx.strokeStyle = 'rgba(74, 158, 255, 0.2)';
         }
 
@@ -346,53 +384,58 @@ const SectorController = {
         ctx.shadowBlur = 0;
 
         // Node icon
-        const icons = {
-            start: '🚀',
-            battle: '⚔️',
-            elite: '💀',
-            shop: '🛒',
-            event: '❓',
-            rest: '💚',
-            boss: '👹',
-        };
-
-        ctx.font = `${radius * 0.8}px Arial`;
+        ctx.font = `${radius * 0.9}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = node.visited ? 'rgba(255,255,255,0.3)' : '#fff';
-        ctx.fillText(icons[node.type] || '●', x, y);
+        ctx.fillStyle = isConsumed ? 'rgba(255,255,255,0.2)' :
+                        node.visited ? 'rgba(255,255,255,0.4)' : '#fff';
+        ctx.fillText(config.icon, x, y);
 
-        // Current indicator
+        // Current position indicator
         if (isCurrent) {
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
-            ctx.setLineDash([4, 4]);
+            ctx.setLineDash([5, 3]);
             ctx.beginPath();
             ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
         }
+
+        // Difficulty indicator (small dots below node)
+        if (!node.visited && !isConsumed && node.difficultyScore > 0) {
+            const dots = Math.min(5, Math.ceil(node.difficultyScore));
+            const dotSpacing = 6;
+            const startX = x - ((dots - 1) * dotSpacing) / 2;
+
+            for (let i = 0; i < dots; i++) {
+                ctx.beginPath();
+                ctx.arc(startX + i * dotSpacing, y + radius + 8, 2, 0, Math.PI * 2);
+                ctx.fillStyle = isAccessible ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)';
+                ctx.fill();
+            }
+        }
     },
 
-    isNodeAccessible(node) {
-        if (node.visited) return false;
-
-        const currentNode = this.findNodeById(GameState.currentRun.currentNodeId, GameState.currentRun.sectorMap);
-        if (!currentNode) return node.row <= 1;
-
-        return currentNode.connections.includes(node.id);
-    },
+    // ==========================================
+    // INTERACTION
+    // ==========================================
 
     handleMapClick(e) {
         const canvas = this.elements.mapCanvas;
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+
+        // L-012: Convert screen coordinates to map coordinates
+        const { x, y } = this.screenToMap(screenX, screenY);
 
         // Find clicked node
         for (const { node, x: nx, y: ny, radius } of this.nodePositions) {
-            const dist = Utils.distance(x, y, nx, ny);
-            if (dist <= radius && this.isNodeAccessible(node)) {
+            const dist = Math.sqrt((x - nx) ** 2 + (y - ny) ** 2);
+            // Adjust hit area for zoom
+            const hitRadius = (radius + 5) / this.zoom;
+            if (dist <= hitRadius && node.accessible && !node.visited && !node.consumed) {
                 this.showNodePopup(node);
                 return;
             }
@@ -401,39 +444,126 @@ const SectorController = {
 
     showNodePopup(node) {
         this.selectedNode = node;
-
-        const typeNames = {
-            battle: '전투',
-            elite: '정예 전투',
-            shop: '상점',
-            event: '이벤트',
-            rest: '휴식',
-            boss: '보스 전투',
-        };
+        const config = this.NODE_CONFIG[node.type] || this.NODE_CONFIG.battle;
 
         if (this.elements.popupTitle) {
-            this.elements.popupTitle.textContent = node.name;
+            this.elements.popupTitle.textContent = node.name || config.name;
         }
 
         if (this.elements.popupDesc) {
-            this.elements.popupDesc.textContent = typeNames[node.type] || '알 수 없음';
+            this.elements.popupDesc.textContent = config.name;
+            this.elements.popupDesc.style.color = config.color;
         }
 
         if (this.elements.popupReward) {
-            const rewards = [];
-            if (node.reward.credits) rewards.push(`💰 ${node.reward.credits} 크레딧`);
-            if (node.reward.equipment) rewards.push('📦 장비 획득 가능');
-            if (node.reward.heal) rewards.push('💚 승무원 회복');
-            if (node.reward.shop) rewards.push('🛒 상점 이용');
-            if (node.reward.event) rewards.push('❓ 이벤트 발생');
-            this.elements.popupReward.textContent = rewards.join(' | ') || '보상 없음';
+            const rewards = this._formatReward(node);
+            this.elements.popupReward.textContent = rewards;
         }
 
         if (this.elements.popupDifficulty) {
-            this.elements.popupDifficulty.textContent = '⭐'.repeat(node.difficulty);
+            if (node.difficultyScore > 0) {
+                const stars = Math.min(5, Math.ceil(node.difficultyScore));
+                this.elements.popupDifficulty.textContent = '⭐'.repeat(stars);
+                this.elements.popupDifficulty.style.display = 'block';
+            } else {
+                this.elements.popupDifficulty.style.display = 'none';
+            }
+        }
+
+        // L-011: Show detailed storm info
+        if (this.elements.popupStormInfo) {
+            if (node.type === 'storm') {
+                this.elements.popupStormInfo.style.display = 'block';
+                this._displayStormDetails(node);
+            } else {
+                this.elements.popupStormInfo.style.display = 'none';
+            }
+        }
+
+        // Show warning for non-storm dangerous nodes
+        if (this.elements.popupWarning) {
+            if (node.type === 'boss') {
+                this.elements.popupWarning.textContent = '⚠️ 강력한 보스가 기다리고 있습니다';
+                this.elements.popupWarning.style.display = 'block';
+            } else if (node.difficultyScore >= 4) {
+                this.elements.popupWarning.textContent = '⚠️ 매우 어려운 전투입니다';
+                this.elements.popupWarning.style.display = 'block';
+            } else {
+                this.elements.popupWarning.style.display = 'none';
+            }
         }
 
         this.elements.nodePopup?.classList.add('active');
+    },
+
+    // L-011: Display detailed storm stage information
+    _displayStormDetails(node) {
+        const difficulty = GameState.currentRun?.difficulty || 'normal';
+        const difficultyMultiplier = { easy: 0.8, normal: 1.0, hard: 1.3, veryhard: 1.6, nightmare: 2.0 };
+        const mult = difficultyMultiplier[difficulty] || 1.0;
+
+        // Calculate storm risks based on node depth and difficulty
+        const envDamage = Math.floor(5 + node.depth * 2 * mult);
+        const enemyHpBonus = Math.floor(20 + node.depth * 5);
+        const enemyDamageBonus = Math.floor(10 + node.depth * 3);
+
+        // Risks
+        if (this.elements.stormRisksList) {
+            this.elements.stormRisksList.innerHTML = `
+                <li><span class="risk-icon">💨</span> 환경 피해: 매 10초마다 ${envDamage} 피해</li>
+                <li><span class="risk-icon">💪</span> 적 체력 +${enemyHpBonus}%</li>
+                <li><span class="risk-icon">⚔️</span> 적 공격력 +${enemyDamageBonus}%</li>
+                <li><span class="risk-icon">👁️</span> 시야 제한 (폭풍 효과)</li>
+            `;
+        }
+
+        // Rewards
+        const bonusCredits = Math.floor((node.reward?.credits || 100) * 0.5);
+        const rareDropChance = Math.min(50, 15 + node.depth * 3);
+
+        if (this.elements.stormRewardsList) {
+            this.elements.stormRewardsList.innerHTML = `
+                <li><span class="reward-icon">💰</span> 추가 크레딧: +${bonusCredits}</li>
+                <li><span class="reward-icon">🎁</span> 희귀 장비 확률: ${rareDropChance}%</li>
+                <li><span class="reward-icon">⭐</span> 경험치 보너스: +50%</li>
+            `;
+        }
+    },
+
+    _formatReward(node) {
+        if (!node.reward) return '보상 없음';
+
+        const rewards = [];
+
+        switch (node.reward.type) {
+            case 'credits':
+                rewards.push(`💰 ${node.reward.credits} 크레딧`);
+                break;
+            case 'commander':
+                rewards.push('🚩 새 팀장 영입 가능');
+                if (node.reward.credits) rewards.push(`💰 ${node.reward.credits} 크레딧`);
+                break;
+            case 'equipment':
+                rewards.push('📦 장비 획득 가능');
+                if (node.reward.credits) rewards.push(`💰 ${node.reward.credits} 크레딧`);
+                break;
+            case 'storm':
+                rewards.push(`💰 ${node.reward.credits} 크레딧 (보너스)`);
+                if (node.reward.bonusChance) rewards.push('🎁 희귀 보상 확률 증가');
+                break;
+            case 'boss':
+                rewards.push(`💰 ${node.reward.credits} 크레딧`);
+                rewards.push('📦 장비 확정');
+                break;
+            case 'rest':
+                rewards.push('💚 승무원 회복');
+                break;
+            case 'gate':
+                rewards.push('🏆 최종 목표');
+                break;
+        }
+
+        return rewards.join(' | ') || '보상 없음';
     },
 
     hideNodePopup() {
@@ -445,96 +575,136 @@ const SectorController = {
         if (!this.selectedNode) return;
 
         const node = this.selectedNode;
+        const sectorMap = GameState.currentRun.sectorMap;
 
-        // Update game state
-        GameState.currentRun.currentNodeId = node.id;
-        GameState.currentRun.visitedNodes.push(node.id);
-
-        // Mark node as visited in map
-        const mapNode = this.findNodeById(node.id, GameState.currentRun.sectorMap);
-        if (mapNode) {
-            mapNode.visited = true;
-        }
-
+        // Update using SectorGenerator
+        SectorGenerator.visitNode(sectorMap, node.id);
         GameState.saveCurrentRun();
 
         // Navigate based on node type
-        switch (node.type) {
-            case 'battle':
-            case 'elite':
-            case 'boss':
-                // Store battle info
-                sessionStorage.setItem('currentBattle', JSON.stringify({
-                    nodeId: node.id,
-                    type: node.type,
-                    difficulty: node.difficulty,
-                    reward: node.reward,
-                }));
-                Utils.navigateTo('deploy');
-                break;
-            case 'shop':
-                Utils.navigateTo('upgrade');
-                break;
-            case 'rest':
-                this.handleRestNode(node);
-                break;
-            case 'event':
-                this.handleEventNode(node);
-                break;
-        }
-
+        this._handleNodeEntry(node);
         this.hideNodePopup();
     },
 
-    handleRestNode(node) {
-        // Heal all crews by 2
+    _handleNodeEntry(node) {
+        switch (node.type) {
+            case 'battle':
+            case 'storm':
+            case 'boss':
+                this._enterBattleNode(node);
+                break;
+            case 'commander':
+                this._enterCommanderNode(node);
+                break;
+            case 'equipment':
+                this._enterEquipmentNode(node);
+                break;
+            case 'rest':
+                this._handleRestNode(node);
+                break;
+            case 'gate':
+                this._handleGateNode(node);
+                break;
+        }
+    },
+
+    _enterBattleNode(node) {
+        sessionStorage.setItem('currentBattle', JSON.stringify({
+            nodeId: node.id,
+            type: node.type,
+            difficultyScore: node.difficultyScore,
+            reward: node.reward,
+            isStorm: node.type === 'storm',
+            isBoss: node.type === 'boss',
+        }));
+        Utils.navigateTo('deploy');
+    },
+
+    _enterCommanderNode(node) {
+        // Store commander recruitment info
+        sessionStorage.setItem('currentBattle', JSON.stringify({
+            nodeId: node.id,
+            type: 'commander',
+            difficultyScore: node.difficultyScore,
+            reward: node.reward,
+            isRecruitment: true,
+        }));
+        Utils.navigateTo('deploy');
+    },
+
+    _enterEquipmentNode(node) {
+        sessionStorage.setItem('currentBattle', JSON.stringify({
+            nodeId: node.id,
+            type: 'equipment',
+            difficultyScore: node.difficultyScore,
+            reward: node.reward,
+            hasEquipment: true,
+        }));
+        Utils.navigateTo('deploy');
+    },
+
+    _handleRestNode(node) {
+        // Heal all crews
         GameState.currentRun.crews.forEach(crew => {
             if (crew.isAlive) {
                 crew.squadSize = Math.min(crew.squadSize + 2, crew.maxSquadSize);
                 crew.health = crew.squadSize;
             }
         });
-        GameState.advanceTurn();
+
+        this._advanceTurnAndRender();
         alert('승무원들이 휴식을 취했습니다. (+2 체력)');
-        this.renderMap();
-        this.updateHUD();
     },
 
-    handleEventNode(node) {
-        // Simple random event
-        const events = [
-            { text: '표류하는 화물선에서 크레딧을 발견했습니다!', credits: 50 },
-            { text: '부상당한 용병을 구출했습니다. 감사의 표시로 크레딧을 받았습니다.', credits: 30 },
-            { text: '우주 폭풍으로 인해 약간의 피해를 입었습니다.', damage: 1 },
-            { text: '버려진 보급품을 발견했습니다!', credits: 40 },
-        ];
+    _handleGateNode(node) {
+        // Final battle - victory condition
+        sessionStorage.setItem('currentBattle', JSON.stringify({
+            nodeId: node.id,
+            type: 'gate',
+            difficultyScore: node.difficultyScore,
+            reward: node.reward,
+            isFinalBattle: true,
+        }));
+        Utils.navigateTo('deploy');
+    },
 
-        const event = this.rng.get('items').pick(events);
-
-        if (event.credits) {
-            GameState.addCredits(event.credits);
-        }
-        if (event.damage) {
-            GameState.currentRun.crews.forEach(crew => {
-                if (crew.isAlive && crew.squadSize > 1) {
-                    crew.squadSize -= event.damage;
-                    crew.health = crew.squadSize;
-                }
-            });
-        }
-
+    _advanceTurnAndRender() {
         GameState.advanceTurn();
-        alert(event.text);
+
+        // Advance storm front
+        const sectorMap = GameState.currentRun.sectorMap;
+        SectorGenerator.advanceStormFront(sectorMap);
+        SectorGenerator.updateAccessibility(sectorMap);
+
+        // Check if path to gate still exists
+        if (!SectorGenerator.hasPathToGate(sectorMap)) {
+            alert('경고: 게이트로 가는 경로가 막혔습니다!');
+        }
+
+        GameState.saveCurrentRun();
         this.renderMap();
         this.updateHUD();
     },
+
+    // ==========================================
+    // HUD
+    // ==========================================
 
     updateHUD() {
         if (!GameState.currentRun) return;
 
+        const sectorMap = GameState.currentRun.sectorMap;
+
         // Turn display
         if (this.elements.turnDisplay) {
             this.elements.turnDisplay.textContent = `턴 ${GameState.currentRun.turn}`;
+        }
+
+        // Depth display
+        if (this.elements.depthDisplay && sectorMap) {
+            const currentNode = sectorMap.nodes.find(n => n.id === sectorMap.currentNodeId);
+            const currentDepth = currentNode ? currentNode.depth : 0;
+            this.elements.depthDisplay.textContent = `깊이 ${currentDepth}/${sectorMap.totalDepth}`;
         }
 
         // Credits
@@ -543,12 +713,22 @@ const SectorController = {
         }
 
         // Storm warning
-        const stormTurns = Math.max(0, 10 - GameState.currentRun.turn);
-        if (this.elements.stormTurns) {
-            this.elements.stormTurns.textContent = stormTurns;
-        }
-        if (this.elements.stormWarning) {
-            this.elements.stormWarning.style.display = stormTurns <= 5 ? 'block' : 'none';
+        if (sectorMap) {
+            const nodesAtRisk = SectorGenerator.getNodesAtRisk(sectorMap);
+            const hasPathToGate = SectorGenerator.hasPathToGate(sectorMap);
+
+            if (this.elements.stormWarning) {
+                if (nodesAtRisk.length > 0) {
+                    this.elements.stormWarning.style.display = 'block';
+                    this.elements.stormWarning.classList.toggle('critical', !hasPathToGate);
+                } else {
+                    this.elements.stormWarning.style.display = 'none';
+                }
+            }
+
+            if (this.elements.stormTurns) {
+                this.elements.stormTurns.textContent = nodesAtRisk.length;
+            }
         }
 
         // Crew roster
@@ -566,12 +746,17 @@ const SectorController = {
 
             const card = document.createElement('div');
             card.className = `crew-mini-card ${crew.class}`;
+
+            const healthPercent = (crew.squadSize / crew.maxSquadSize) * 100;
+            const healthClass = healthPercent <= 25 ? 'critical' :
+                               healthPercent <= 50 ? 'warning' : '';
+
             card.innerHTML = `
                 <div class="crew-portrait ${crew.class}">${crew.name[0]}</div>
                 <div class="crew-info">
                     <span class="crew-name">${crew.name}</span>
-                    <div class="crew-health">
-                        <span class="health-bar" style="width: ${(crew.squadSize / crew.maxSquadSize) * 100}%"></span>
+                    <div class="crew-health ${healthClass}">
+                        <span class="health-bar" style="width: ${healthPercent}%"></span>
                         <span class="health-text">${crew.squadSize}/${crew.maxSquadSize}</span>
                     </div>
                 </div>
@@ -584,7 +769,118 @@ const SectorController = {
         if (confirm('메인 메뉴로 돌아가시겠습니까? 진행 상황은 저장됩니다.')) {
             Utils.navigateTo('index');
         }
-    }
+    },
+
+    // ==========================================
+    // UTILITY
+    // ==========================================
+
+    getMapStats() {
+        const sectorMap = GameState.currentRun?.sectorMap;
+        if (!sectorMap) return null;
+
+        return SectorGenerator.getStats(sectorMap);
+    },
+
+    // ==========================================
+    // L-012: ZOOM/PAN CONTROLS
+    // ==========================================
+
+    zoomIn() {
+        this.zoom = Math.min(this.MAX_ZOOM, this.zoom + this.ZOOM_STEP);
+        this.updateZoomDisplay();
+        this.renderMap();
+    },
+
+    zoomOut() {
+        this.zoom = Math.max(this.MIN_ZOOM, this.zoom - this.ZOOM_STEP);
+        this.updateZoomDisplay();
+        this.renderMap();
+    },
+
+    resetZoom() {
+        this.zoom = 1.0;
+        this.panX = 0;
+        this.panY = 0;
+        this.updateZoomDisplay();
+        this.renderMap();
+        this.hidePanHint();
+    },
+
+    updateZoomDisplay() {
+        if (this.elements.zoomLevel) {
+            this.elements.zoomLevel.textContent = `${Math.round(this.zoom * 100)}%`;
+        }
+    },
+
+    startPan(e) {
+        this.isDragging = true;
+        this.dragStartX = e.clientX;
+        this.dragStartY = e.clientY;
+        this.lastPanX = this.panX;
+        this.lastPanY = this.panY;
+
+        if (this.elements.mapCanvas) {
+            this.elements.mapCanvas.style.cursor = 'grabbing';
+        }
+    },
+
+    doPan(e) {
+        if (!this.isDragging) return;
+
+        const dx = e.clientX - this.dragStartX;
+        const dy = e.clientY - this.dragStartY;
+
+        this.panX = this.lastPanX + dx;
+        this.panY = this.lastPanY + dy;
+
+        // Clamp pan to reasonable bounds
+        const canvas = this.elements.mapCanvas;
+        if (canvas) {
+            const maxPanX = canvas.width * (this.zoom - 1) / 2;
+            const maxPanY = canvas.height * (this.zoom - 1) / 2;
+            this.panX = Math.max(-maxPanX, Math.min(maxPanX, this.panX));
+            this.panY = Math.max(-maxPanY, Math.min(maxPanY, this.panY));
+        }
+
+        this.renderMap();
+    },
+
+    endPan() {
+        if (this.isDragging) {
+            this.isDragging = false;
+            if (this.elements.mapCanvas) {
+                this.elements.mapCanvas.style.cursor = 'grab';
+            }
+        }
+    },
+
+    showPanHint() {
+        if (this.elements.panHint && this.zoom > 1) {
+            this.elements.panHint.style.opacity = '1';
+            setTimeout(() => this.hidePanHint(), 2000);
+        }
+    },
+
+    hidePanHint() {
+        if (this.elements.panHint) {
+            this.elements.panHint.style.opacity = '0';
+        }
+    },
+
+    // Transform screen coordinates to map coordinates (for click detection)
+    screenToMap(screenX, screenY) {
+        const canvas = this.elements.mapCanvas;
+        if (!canvas) return { x: screenX, y: screenY };
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        return {
+            x: (screenX - centerX - this.panX) / this.zoom + centerX,
+            y: (screenY - centerY - this.panY) / this.zoom + centerY
+        };
+    },
 };
 
 // Initialize on DOM ready

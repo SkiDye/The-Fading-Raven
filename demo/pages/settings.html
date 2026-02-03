@@ -5,70 +5,378 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - The Fading Raven</title>
     <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/ui-components.css">
     <link rel="stylesheet" href="../css/pages/panel.css">
 </head>
 <body>
-    <div class="page-container">
+    <div class="page-container scrollable">
         <div class="panel-wrapper">
-            <div class="panel">
+            <div class="panel panel-wide">
                 <header class="panel-header">
                     <h1>SETTINGS</h1>
                 </header>
 
                 <div class="panel-content">
-                    <div class="setting-group">
-                        <label for="setting-difficulty">Default Difficulty</label>
-                        <select id="setting-difficulty">
-                            <option value="normal">Normal</option>
-                            <option value="hard">Hard</option>
-                            <option value="veryhard">Very Hard</option>
-                            <option value="nightmare">Nightmare</option>
-                        </select>
+                    <!-- Tabs -->
+                    <div class="settings-tabs">
+                        <button class="tab-btn active" data-tab="gameplay">GAMEPLAY</button>
+                        <button class="tab-btn" data-tab="controls">CONTROLS</button>
+                        <button class="tab-btn" data-tab="audio">AUDIO</button>
+                        <button class="tab-btn" data-tab="accessibility">ACCESSIBILITY</button>
+                        <button class="tab-btn" data-tab="data">DATA</button>
                     </div>
 
-                    <div class="setting-group">
-                        <label for="setting-speed">Game Speed</label>
-                        <div class="range-control">
-                            <input type="range" id="setting-speed" min="0.5" max="2" step="0.25" value="1">
-                            <span class="range-value" id="speed-value">1.0x</span>
+                    <!-- Gameplay Tab -->
+                    <div class="settings-tab-content active" id="tab-gameplay">
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-difficulty">Default Difficulty</label>
+                                <span class="setting-desc">새 게임 시작 시 기본 난이도</span>
+                            </div>
+                            <select id="setting-difficulty">
+                                <option value="normal">Normal</option>
+                                <option value="hard">Hard</option>
+                                <option value="veryhard">Very Hard</option>
+                                <option value="nightmare">Nightmare</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-speed">Game Speed</label>
+                                <span class="setting-desc">전투 진행 속도</span>
+                            </div>
+                            <div class="range-control">
+                                <input type="range" id="setting-speed" min="0.5" max="2" step="0.25" value="1">
+                                <span class="range-value" id="speed-value">1.0x</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-tutorial">Show Tutorial</label>
+                                <span class="setting-desc">첫 플레이 시 튜토리얼 표시</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-tutorial" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-auto-pause">Auto Pause on Focus Loss</label>
+                                <span class="setting-desc">창 전환 시 자동 일시정지</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-auto-pause" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-tooltips">Show Tooltips</label>
+                                <span class="setting-desc">마우스 오버 시 정보 표시</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-tooltips" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-confirm">Confirm Critical Actions</label>
+                                <span class="setting-desc">중요 행동 전 확인 대화상자</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-confirm" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label for="setting-volume">Sound Volume</label>
-                        <div class="range-control">
-                            <input type="range" id="setting-volume" min="0" max="100" value="70">
-                            <span class="range-value" id="volume-value">70%</span>
+                    <!-- Controls Tab (L-002) -->
+                    <div class="settings-tab-content" id="tab-controls">
+                        <div class="controls-section">
+                            <h3>전투 조작</h3>
+                            <div class="keybind-list">
+                                <div class="keybind-row">
+                                    <span class="keybind-key">Space</span>
+                                    <span class="keybind-action">일시정지 / 재개</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">1 - 5</span>
+                                    <span class="keybind-action">크루 선택</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">Q</span>
+                                    <span class="keybind-action">스킬 사용</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">E</span>
+                                    <span class="keybind-action">장비 사용</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">Tab</span>
+                                    <span class="keybind-action">다음 크루 선택</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">Esc</span>
+                                    <span class="keybind-action">선택 해제 / 취소</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="controls-section">
+                            <h3>Raven 드론</h3>
+                            <div class="keybind-list">
+                                <div class="keybind-row">
+                                    <span class="keybind-key">R</span>
+                                    <span class="keybind-action">Raven 능력 메뉴</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">F1 - F4</span>
+                                    <span class="keybind-action">Raven 능력 직접 사용</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="controls-section">
+                            <h3>카메라 조작</h3>
+                            <div class="keybind-list">
+                                <div class="keybind-row">
+                                    <span class="keybind-key">WASD / 방향키</span>
+                                    <span class="keybind-action">카메라 이동</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">마우스 휠</span>
+                                    <span class="keybind-action">줌 인/아웃</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">Home</span>
+                                    <span class="keybind-action">카메라 초기화</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="controls-section">
+                            <h3>게임 속도</h3>
+                            <div class="keybind-list">
+                                <div class="keybind-row">
+                                    <span class="keybind-key">+ / =</span>
+                                    <span class="keybind-action">속도 증가</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">- / _</span>
+                                    <span class="keybind-action">속도 감소</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="controls-section">
+                            <h3>일반</h3>
+                            <div class="keybind-list">
+                                <div class="keybind-row">
+                                    <span class="keybind-key">?</span>
+                                    <span class="keybind-action">도움말 토글</span>
+                                </div>
+                                <div class="keybind-row">
+                                    <span class="keybind-key">M</span>
+                                    <span class="keybind-action">미니맵 토글</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label for="setting-music">Music Volume</label>
-                        <div class="range-control">
-                            <input type="range" id="setting-music" min="0" max="100" value="50">
-                            <span class="range-value" id="music-value">50%</span>
+                    <!-- Audio Tab -->
+                    <div class="settings-tab-content" id="tab-audio">
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-master">Master Volume</label>
+                                <span class="setting-desc">전체 볼륨</span>
+                            </div>
+                            <div class="range-control">
+                                <input type="range" id="setting-master" min="0" max="100" value="100">
+                                <span class="range-value" id="master-value">100%</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-music">Music Volume</label>
+                                <span class="setting-desc">배경음악 볼륨</span>
+                            </div>
+                            <div class="range-control">
+                                <input type="range" id="setting-music" min="0" max="100" value="50">
+                                <span class="range-value" id="music-value">50%</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-sfx">Sound Effects</label>
+                                <span class="setting-desc">효과음 볼륨</span>
+                            </div>
+                            <div class="range-control">
+                                <input type="range" id="setting-sfx" min="0" max="100" value="70">
+                                <span class="range-value" id="sfx-value">70%</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-ui-sounds">UI Sounds</label>
+                                <span class="setting-desc">버튼 클릭 등 UI 효과음</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-ui-sounds" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-mute-bg">Mute When Background</label>
+                                <span class="setting-desc">창이 비활성화되면 음소거</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-mute-bg">
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label for="setting-tutorial">Show Tutorial</label>
-                        <label class="toggle">
-                            <input type="checkbox" id="setting-tutorial" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
+                    <!-- Accessibility Tab -->
+                    <div class="settings-tab-content" id="tab-accessibility">
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-screenshake">Screen Shake</label>
+                                <span class="setting-desc">화면 흔들림 효과</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-screenshake" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-flash">Screen Flash</label>
+                                <span class="setting-desc">화면 플래시 효과</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-flash" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-colorblind">Colorblind Mode</label>
+                                <span class="setting-desc">색맹 지원 모드</span>
+                            </div>
+                            <select id="setting-colorblind">
+                                <option value="none">Off</option>
+                                <option value="protanopia">Protanopia (Red-Weak)</option>
+                                <option value="deuteranopia">Deuteranopia (Green-Weak)</option>
+                                <option value="tritanopia">Tritanopia (Blue-Weak)</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-text-size">Text Size</label>
+                                <span class="setting-desc">텍스트 크기 조절</span>
+                            </div>
+                            <div class="range-control">
+                                <input type="range" id="setting-text-size" min="80" max="120" step="10" value="100">
+                                <span class="range-value" id="text-size-value">100%</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-contrast">High Contrast</label>
+                                <span class="setting-desc">고대비 모드</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-contrast">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-reduced-motion">Reduced Motion</label>
+                                <span class="setting-desc">애니메이션 최소화</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-reduced-motion">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label for="setting-dyslexia">Dyslexia Font</label>
+                                <span class="setting-desc">난독증 친화 폰트 사용</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setting-dyslexia">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="setting-group">
-                        <label for="setting-screenshake">Screen Shake</label>
-                        <label class="toggle">
-                            <input type="checkbox" id="setting-screenshake" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
+                    <!-- Data Tab -->
+                    <div class="settings-tab-content" id="tab-data">
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label>Current Run</label>
+                                <span class="setting-desc">진행 중인 게임을 삭제합니다</span>
+                            </div>
+                            <button class="btn-warning" id="btn-clear-run">Clear Current Run</button>
+                        </div>
 
-                    <div class="setting-group">
-                        <label>Reset Progress</label>
-                        <button class="btn-danger" id="btn-reset-progress">RESET ALL</button>
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label>Reset Settings</label>
+                                <span class="setting-desc">모든 설정을 기본값으로 복원</span>
+                            </div>
+                            <button class="btn-secondary" id="btn-reset-settings">Reset to Default</button>
+                        </div>
+
+                        <div class="setting-group danger-zone">
+                            <div class="setting-label">
+                                <label>Delete All Data</label>
+                                <span class="setting-desc">모든 진행 상황과 해금을 삭제합니다</span>
+                            </div>
+                            <button class="btn-danger" id="btn-reset-progress">DELETE ALL DATA</button>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label>Export Save</label>
+                                <span class="setting-desc">저장 데이터를 파일로 내보내기</span>
+                            </div>
+                            <button class="btn-secondary" id="btn-export">Export</button>
+                        </div>
+
+                        <div class="setting-group">
+                            <div class="setting-label">
+                                <label>Import Save</label>
+                                <span class="setting-desc">저장 데이터 파일 불러오기</span>
+                            </div>
+                            <button class="btn-secondary" id="btn-import">Import</button>
+                            <input type="file" id="import-file" accept=".json" style="display: none;">
+                        </div>
+
+                        <div class="data-info">
+                            <p>Storage Used: <span id="storage-used">-</span></p>
+                            <p>Last Saved: <span id="last-saved">-</span></p>
+                        </div>
                     </div>
                 </div>
 
@@ -81,7 +389,9 @@
     </div>
 
     <script src="../js/core/utils.js"></script>
+    <script src="../js/core/rng.js"></script>
     <script src="../js/core/game-state.js"></script>
+    <script src="../js/ui/ui-components.js"></script>
     <script src="../js/pages/settings.js"></script>
 </body>
 </html>

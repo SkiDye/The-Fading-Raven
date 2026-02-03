@@ -55,10 +55,10 @@
             <div class="seed-input-group">
                 <label for="seed-input">시드 입력 (선택사항)</label>
                 <div class="input-with-button">
-                    <input type="text" id="seed-input" placeholder="XXXX-XXXX-XXXX" maxlength="14">
+                    <input type="text" id="seed-input" placeholder="ABC1-DEF2-GH34" maxlength="14">
                     <button class="btn btn-icon" id="btn-random-seed" title="무작위 생성">🎲</button>
                 </div>
-                <p class="seed-hint">같은 시드로 동일한 맵을 플레이할 수 있습니다</p>
+                <p class="seed-hint">영문/숫자 조합 (예: ABC1-DEF2-GH34)<br>같은 시드로 동일한 맵을 재현할 수 있습니다</p>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" id="btn-cancel-seed">취소</button>
@@ -70,6 +70,14 @@
     <!-- Scripts -->
     <script src="js/core/utils.js"></script>
     <script src="js/core/rng.js"></script>
+    <!-- Data Modules -->
+    <script src="js/data/crews.js"></script>
+    <script src="js/data/equipment.js"></script>
+    <script src="js/data/traits.js"></script>
+    <script src="js/data/enemies.js"></script>
+    <script src="js/data/facilities.js"></script>
+    <script src="js/data/balance.js"></script>
+    <!-- Core -->
     <script src="js/core/game-state.js"></script>
     <script src="js/pages/menu.js"></script>
 </body>

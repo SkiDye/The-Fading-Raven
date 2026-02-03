@@ -7,7 +7,7 @@ const UpgradeController = {
     elements: {},
     selectedCrew: null,
 
-    // Upgrade costs
+    // Upgrade costs (can be overridden by BalanceData)
     costs: {
         heal: 20,
         skillUpgrade: 50,
@@ -15,14 +15,29 @@ const UpgradeController = {
         equipment: 75,
     },
 
-    // Available equipment
-    equipment: [
+    // Fallback equipment list (used if EquipmentData is not available)
+    fallbackEquipment: [
         { id: 'shockWave', name: '충격파 수류탄', desc: '범위 내 적에게 피해를 주고 밀쳐냄', cost: 75 },
         { id: 'fragGrenade', name: '파편 수류탄', desc: '폭발하여 범위 피해', cost: 60 },
         { id: 'smokeBomb', name: '연막탄', desc: '적의 시야를 차단', cost: 50 },
         { id: 'medkit', name: '의료 키트', desc: '전투 중 체력 회복', cost: 80 },
         { id: 'shieldGen', name: '보호막 생성기', desc: '일시적 피해 면역', cost: 100 },
     ],
+
+    // Get available equipment (from EquipmentData or fallback)
+    getAvailableEquipment() {
+        if (typeof EquipmentData !== 'undefined') {
+            const all = EquipmentData.getAll();
+            return Object.entries(all).map(([id, data]) => ({
+                id,
+                name: data.name,
+                desc: data.description,
+                cost: data.cost || 75,
+                rarity: data.rarity || 'common',
+            }));
+        }
+        return this.fallbackEquipment;
+    },
 
     init() {
         this.checkActiveRun();
@@ -93,7 +108,10 @@ const UpgradeController = {
         crews.forEach(crew => {
             if (!crew.isAlive) return;
 
-            const classData = GameState.getClassData(crew.class);
+            // Use CrewData if available
+            const classData = typeof CrewData !== 'undefined'
+                ? CrewData.getClass(crew.class)
+                : GameState.getClassData(crew.class);
             const card = document.createElement('div');
             card.className = `upgrade-card ${crew.class}`;
             card.dataset.crewId = crew.id;
@@ -154,7 +172,9 @@ const UpgradeController = {
         if (!this.selectedCrew) return;
 
         const crew = this.selectedCrew;
-        const classData = GameState.getClassData(crew.class);
+        const classData = typeof CrewData !== 'undefined'
+            ? CrewData.getClass(crew.class)
+            : GameState.getClassData(crew.class);
 
         // Update header
         if (this.elements.detailName) {
@@ -196,12 +216,22 @@ const UpgradeController = {
         if (!container || !this.selectedCrew) return;
 
         const crew = this.selectedCrew;
-        const classData = GameState.getClassData(crew.class);
+
+        // Use CrewData if available for class info
+        let classData;
+        if (typeof CrewData !== 'undefined') {
+            classData = CrewData.getClass(crew.class);
+        } else {
+            classData = GameState.getClassData(crew.class);
+        }
+
+        const traitName = this.getTraitName(crew.trait);
+        const traitDesc = this.getTraitDescription(crew.trait);
 
         const stats = [
             { label: '병력', value: `${crew.squadSize}/${crew.maxSquadSize}` },
             { label: '스킬 레벨', value: `${crew.skillLevel}/3` },
-            { label: '특성', value: this.getTraitName(crew.trait) },
+            { label: '특성', value: traitName, desc: traitDesc },
             { label: '장비', value: crew.equipment ? this.getEquipmentName(crew.equipment) : '없음' },
             { label: '전투 참여', value: crew.battlesParticipated },
             { label: '총 처치', value: crew.kills },
@@ -212,7 +242,7 @@ const UpgradeController = {
             ${stats.map(stat => `
                 <div class="stat-row">
                     <span>${stat.label}</span>
-                    <span>${stat.value}</span>
+                    <span title="${stat.desc || ''}">${stat.value}</span>
                 </div>
             `).join('')}
         `;
@@ -281,9 +311,24 @@ const UpgradeController = {
             });
         }
 
+        // Equipment unequip (if has equipment) - M-004
+        let equipmentSection = '';
+        if (crew.equipment) {
+            const equipName = this.getEquipmentName(crew.equipment);
+            equipmentSection = `
+                <div class="equipment-section">
+                    <h4>장착 장비</h4>
+                    <div class="equipped-item">
+                        <span class="item-name">${equipName}</span>
+                        <button class="btn-unequip" data-action="unequip">해제</button>
+                    </div>
+                </div>
+            `;
+        }
+
         container.innerHTML = `
             <h3>업그레이드</h3>
-            ${options.length === 0 ? '<p class="no-upgrades">사용 가능한 업그레이드가 없습니다.</p>' : ''}
+            ${options.length === 0 && !crew.equipment ? '<p class="no-upgrades">사용 가능한 업그레이드가 없습니다.</p>' : ''}
             ${options.map(opt => `
                 <div class="upgrade-option ${opt.disabled ? 'disabled' : ''}" data-upgrade="${opt.id}">
                     <div class="option-info">
@@ -295,6 +340,7 @@ const UpgradeController = {
                     </button>
                 </div>
             `).join('')}
+            ${equipmentSection}
         `;
 
         // Bind upgrade buttons
@@ -302,39 +348,88 @@ const UpgradeController = {
             const btn = option.querySelector('.btn-upgrade');
             btn?.addEventListener('click', () => this.performUpgrade(option.dataset.upgrade));
         });
+
+        // Bind unequip button - M-004
+        const unequipBtn = container.querySelector('.btn-unequip');
+        unequipBtn?.addEventListener('click', () => this.unequipItem());
     },
 
-    performUpgrade(upgradeId) {
+    // M-004: 장비 해제 (확인 절차 포함)
+    async unequipItem() {
+        if (!this.selectedCrew || !this.selectedCrew.equipment) return;
+
+        const crew = this.selectedCrew;
+        const equipName = this.getEquipmentName(crew.equipment);
+        const confirmMessage = `${crew.name}의 "${equipName}"을(를) 해제합니다.\n` +
+            `해제된 장비는 소멸됩니다. 계속하시겠습니까?`;
+
+        // Use ModalManager if available
+        if (typeof ModalManager !== 'undefined') {
+            const confirmed = await new Promise(resolve => {
+                ModalManager.confirm(
+                    confirmMessage,
+                    () => resolve(true),
+                    () => resolve(false)
+                );
+            });
+            if (!confirmed) return;
+        }
+
+        crew.equipment = null;
+        GameState.saveCurrentRun();
+        this.renderCrewGrid();
+        this.showDetailPanel();
+
+        // Show toast notification if available
+        if (typeof Toast !== 'undefined') {
+            Toast.info(`${equipName} 해제됨`);
+        }
+    },
+
+    async performUpgrade(upgradeId) {
         if (!this.selectedCrew) return;
 
         const crew = this.selectedCrew;
         let cost = 0;
+        let confirmMessage = '';
+        let upgradeAction = null;
 
         switch (upgradeId) {
             case 'heal':
                 cost = this.costs.heal;
-                if (GameState.spendCredits(cost)) {
+                const healAmount = Math.min(2, crew.maxSquadSize - crew.squadSize);
+                confirmMessage = `${crew.name}의 병력을 ${healAmount}만큼 회복합니다.\n비용: ${cost} 크레딧`;
+                upgradeAction = () => {
                     crew.squadSize = Math.min(crew.squadSize + 2, crew.maxSquadSize);
                     crew.health = crew.squadSize;
-                }
+                };
                 break;
 
             case 'skill':
                 const skillCost = this.costs.skillUpgrade * (crew.skillLevel + 1);
                 const traitDiscount = crew.trait === 'skillful' ? 0.5 : 1;
                 cost = Math.floor(skillCost * traitDiscount);
-                if (GameState.spendCredits(cost)) {
+                const skillPreview = this.getSkillPreview(crew);
+                confirmMessage = `${crew.name}의 스킬을 강화합니다.\n` +
+                    `레벨 ${crew.skillLevel} → ${crew.skillLevel + 1}\n` +
+                    (skillPreview ? `효과: ${skillPreview}\n` : '') +
+                    `비용: ${cost} 크레딧`;
+                upgradeAction = () => {
                     crew.skillLevel++;
-                }
+                };
                 break;
 
             case 'rank':
                 cost = this.costs.rankUp * (crew.rank === 'veteran' ? 2 : 1);
-                if (GameState.spendCredits(cost)) {
+                const nextRank = crew.rank === 'standard' ? 'veteran' : 'elite';
+                confirmMessage = `${crew.name}을(를) 승급합니다.\n` +
+                    `${this.getRankName(crew.rank)} → ${this.getRankName(nextRank)}\n` +
+                    `보너스: 최대 병력 +1\n` +
+                    `비용: ${cost} 크레딧`;
+                upgradeAction = () => {
                     crew.rank = crew.rank === 'standard' ? 'veteran' : 'elite';
-                    // Rank up bonus: +1 max squad size
                     crew.maxSquadSize++;
-                }
+                };
                 break;
 
             case 'equipment':
@@ -342,30 +437,84 @@ const UpgradeController = {
                 return;
         }
 
+        // Use ModalManager if available, otherwise proceed directly
+        if (typeof ModalManager !== 'undefined') {
+            const confirmed = await new Promise(resolve => {
+                ModalManager.confirm(
+                    confirmMessage,
+                    () => resolve(true),
+                    () => resolve(false)
+                );
+            });
+            if (!confirmed) return;
+        }
+
+        if (GameState.spendCredits(cost) && upgradeAction) {
+            upgradeAction();
+        }
+
         GameState.saveCurrentRun();
         this.updateCreditsDisplay();
         this.renderCrewGrid();
-        this.showDetailPanel(); // Refresh detail panel
+        this.showDetailPanel();
+    },
+
+    // M-005: 스킬 업그레이드 미리보기
+    getSkillPreview(crew) {
+        if (typeof CrewData === 'undefined') return null;
+
+        const classData = CrewData.getClass(crew.class);
+        if (!classData || !classData.skill || !classData.skill.levels) return null;
+
+        const currentLevel = classData.skill.levels[crew.skillLevel];
+        const nextLevel = classData.skill.levels[crew.skillLevel + 1];
+
+        if (!nextLevel) return null;
+
+        return nextLevel.description || nextLevel.effect || null;
     },
 
     showEquipmentSelection() {
-        const availableEquipment = this.equipment.filter(e =>
-            GameState.progress.unlockedEquipment.includes(e.id)
-        );
+        const allEquipment = this.getAvailableEquipment();
+
+        // Filter by unlocked equipment (use MetaProgress if available, otherwise GameState)
+        let availableEquipment;
+        if (typeof MetaProgress !== 'undefined') {
+            availableEquipment = allEquipment.filter(e => MetaProgress.isEquipmentUnlocked(e.id));
+        } else {
+            availableEquipment = allEquipment.filter(e =>
+                GameState.progress.unlockedEquipment.includes(e.id)
+            );
+        }
 
         const credits = GameState.currentRun.credits;
 
-        const html = availableEquipment.map(eq => `
-            <div class="equipment-option ${credits < eq.cost ? 'disabled' : ''}" data-equipment="${eq.id}">
-                <div class="equipment-info">
-                    <div class="equipment-name">${eq.name}</div>
-                    <div class="equipment-desc">${eq.desc}</div>
-                </div>
-                <button class="btn-buy" ${credits < eq.cost ? 'disabled' : ''}>
-                    <span class="cost">${eq.cost}</span>
-                </button>
-            </div>
-        `).join('');
+        // Sort by rarity and cost
+        const rarityOrder = { common: 0, uncommon: 1, rare: 2, epic: 3 };
+        availableEquipment.sort((a, b) => {
+            const rarityDiff = (rarityOrder[a.rarity] || 0) - (rarityOrder[b.rarity] || 0);
+            return rarityDiff !== 0 ? rarityDiff : a.cost - b.cost;
+        });
+
+        let html;
+        if (availableEquipment.length === 0) {
+            html = '<p class="no-equipment">해금된 장비가 없습니다.</p>';
+        } else {
+            html = availableEquipment.map(eq => {
+                const rarityClass = eq.rarity ? `rarity-${eq.rarity}` : '';
+                return `
+                    <div class="equipment-option ${credits < eq.cost ? 'disabled' : ''} ${rarityClass}" data-equipment="${eq.id}">
+                        <div class="equipment-info">
+                            <div class="equipment-name">${eq.name}</div>
+                            <div class="equipment-desc">${eq.desc}</div>
+                        </div>
+                        <button class="btn-buy" ${credits < eq.cost ? 'disabled' : ''}>
+                            <span class="cost">${eq.cost}</span>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
 
         // Show in upgrade options area
         this.elements.upgradeOptions.innerHTML = `
@@ -387,9 +536,27 @@ const UpgradeController = {
         });
     },
 
-    buyEquipment(equipmentId) {
-        const equipment = this.equipment.find(e => e.id === equipmentId);
+    async buyEquipment(equipmentId) {
+        const allEquipment = this.getAvailableEquipment();
+        const equipment = allEquipment.find(e => e.id === equipmentId);
         if (!equipment || !this.selectedCrew) return;
+
+        const crew = this.selectedCrew;
+        const confirmMessage = `${crew.name}에게 "${equipment.name}"을(를) 장착합니다.\n` +
+            `효과: ${equipment.desc}\n` +
+            `비용: ${equipment.cost} 크레딧`;
+
+        // Use ModalManager if available
+        if (typeof ModalManager !== 'undefined') {
+            const confirmed = await new Promise(resolve => {
+                ModalManager.confirm(
+                    confirmMessage,
+                    () => resolve(true),
+                    () => resolve(false)
+                );
+            });
+            if (!confirmed) return;
+        }
 
         if (GameState.spendCredits(equipment.cost)) {
             this.selectedCrew.equipment = equipmentId;
@@ -416,6 +583,13 @@ const UpgradeController = {
     },
 
     getTraitName(trait) {
+        // Use TraitData if available
+        if (typeof TraitData !== 'undefined') {
+            const traitData = TraitData.get(trait);
+            if (traitData) return traitData.name;
+        }
+
+        // Fallback names
         const names = {
             energetic: '활력 넘침',
             swiftMovement: '빠른 이동',
@@ -423,15 +597,39 @@ const UpgradeController = {
             quickRecovery: '빠른 회복',
             sharpEdge: '날카로운 공격',
             heavyImpact: '강력한 충격',
+            titanFrame: '티탄 프레임',
+            reinforcedArmor: '강화 장갑',
+            steadyStance: '안정된 자세',
+            fearless: '무모함',
+            techSavvy: '기술 전문가',
             skillful: '숙련됨',
             collector: '수집가',
+            heavyLoad: '중장비',
+            salvager: '회수 전문가',
         };
         return names[trait] || trait;
     },
 
     getEquipmentName(equipmentId) {
-        const equipment = this.equipment.find(e => e.id === equipmentId);
+        // Use EquipmentData if available
+        if (typeof EquipmentData !== 'undefined') {
+            const equipData = EquipmentData.get(equipmentId);
+            if (equipData) return equipData.name;
+        }
+
+        // Fallback to local list
+        const allEquipment = this.getAvailableEquipment();
+        const equipment = allEquipment.find(e => e.id === equipmentId);
         return equipment ? equipment.name : equipmentId;
+    },
+
+    getTraitDescription(trait) {
+        // Use TraitData if available
+        if (typeof TraitData !== 'undefined') {
+            const traitData = TraitData.get(trait);
+            if (traitData) return traitData.description;
+        }
+        return '';
     }
 };
 

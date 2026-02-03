@@ -210,11 +210,18 @@ const Utils = {
      * Navigate to a page
      */
     navigateTo(page) {
-        const basePath = window.location.pathname.includes('/pages/')
-            ? '../'
-            : './';
-        const pagePath = page === 'index' ? '' : `pages/${page}.html`;
-        window.location.href = basePath + pagePath;
+        const isInPagesFolder = window.location.pathname.includes('/pages/');
+        let targetPath;
+
+        if (page === 'index') {
+            // Navigate to main index
+            targetPath = isInPagesFolder ? '../index.html' : './index.html';
+        } else {
+            // Navigate to pages subfolder
+            targetPath = isInPagesFolder ? `${page}.html` : `pages/${page}.html`;
+        }
+
+        window.location.href = targetPath;
     },
 
     /**
@@ -283,6 +290,82 @@ const Utils = {
         };
 
         requestAnimationFrame(update);
+    },
+
+    // ==========================================
+    // Module Validation (L-006)
+    // ==========================================
+
+    /**
+     * Validate that required modules are loaded
+     * @param {string[]} modules - Array of module names to check (e.g., ['CrewData', 'BalanceData'])
+     * @param {Object} options - Options for validation
+     * @param {boolean} options.silent - If true, don't log errors
+     * @param {boolean} options.showToast - If true, show toast notification for missing modules
+     * @returns {Object} { valid: boolean, missing: string[] }
+     */
+    validateRequiredModules(modules, options = {}) {
+        const { silent = false, showToast = false } = options;
+        const missing = modules.filter(m => typeof window[m] === 'undefined');
+
+        if (missing.length > 0) {
+            if (!silent) {
+                console.error('[Utils] Missing required modules:', missing);
+            }
+            if (showToast && typeof Toast !== 'undefined') {
+                Toast.error(`필수 모듈 로드 실패: ${missing.join(', ')}`);
+            }
+            return { valid: false, missing };
+        }
+
+        return { valid: true, missing: [] };
+    },
+
+    /**
+     * Wait for modules to be available (with timeout)
+     * @param {string[]} modules - Array of module names to wait for
+     * @param {number} timeout - Maximum wait time in ms (default: 5000)
+     * @returns {Promise<boolean>} - Resolves to true if all modules loaded, false if timeout
+     */
+    waitForModules(modules, timeout = 5000) {
+        return new Promise((resolve) => {
+            const startTime = Date.now();
+
+            const check = () => {
+                const { valid } = this.validateRequiredModules(modules, { silent: true });
+
+                if (valid) {
+                    resolve(true);
+                    return;
+                }
+
+                if (Date.now() - startTime > timeout) {
+                    console.error('[Utils] Timeout waiting for modules:', modules);
+                    resolve(false);
+                    return;
+                }
+
+                setTimeout(check, 50);
+            };
+
+            check();
+        });
+    },
+
+    /**
+     * Get list of core data modules
+     * @returns {string[]}
+     */
+    getCoreDataModules() {
+        return ['CrewData', 'EquipmentData', 'TraitData', 'EnemyData', 'FacilityData', 'BalanceData'];
+    },
+
+    /**
+     * Get list of core system modules
+     * @returns {string[]}
+     */
+    getCoreSystemModules() {
+        return ['GameState', 'Utils', 'SeedUtils'];
     }
 };
 
