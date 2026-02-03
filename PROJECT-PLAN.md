@@ -27,8 +27,9 @@
 | `js/data/enemies.js` | 15종 적 (Tier 1~3 + Boss) |
 | `js/data/facilities.js` | 5종 시설 모듈 |
 | `js/data/balance.js` | 밸런싱 상수, 난이도 배율 |
-| `js/core/game-state.js` | 런 상태, 세이브/로드, 멀티탭 감지 |
-| `js/core/utils.js` | 유틸리티, 모듈 검증 API |
+| `js/core/game-state.js` | 런 상태, 세이브/로드, 멀티탭 감지 (L-007) |
+| `js/core/utils.js` | 유틸리티, 모듈 검증 API (L-006) |
+| `js/core/rng.js` | Xorshift128+ 시드 RNG, SeedUtils |
 
 #### 세션 2: 전투 시스템 ✅
 | 파일 | 내용 |
@@ -46,7 +47,7 @@
 | `js/entities/enemy.js` | Enemy 클래스, EnemyFactory |
 | `js/ai/behavior-tree.js` | AIManager, 행동 트리 |
 | `js/ai/enemy-mechanics.js` | 특수 메카닉 (해킹, 스나이퍼, 드론) |
-| `js/ai/crew-ai.js` | 크루 자동 전투 AI |
+| `js/ai/crew-ai.js` | 크루 자동 전투 AI (클래스별 프로파일) |
 | `js/core/wave-generator.js` | 웨이브 생성, 예산 기반 스케일링 |
 
 #### 세션 4: 캠페인 ✅
@@ -64,7 +65,16 @@
 | `js/ui/effects.js` | 화면 효과, 파티클, 플로팅 텍스트 |
 | `js/ui/hud.js` | 전투 HUD |
 | `js/ui/battle-effects-integration.js` | 전투 이펙트 통합 |
+| `js/core/combat-mechanics.js` | Bad North 전투 메카닉 |
 | `pages/settings.html` | 설정 화면 (접근성 포함) |
+
+#### 세션 6: 2.5D 렌더링 ✅
+| 파일 | 내용 |
+|------|------|
+| `js/rendering/isometric-renderer.js` | 아이소메트릭 좌표 변환, 카메라 |
+| `js/rendering/tile-renderer.js` | 타일/시설 렌더링 |
+| `js/rendering/height-system.js` | 타일 높이 매핑 |
+| `js/rendering/depth-sorter.js` | 깊이 정렬 (back-to-front) |
 
 #### 추가 구현
 - **L-006:** 데이터 모듈 로드 검증 (`Utils.validateRequiredModules`)
