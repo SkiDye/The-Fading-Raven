@@ -1,0 +1,145 @@
+[gd_scene load_steps=2 format=3 uid="uid://upgrade"]
+
+[ext_resource type="Script" path="res://scripts/ui/upgrade_screen.gd" id="1_script"]
+
+[node name="Upgrade" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.03, 0.08, 1)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 300.0
+offset_bottom = 60.0
+theme_override_font_sizes/font_size = 28
+text = "UPGRADE"
+
+[node name="CreditsLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -200.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 60.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 20
+text = "Credits: 0"
+horizontal_alignment = 2
+
+[node name="TabContainer" type="TabContainer" parent="."]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 80.0
+offset_right = 700.0
+offset_bottom = -80.0
+anchors_preset = 9
+anchor_bottom = 1.0
+
+[node name="Crews" type="Control" parent="TabContainer"]
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="TabContainer/Crews"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="CrewList" type="VBoxContainer" parent="TabContainer/Crews/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="Equipment" type="Control" parent="TabContainer"]
+visible = false
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="TabContainer/Equipment"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="EquipmentList" type="VBoxContainer" parent="TabContainer/Equipment/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="SelectedPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -350.0
+offset_top = 80.0
+offset_right = -20.0
+offset_bottom = 400.0
+grow_horizontal = 0
+
+[node name="VBox" type="VBoxContainer" parent="SelectedPanel"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="NameLabel" type="Label" parent="SelectedPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Crew Name"
+
+[node name="ClassLabel" type="Label" parent="SelectedPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.8, 1)
+text = "Class (Rank)"
+
+[node name="StatsLabel" type="Label" parent="SelectedPanel/VBox"]
+layout_mode = 2
+text = "Squad: 8/8
+Skill Level: 0/3
+Trait: None"
+
+[node name="Separator" type="HSeparator" parent="SelectedPanel/VBox"]
+layout_mode = 2
+
+[node name="HealButton" type="Button" parent="SelectedPanel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Heal (+2) - 12¢"
+
+[node name="SkillButton" type="Button" parent="SelectedPanel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Skill Lv.1 - 7¢"
+
+[node name="RankButton" type="Button" parent="SelectedPanel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Rank Up (Veteran) - 100¢"
+
+[node name="BackButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -100.0
+offset_top = -60.0
+offset_right = 100.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "BACK TO MAP"
