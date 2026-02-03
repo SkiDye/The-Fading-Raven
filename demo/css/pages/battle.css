@@ -527,23 +527,279 @@
     50% { box-shadow: 0 0 20px var(--color-primary); }
 }
 
-/* Responsive */
+/* Keyboard Help Modal (L-002) */
+.keyboard-help {
+    max-width: 400px;
+}
+
+.keyboard-help h2 {
+    margin-bottom: var(--space-lg);
+    text-align: center;
+}
+
+.shortcut-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-lg);
+}
+
+.shortcut-group h3 {
+    font-size: 0.9rem;
+    color: var(--color-primary);
+    margin-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: var(--space-xs);
+}
+
+.shortcut-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-xs) 0;
+}
+
+.shortcut-item kbd {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.2em 0.5em;
+    font-family: monospace;
+    font-size: 0.85rem;
+    min-width: 2em;
+    text-align: center;
+    box-shadow: 0 2px 0 var(--color-border);
+}
+
+.shortcut-item span {
+    color: rgba(255,255,255,0.8);
+    font-size: 0.9rem;
+}
+
+/* Help button in HUD */
+.btn-help-toggle {
+    position: absolute;
+    top: var(--space-sm);
+    right: 120px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-sm);
+    color: rgba(255,255,255,0.7);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-help-toggle:hover {
+    border-color: var(--color-primary);
+    color: white;
+}
+
+/* Responsive - Tablet */
+@media (max-width: 1024px) {
+    .battle-hud.top {
+        padding: var(--space-xs) var(--space-md);
+    }
+
+    .wave-indicator {
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    .wave-current {
+        font-size: 1.2rem;
+    }
+
+    .battle-hud.bottom {
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .selected-unit-panel {
+        min-width: 260px;
+        padding: var(--space-sm);
+    }
+}
+
+/* Responsive - Mobile */
 @media (max-width: 768px) {
+    .battle-hud.top {
+        flex-wrap: wrap;
+        gap: var(--space-xs);
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    .wave-indicator {
+        order: 1;
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    .wave-label {
+        font-size: 0.6rem;
+    }
+
+    .wave-current {
+        font-size: 1.1rem;
+    }
+
+    .game-controls {
+        order: 2;
+        gap: var(--space-xs);
+    }
+
+    .control-btn {
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    .speed-btn {
+        padding: var(--space-xs) var(--space-sm);
+        font-size: 0.75rem;
+    }
+
+    .facilities-indicator {
+        order: 3;
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    .btn-help-toggle {
+        right: var(--space-sm);
+        top: auto;
+        bottom: var(--space-xs);
+    }
+
+    /* Bottom HUD */
     .battle-hud.bottom {
         flex-direction: column;
         gap: var(--space-sm);
         align-items: stretch;
+        padding: var(--space-sm);
+        max-height: 45vh;
+        overflow-y: auto;
     }
 
     .selected-unit-panel {
         min-width: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: var(--space-sm);
     }
 
+    .unit-portrait {
+        width: 50px;
+        height: 50px;
+    }
+
+    .unit-info {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .unit-name {
+        font-size: 0.9rem;
+    }
+
+    .unit-actions {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .skill-btn {
+        flex: 1;
+        min-width: 100px;
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    .skill-name {
+        font-size: 0.8rem;
+    }
+
+    /* Crew Quick Select */
     .crew-quick-select {
         justify-content: center;
+        flex-wrap: wrap;
+        gap: var(--space-xs);
     }
 
+    .quick-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Raven Panel */
     .raven-panel {
         align-self: center;
+        padding: var(--space-sm);
+    }
+
+    .raven-panel h4 {
+        font-size: 0.7rem;
+        margin-bottom: var(--space-xs);
+    }
+
+    .raven-abilities {
+        gap: var(--space-xs);
+    }
+
+    .raven-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Wave Announcement */
+    .wave-text {
+        font-size: 2rem;
+    }
+
+    .wave-enemies {
+        font-size: 0.9rem;
+    }
+
+    /* Keyboard Help */
+    .keyboard-help {
+        max-width: 90vw;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .shortcut-list {
+        gap: var(--space-md);
+    }
+
+    .shortcut-item {
+        flex-wrap: wrap;
+        gap: var(--space-xs);
+    }
+}
+
+@media (max-width: 480px) {
+    .battle-hud.bottom {
+        max-height: 50vh;
+    }
+
+    .selected-unit-panel {
+        padding: var(--space-xs);
+    }
+
+    .unit-portrait {
+        width: 40px;
+        height: 40px;
+    }
+
+    .portrait-icon {
+        font-size: 1.1rem;
+    }
+
+    .quick-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .raven-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .wave-text {
+        font-size: 1.5rem;
     }
 }

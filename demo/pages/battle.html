@@ -114,8 +114,60 @@
                 <h2>일시정지</h2>
                 <div class="modal-buttons">
                     <button class="btn btn-primary" id="btn-resume">계속하기</button>
+                    <button class="btn btn-secondary" id="btn-help">단축키 도움말</button>
                     <button class="btn btn-danger" id="btn-retreat-battle">후퇴</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Keyboard Help Modal (L-002) -->
+        <div class="modal" id="keyboard-help-modal">
+            <div class="modal-content keyboard-help">
+                <h2>⌨️ 키보드 단축키</h2>
+                <div class="shortcut-list">
+                    <div class="shortcut-group">
+                        <h3>기본 조작</h3>
+                        <div class="shortcut-item">
+                            <kbd>Space</kbd>
+                            <span>일시정지 / 재개</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>ESC</kbd>
+                            <span>선택 해제 / 취소</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>?</kbd>
+                            <span>이 도움말 표시</span>
+                        </div>
+                    </div>
+                    <div class="shortcut-group">
+                        <h3>크루 선택</h3>
+                        <div class="shortcut-item">
+                            <kbd>1</kbd> ~ <kbd>9</kbd>
+                            <span>크루 선택 (순서대로)</span>
+                        </div>
+                    </div>
+                    <div class="shortcut-group">
+                        <h3>크루 행동</h3>
+                        <div class="shortcut-item">
+                            <kbd>Q</kbd>
+                            <span>스킬 사용</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>E</kbd>
+                            <span>장비 사용</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>좌클릭</kbd>
+                            <span>이동 명령</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>우클릭</kbd>
+                            <span>공격 대상 지정</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="btn-close-help">확인</button>
             </div>
         </div>
 
@@ -151,14 +203,19 @@
     <script src="../js/core/raven.js"></script>
     <!-- Entities -->
     <script src="../js/entities/turret.js"></script>
+    <script src="../js/entities/enemy.js"></script>
+    <!-- AI System (Session 3) -->
+    <script src="../js/ai/behavior-tree.js"></script>
+    <script src="../js/ai/enemy-mechanics.js"></script>
+    <script src="../js/ai/crew-ai.js"></script>
     <!-- Wave System (Session 3) -->
     <script src="../js/core/wave-generator.js"></script>
-    <script src="../js/core/wave-manager.js"></script>
     <!-- Station (Session 4) -->
     <script src="../js/core/station-generator.js"></script>
     <!-- UI Systems -->
     <script src="../js/ui/ui-components.js"></script>
     <script src="../js/ui/effects.js"></script>
+    <script src="../js/ui/hud.js"></script>
     <!-- Battle -->
     <script src="../js/pages/battle.js"></script>
     <script src="../js/ui/battle-effects-integration.js"></script>

@@ -4,12 +4,19 @@
  */
 
 const TileGrid = {
-    // Tile type constants
+    // Tile type constants (matching StationGenerator)
     TILE_FLOOR: 'floor',
     TILE_WALL: 'wall',
     TILE_COVER: 'cover',
     TILE_SPAWN: 'spawn',
     TILE_DEPLOY: 'deploy',
+    TILE_ELEVATED: 'elevated',
+    TILE_LOWERED: 'lowered',
+    TILE_CORRIDOR: 'corridor',
+    TILE_HAZARD: 'hazard',
+    TILE_CHOKE: 'choke',
+    TILE_FACILITY: 'facility',
+    TILE_AIRLOCK: 'airlock',
 
     // Grid data
     width: 0,
@@ -17,8 +24,19 @@ const TileGrid = {
     tiles: [],
     tileSize: 40,
 
-    // Cover provides damage reduction
+    // Terrain modifiers
     COVER_REDUCTION: 0.5,
+    TERRAIN_MODIFIERS: {
+        floor: { defense: 0, range: 0, damage: 0 },
+        elevated: { defense: 0, range: 1, damage: 0 },
+        lowered: { defense: -10, range: 0, damage: 0 },
+        cover: { defense: 25, range: 0, damage: 0 },
+        hazard: { defense: 0, range: 0, damage: 5 },
+        choke: { defense: 10, range: 0, damage: 0 },
+        corridor: { defense: 0, range: 0, damage: 0 },
+        facility: { defense: 0, range: 0, damage: 0 },
+        airlock: { defense: 0, range: 0, damage: 0 },
+    },
 
     /**
      * Initialize grid from layout data
@@ -46,6 +64,78 @@ const TileGrid = {
         }
 
         return this;
+    },
+
+    /**
+     * Initialize from StationGenerator layout (numeric grid)
+     */
+    initFromStation(stationLayout) {
+        this.width = stationLayout.width;
+        this.height = stationLayout.height;
+        this.tiles = [];
+
+        // Map StationGenerator tile types to TileGrid types
+        const tileTypeMap = {
+            0: this.TILE_WALL,      // VOID -> Wall (impassable)
+            1: this.TILE_FLOOR,     // FLOOR
+            2: this.TILE_WALL,      // WALL
+            3: this.TILE_FACILITY,  // FACILITY
+            4: this.TILE_AIRLOCK,   // AIRLOCK
+            5: this.TILE_ELEVATED,  // ELEVATED
+            6: this.TILE_LOWERED,   // LOWERED
+            7: this.TILE_CORRIDOR,  // CORRIDOR
+            8: this.TILE_COVER,     // COVER
+            9: this.TILE_HAZARD,    // HAZARD
+            10: this.TILE_CHOKE,    // CHOKE
+        };
+
+        for (let y = 0; y < this.height; y++) {
+            this.tiles[y] = [];
+            for (let x = 0; x < this.width; x++) {
+                const numericType = stationLayout.grid[y]?.[x] ?? 0;
+                const type = tileTypeMap[numericType] || this.TILE_WALL;
+
+                const walkableTypes = [
+                    this.TILE_FLOOR, this.TILE_FACILITY, this.TILE_AIRLOCK,
+                    this.TILE_ELEVATED, this.TILE_LOWERED, this.TILE_CORRIDOR,
+                    this.TILE_COVER, this.TILE_HAZARD, this.TILE_CHOKE,
+                ];
+
+                this.tiles[y][x] = {
+                    x: x,
+                    y: y,
+                    type: type,
+                    walkable: walkableTypes.includes(type),
+                    blocksLOS: type === this.TILE_WALL,
+                    coverValue: this._getCoverValue(type),
+                    terrainModifier: this.TERRAIN_MODIFIERS[type] || this.TERRAIN_MODIFIERS.floor,
+                    occupied: null,
+                    effect: null,
+                };
+            }
+        }
+
+        return this;
+    },
+
+    /**
+     * Get cover value for a tile type
+     */
+    _getCoverValue(type) {
+        switch (type) {
+            case this.TILE_COVER: return this.COVER_REDUCTION;
+            case this.TILE_CHOKE: return 0.2;
+            default: return 0;
+        }
+    },
+
+    /**
+     * Get terrain modifier at position
+     */
+    getTerrainModifier(x, y) {
+        const tile = this.getTile(x, y);
+        if (!tile) return { defense: 0, range: 0, damage: 0 };
+        return tile.terrainModifier || this.TERRAIN_MODIFIERS.floor;
     },
 
     /**

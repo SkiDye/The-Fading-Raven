@@ -104,6 +104,10 @@ const BattleController = {
             btnRetreatBattle: document.getElementById('btn-retreat-battle'),
             targetingOverlay: document.getElementById('targeting-overlay'),
             slowMotionIndicator: document.getElementById('slow-motion-indicator'),
+            // Keyboard help (L-002)
+            keyboardHelpModal: document.getElementById('keyboard-help-modal'),
+            btnHelp: document.getElementById('btn-help'),
+            btnCloseHelp: document.getElementById('btn-close-help'),
         };
     },
 
@@ -260,6 +264,12 @@ const BattleController = {
         this.turrets = [];
         this.mines = [];
         this.deadCrews = [];
+
+        // Initialize Crew AI (enabled by default)
+        if (typeof CrewAI !== 'undefined') {
+            CrewAI.reset();
+            CrewAI.enableAll(this.crews);
+        }
 
         this.totalWaves = 2 + this.battleInfo.difficulty;
         if (this.battleInfo.type === 'boss') {
@@ -450,6 +460,15 @@ const BattleController = {
         this.elements.btnPause?.addEventListener('click', () => this.togglePause());
         this.elements.btnResume?.addEventListener('click', () => this.togglePause());
         this.elements.btnRetreatBattle?.addEventListener('click', () => this.retreatFromBattle());
+
+        // Keyboard help (L-002)
+        this.elements.btnHelp?.addEventListener('click', () => this.showKeyboardHelp());
+        this.elements.btnCloseHelp?.addEventListener('click', () => this.hideKeyboardHelp());
+        this.elements.keyboardHelpModal?.addEventListener('click', (e) => {
+            if (e.target === this.elements.keyboardHelpModal) {
+                this.hideKeyboardHelp();
+            }
+        });
 
         // Deselect button
         document.getElementById('btn-deselect')?.addEventListener('click', () => {
@@ -642,6 +661,24 @@ const BattleController = {
             e.preventDefault();
             this.activateSlowMotion(2000);
         }
+
+        // ? for keyboard help (L-002)
+        if (e.key === '?' || e.key === '/') {
+            this.showKeyboardHelp();
+        }
+    },
+
+    // Keyboard help methods (L-002)
+    showKeyboardHelp() {
+        this.elements.keyboardHelpModal?.classList.add('active');
+        // Pause game while help is shown
+        if (!this.paused) {
+            this.togglePause();
+        }
+    },
+
+    hideKeyboardHelp() {
+        this.elements.keyboardHelpModal?.classList.remove('active');
     },
 
     // ==========================================
@@ -953,8 +990,15 @@ const BattleController = {
             return e.timer < e.duration;
         });
 
-        // Remove dead enemies
-        this.enemies = this.enemies.filter(e => e.health > 0);
+        // Remove dead enemies (support both Enemy class and simple objects)
+        this.enemies = this.enemies.filter(e => {
+            // Enemy class instance
+            if (e.state !== undefined) {
+                return e.state !== EnemyState.DEAD && e.state !== EnemyState.DYING;
+            }
+            // Simple object fallback
+            return e.health > 0;
+        });
 
         // Check battle end
         this.checkBattleEnd();
@@ -979,6 +1023,11 @@ const BattleController = {
         // Reduce attack timer
         crew.attackTimer -= dt;
 
+        // Run Crew AI if enabled
+        if (typeof CrewAI !== 'undefined' && CrewAI.isEnabled(crew.id)) {
+            CrewAI.update(crew, this, dt);
+        }
+
         switch (crew.state) {
             case 'moving':
                 this.updateCrewMovement(crew, dt);
@@ -989,11 +1038,13 @@ const BattleController = {
                 break;
 
             case 'idle':
-                // Auto-target nearby enemies
-                const nearestEnemy = this.findNearestEnemy(crew);
-                if (nearestEnemy && Utils.distance(crew.x, crew.y, nearestEnemy.x, nearestEnemy.y) <= crew.attackRange * 1.5) {
-                    crew.targetEnemy = nearestEnemy;
-                    crew.state = 'attacking';
+                // Auto-target nearby enemies (fallback if AI disabled)
+                if (!CrewAI || !CrewAI.isEnabled(crew.id)) {
+                    const nearestEnemy = this.findNearestEnemy(crew);
+                    if (nearestEnemy && Utils.distance(crew.x, crew.y, nearestEnemy.x, nearestEnemy.y) <= crew.attackRange * 1.5) {
+                        crew.targetEnemy = nearestEnemy;
+                        crew.state = 'attacking';
+                    }
                 }
                 break;
         }
@@ -1065,7 +1116,48 @@ const BattleController = {
     },
 
     updateEnemy(enemy, dt) {
-        // Update status effects
+        // Check if this is an Enemy class instance (Session 3)
+        if (typeof enemy.update === 'function') {
+            // Use Enemy class update with game context
+            const context = {
+                crews: this.crews,
+                enemies: this.enemies,
+                turrets: this.turrets,
+                station: { x: this.canvas.width / 2, y: this.canvas.height / 2, health: this.stationHealth },
+                tileGrid: this.tileGrid,
+                rng: this.rng,
+            };
+
+            // Set target for AI
+            const nearestCrew = this.findNearestCrew(enemy);
+            enemy.target = nearestCrew;
+
+            // Update enemy (handles state, cooldowns, status effects)
+            enemy.update(dt, context);
+
+            // Handle attack event from Enemy class
+            if (enemy.state === EnemyState.ATTACKING && enemy.attackCooldown <= 0) {
+                if (nearestCrew && enemy.isInAttackRange(nearestCrew)) {
+                    this.enemyAttack(enemy, nearestCrew);
+                }
+            }
+
+            // Station damage if no crew targets
+            if (!nearestCrew && enemy.canAttackStation && enemy.canAttackStation()) {
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+                const dist = Utils.distance(enemy.x, enemy.y, centerX, centerY);
+
+                if (dist <= 50 && enemy.attackCooldown <= 0) {
+                    this.stationHealth -= enemy.damage / 5;
+                    enemy.attackCooldown = enemy.attackSpeed;
+                }
+            }
+
+            return;
+        }
+
+        // Fallback for simple enemy objects (legacy support)
         if (enemy.stunned && enemy.stunTimer > 0) {
             enemy.stunTimer -= dt;
             if (enemy.stunTimer <= 0) enemy.stunned = false;
@@ -1133,20 +1225,30 @@ const BattleController = {
                     if (proj.target.health !== undefined) {
                         // Enemy target
                         let damage = proj.damage;
+                        let actualDamage = damage;
 
-                        // Check shield
-                        if (proj.target.shielded) {
-                            damage *= (1 - (proj.target.shieldReduction || 0));
+                        // Use Enemy class takeDamage if available
+                        if (typeof proj.target.takeDamage === 'function') {
+                            actualDamage = proj.target.takeDamage(damage, proj.source, 'ranged');
+                        } else {
+                            // Fallback for simple objects
+                            if (proj.target.shielded) {
+                                damage *= (1 - (proj.target.shieldReduction || 0));
+                            }
+                            proj.target.health -= damage;
+                            actualDamage = damage;
                         }
+                        this.addDamageNumber(proj.target.x, proj.target.y, Math.floor(actualDamage));
 
-                        proj.target.health -= damage;
-                        this.addDamageNumber(proj.target.x, proj.target.y, Math.floor(damage));
-
-                        // Apply slow from turret
+                        // Apply slow from turret (for Enemy class, use applySlow method)
                         if (proj.applySlows && proj.slowAmount) {
-                            proj.target.slowed = true;
-                            proj.target.slowTimer = proj.slowDuration;
-                            proj.target.slowAmount = proj.slowAmount;
+                            if (typeof proj.target.applySlow === 'function') {
+                                proj.target.applySlow(proj.slowAmount, proj.slowDuration);
+                            } else {
+                                proj.target.slowed = true;
+                                proj.target.slowTimer = proj.slowDuration;
+                                proj.target.slowAmount = proj.slowAmount;
+                            }
                         }
                     } else {
                         // Crew target (from hacked turret)
@@ -1193,8 +1295,15 @@ const BattleController = {
             });
         } else {
             // Melee attack
-            enemy.health -= damage;
-            this.addDamageNumber(enemy.x, enemy.y, Math.floor(damage));
+            if (typeof enemy.takeDamage === 'function') {
+                // Use Enemy class method for proper damage handling
+                const actualDamage = enemy.takeDamage(damage, crew, 'melee');
+                this.addDamageNumber(enemy.x, enemy.y, Math.floor(actualDamage));
+            } else {
+                // Fallback for simple objects
+                enemy.health -= damage;
+                this.addDamageNumber(enemy.x, enemy.y, Math.floor(damage));
+            }
 
             this.addEffect({
                 type: 'melee_hit',
@@ -1761,11 +1870,36 @@ const BattleController = {
     renderEnemy(enemy) {
         const ctx = this.ctx;
 
+        // Get render data (support both Enemy class and simple objects)
+        const color = enemy.visual?.color || enemy.color || '#ff6b6b';
+        const size = enemy.visual?.size || enemy.size || 15;
+        const isStunned = enemy.isStunned || enemy.stunned;
+        const isSlowed = enemy.slowMultiplier < 1 || enemy.slowed;
+        const hasShield = enemy.hasShield;
+
         // Enemy circle
-        ctx.fillStyle = enemy.color;
+        ctx.fillStyle = enemy.flashTime > 0 ? '#ffffff' : color;
         ctx.beginPath();
-        ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI * 2);
+        ctx.arc(enemy.x, enemy.y, size, 0, Math.PI * 2);
         ctx.fill();
+
+        // Boss indicator
+        if (enemy.isBoss) {
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, size + 3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Shield indicator (from Shield Generator)
+        if (hasShield) {
+            ctx.strokeStyle = 'rgba(100, 200, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, size + 4, 0, Math.PI * 2);
+            ctx.stroke();
+        }
 
         // Marked indicator
         if (enemy.marked) {
@@ -1773,7 +1907,7 @@ const BattleController = {
             ctx.lineWidth = 2;
             ctx.setLineDash([3, 3]);
             ctx.beginPath();
-            ctx.arc(enemy.x, enemy.y, enemy.size + 5, 0, Math.PI * 2);
+            ctx.arc(enemy.x, enemy.y, size + 5, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
         }
@@ -1782,20 +1916,20 @@ const BattleController = {
         if (enemy.illuminated) {
             ctx.fillStyle = 'rgba(246, 173, 85, 0.2)';
             ctx.beginPath();
-            ctx.arc(enemy.x, enemy.y, enemy.size + 8, 0, Math.PI * 2);
+            ctx.arc(enemy.x, enemy.y, size + 8, 0, Math.PI * 2);
             ctx.fill();
         }
 
         // Stun indicator
-        if (enemy.stunned) {
+        if (isStunned) {
             ctx.fillStyle = '#fff';
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('💫', enemy.x, enemy.y - enemy.size - 5);
+            ctx.fillText('💫', enemy.x, enemy.y - size - 5);
         }
 
         // Slow indicator
-        if (enemy.slowed) {
+        if (isSlowed) {
             ctx.fillStyle = '#63b3ed';
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'center';
@@ -1804,14 +1938,14 @@ const BattleController = {
 
         // Health bar
         const healthPct = enemy.health / enemy.maxHealth;
-        const barWidth = enemy.size * 2;
+        const barWidth = size * 2;
         const barHeight = 3;
         const barX = enemy.x - barWidth / 2;
-        const barY = enemy.y - enemy.size - 8;
+        const barY = enemy.y - size - 8;
 
         ctx.fillStyle = '#333';
         ctx.fillRect(barX, barY, barWidth, barHeight);
-        ctx.fillStyle = '#fc8181';
+        ctx.fillStyle = enemy.isBoss ? '#ffd700' : '#fc8181';
         ctx.fillRect(barX, barY, barWidth * healthPct, barHeight);
 
         // Boss indicator
