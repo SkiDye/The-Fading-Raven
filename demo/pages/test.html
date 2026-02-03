@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integration Test - The Fading Raven</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/ui-components.css">
+    <link rel="stylesheet" href="../css/effects.css">
+    <style>
+        body {
+            background: #0a0a0f;
+            color: #e0e0e0;
+            padding: 20px;
+            font-family: 'Consolas', monospace;
+        }
+        .test-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 8px;
+            border: 1px solid #4a9eff;
+        }
+        .test-header h1 {
+            color: #4a9eff;
+            margin: 0;
+        }
+        .test-header p {
+            color: #a0aec0;
+            margin: 10px 0 0;
+        }
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .test-btn {
+            padding: 12px 24px;
+            background: #2d3748;
+            color: #e0e0e0;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .test-btn:hover {
+            background: #4a5568;
+            border-color: #4a9eff;
+        }
+        .test-btn.primary {
+            background: #2563eb;
+            border-color: #3b82f6;
+        }
+        .test-btn.primary:hover {
+            background: #3b82f6;
+        }
+        .module-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .module-card {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #2d3748;
+        }
+        .module-card h3 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #f6ad55;
+        }
+        .module-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #2d3748;
+        }
+        .module-item:last-child {
+            border-bottom: none;
+        }
+        .status-loaded {
+            color: #68d391;
+        }
+        .status-missing {
+            color: #fc8181;
+        }
+        .console-output {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .console-output pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .instructions {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .instructions h3 {
+            color: #4a9eff;
+            margin-top: 0;
+        }
+        .instructions code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #68d391;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-header">
+        <h1>THE FADING RAVEN - Integration Test</h1>
+        <p>All modules loaded for comprehensive testing</p>
+    </div>
+
+    <div class="instructions">
+        <h3>Testing Instructions</h3>
+        <p>Open browser console (F12) and run:</p>
+        <ul>
+            <li><code>IntegrationTest.runAll()</code> - Run all tests</li>
+            <li><code>BalanceValidator.runAll()</code> - Run balance analysis</li>
+            <li><code>IntegrationTest.testSession2()</code> - Test combat system only</li>
+            <li><code>IntegrationTest.testSession3()</code> - Test enemy/AI system only</li>
+            <li><code>IntegrationTest.testSession4()</code> - Test campaign system only</li>
+            <li><code>IntegrationTest.testSession5()</code> - Test UI system only</li>
+        </ul>
+    </div>
+
+    <div class="test-controls">
+        <button class="test-btn primary" onclick="runAllTests()">Run All Tests</button>
+        <button class="test-btn" onclick="runBalanceValidator()">Balance Validator</button>
+        <button class="test-btn" onclick="checkModuleStatus()">Check Modules</button>
+        <button class="test-btn" onclick="clearConsole()">Clear Console</button>
+    </div>
+
+    <h2>Module Status</h2>
+    <div class="module-status" id="module-status">
+        <!-- Populated by JavaScript -->
+    </div>
+
+    <h2>Console Output</h2>
+    <div class="console-output" id="console-output">
+        <pre id="output-content">Ready for testing...</pre>
+    </div>
+
+    <!-- Core Utilities -->
+    <script src="../js/core/utils.js"></script>
+    <script src="../js/core/rng.js"></script>
+
+    <!-- Session 1: Data Modules -->
+    <script src="../js/data/crews.js"></script>
+    <script src="../js/data/equipment.js"></script>
+    <script src="../js/data/traits.js"></script>
+    <script src="../js/data/enemies.js"></script>
+    <script src="../js/data/facilities.js"></script>
+    <script src="../js/data/balance.js"></script>
+    <script src="../js/core/game-state.js"></script>
+
+    <!-- Session 2: Combat System -->
+    <script src="../js/core/tile-grid.js"></script>
+    <script src="../js/core/skills.js"></script>
+    <script src="../js/core/equipment-effects.js"></script>
+    <script src="../js/core/raven.js"></script>
+    <script src="../js/entities/turret.js"></script>
+
+    <!-- Session 3: Enemy/AI System -->
+    <script src="../js/entities/enemy.js"></script>
+    <script src="../js/ai/behavior-tree.js"></script>
+    <script src="../js/ai/enemy-mechanics.js"></script>
+    <script src="../js/core/wave-generator.js"></script>
+
+    <!-- Session 4: Campaign System -->
+    <script src="../js/core/sector-generator.js"></script>
+    <script src="../js/core/station-generator.js"></script>
+    <script src="../js/core/meta-progress.js"></script>
+
+    <!-- Session 5: UI System -->
+    <script src="../js/ui/ui-components.js"></script>
+    <script src="../js/ui/effects.js"></script>
+    <script src="../js/ui/hud.js"></script>
+    <script src="../js/ui/battle-effects-integration.js"></script>
+
+    <!-- Test Suites -->
+    <script src="../js/test/integration-test.js"></script>
+    <script src="../js/test/balance-validator.js"></script>
+
+    <script>
+        // Module definitions for status check
+        const modules = {
+            'Session 1: Data': [
+                { name: 'CrewData', global: 'CrewData' },
+                { name: 'EquipmentData', global: 'EquipmentData' },
+                { name: 'TraitData', global: 'TraitData' },
+                { name: 'EnemyData', global: 'EnemyData' },
+                { name: 'FacilityData', global: 'FacilityData' },
+                { name: 'BalanceData', global: 'BalanceData' },
+                { name: 'GameState', global: 'GameState' },
+            ],
+            'Session 2: Combat': [
+                { name: 'TileGrid', global: 'TileGrid' },
+                { name: 'SkillSystem', global: 'SkillSystem' },
+                { name: 'EquipmentEffects', global: 'EquipmentEffects' },
+                { name: 'RavenSystem', global: 'RavenSystem' },
+                { name: 'TurretSystem', global: 'TurretSystem' },
+            ],
+            'Session 3: Enemy/AI': [
+                { name: 'EnemyFactory', global: 'EnemyFactory' },
+                { name: 'AIManager', global: 'AIManager' },
+                { name: 'WaveGenerator', global: 'WaveGenerator' },
+                { name: 'WaveManager', global: 'WaveManager' },
+                { name: 'EnemyMechanicsManager', global: 'EnemyMechanicsManager' },
+            ],
+            'Session 4: Campaign': [
+                { name: 'SectorGenerator', global: 'SectorGenerator' },
+                { name: 'StationGenerator', global: 'StationGenerator' },
+                { name: 'MetaProgress', global: 'MetaProgress' },
+            ],
+            'Session 5: UI': [
+                { name: 'Tooltip', global: 'Tooltip' },
+                { name: 'Toast', global: 'Toast' },
+                { name: 'ModalManager', global: 'ModalManager' },
+                { name: 'ProgressBar', global: 'ProgressBar' },
+                { name: 'ScreenEffects', global: 'ScreenEffects' },
+                { name: 'ParticleSystem', global: 'ParticleSystem' },
+                { name: 'FloatingText', global: 'FloatingText' },
+                { name: 'HUD', global: 'HUD' },
+                { name: 'BattleEffectsIntegration', global: 'BattleEffectsIntegration' },
+            ],
+            'Test Suites': [
+                { name: 'IntegrationTest', global: 'IntegrationTest' },
+                { name: 'BalanceValidator', global: 'BalanceValidator' },
+            ],
+        };
+
+        function checkModuleStatus() {
+            const container = document.getElementById('module-status');
+            container.innerHTML = '';
+
+            let totalLoaded = 0;
+            let totalModules = 0;
+
+            for (const [category, items] of Object.entries(modules)) {
+                const card = document.createElement('div');
+                card.className = 'module-card';
+
+                let html = `<h3>${category}</h3>`;
+
+                items.forEach(item => {
+                    totalModules++;
+                    const isLoaded = typeof window[item.global] !== 'undefined';
+                    if (isLoaded) totalLoaded++;
+
+                    const statusClass = isLoaded ? 'status-loaded' : 'status-missing';
+                    const statusText = isLoaded ? '✓ Loaded' : '✗ Missing';
+
+                    html += `
+                        <div class="module-item">
+                            <span>${item.name}</span>
+                            <span class="${statusClass}">${statusText}</span>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = html;
+                container.appendChild(card);
+            }
+
+            logOutput(`Module Status: ${totalLoaded}/${totalModules} loaded`);
+        }
+
+        function runAllTests() {
+            logOutput('Running IntegrationTest.runAll()...\n');
+            IntegrationTest.runAll().then(passed => {
+                logOutput(`\nAll tests ${passed ? 'PASSED' : 'FAILED'}`);
+            });
+        }
+
+        function runBalanceValidator() {
+            logOutput('Running BalanceValidator.runAll()...\n');
+            BalanceValidator.runAll();
+        }
+
+        function clearConsole() {
+            document.getElementById('output-content').textContent = 'Console cleared.';
+        }
+
+        function logOutput(text) {
+            const output = document.getElementById('output-content');
+            output.textContent += '\n' + text;
+            output.parentElement.scrollTop = output.parentElement.scrollHeight;
+        }
+
+        // Intercept console.log for display
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const text = args.map(a => {
+                if (typeof a === 'object') return JSON.stringify(a, null, 2);
+                return String(a).replace(/%c/g, '');
+            }).join(' ');
+            logOutput(text);
+        };
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            checkModuleStatus();
+            logOutput('\n=== Test Page Ready ===');
+            logOutput('Click "Run All Tests" or use console commands.');
+        });
+    </script>
+</body>
+</html>

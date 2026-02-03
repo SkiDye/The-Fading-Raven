@@ -221,6 +221,7 @@ const MetaProgress = {
 ## Session 3 Status
 - Started: 2026-02-03
 - Completed: 2026-02-03
+- Issues Fixed: 2026-02-03 (9개 이슈 자체 수정 완료, SESSION-3-ISSUES.md 참조)
 - Assigned Files:
   - `demo/js/entities/enemy.js` (new)
   - `demo/js/ai/behavior-tree.js` (new)
@@ -247,13 +248,15 @@ class Enemy {
     on(event, callback),
 }
 
-// AIManager - demo/js/ai/behavior-tree.js
-const AIManager = {
+// AIManager - demo/js/ai/behavior-tree.js (클래스)
+// 사용 시 인스턴스 생성 필요: const aiManager = new AIManager();
+class AIManager {
+    constructor(),
     updateEnemy(enemy, context),
     updateAll(enemies, context),
     removeEnemy(enemyId),
     clear(),
-};
+}
 
 // WaveGenerator - demo/js/core/wave-generator.js
 class WaveGenerator {
@@ -412,9 +415,36 @@ const HUD = {
 - [x] 설정 화면 완성 (접근성 옵션 포함)
 
 ### Future Enhancements
-- 업그레이드 UI 개선 (장비/스킬 상세 뷰)
 - Raven 능력 시각 효과 추가
 - 사운드 시스템 통합
+
+---
+
+## Integration Status (Session 4)
+
+### Completed
+- [x] **Deploy 페이지 통합** (`demo/js/pages/deploy.js`)
+  - StationGenerator 연동 (procedural layout generation)
+  - 레이아웃 형식 변환 (_convertLayout)
+  - 배치 영역 생성 (_createDeploymentZones)
+
+- [x] **Battle 시스템 통합** (`demo/js/pages/battle.js`)
+  - WaveGenerator/WaveManager 연동
+  - 새 타일 타입 렌더링 (ELEVATED, LOWERED, CORRIDOR, FACILITY)
+  - 시설 렌더링 (credit values 표시)
+  - 스폰 포인트 방향 표시
+
+- [x] **Result 페이지 통합** (`demo/js/pages/result.js`)
+  - MetaProgress 연동 (processRunCompletion)
+  - 새로운 해금 표시 (newUnlocks, newAchievements)
+  - 새 노드 타입 지원 (storm, commander)
+  - 보너스 크레딧 표시 (Salvage Core, 시설 방어)
+
+- [x] **Upgrade 페이지 개선** (`demo/js/pages/upgrade.js`)
+  - EquipmentData 통합 (getAvailableEquipment)
+  - TraitData 통합 (getTraitName, getTraitDescription)
+  - MetaProgress 연동 (isEquipmentUnlocked)
+  - 장비 희귀도 정렬
 
 ---
 

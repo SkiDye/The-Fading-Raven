@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sector Map - The Fading Raven</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/pages/sector.css">
+</head>
+<body>
+    <div class="page-container sector-page">
+        <!-- Top HUD -->
+        <header class="sector-hud top-hud">
+            <div class="hud-left">
+                <div class="stat-box">
+                    <span class="stat-label">Turn</span>
+                    <span class="stat-value" id="turn-display">1</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Credits</span>
+                    <span class="stat-value credits" id="credits-display">0</span>
+                </div>
+            </div>
+            <div class="hud-center">
+                <h1>SECTOR MAP</h1>
+            </div>
+            <div class="hud-right">
+                <button class="btn-hud" id="btn-upgrade">UPGRADE</button>
+                <button class="btn-hud" id="btn-rest">REST</button>
+                <button class="btn-hud" id="btn-menu">MENU</button>
+            </div>
+        </header>
+
+        <!-- Main Map Area -->
+        <main class="sector-main">
+            <div class="map-container" id="map-container">
+                <canvas id="sector-map-canvas"></canvas>
+
+                <!-- L-012: Zoom/Pan Controls -->
+                <div class="map-controls">
+                    <button class="map-control-btn" id="btn-zoom-in" title="확대">+</button>
+                    <span class="zoom-level" id="zoom-level">100%</span>
+                    <button class="map-control-btn" id="btn-zoom-out" title="축소">-</button>
+                    <button class="map-control-btn" id="btn-zoom-reset" title="초기화">⟲</button>
+                </div>
+
+                <!-- Depth Indicator -->
+                <div class="depth-indicator" id="depth-display">깊이 0/15</div>
+
+                <!-- Storm Warning -->
+                <div class="storm-warning" id="storm-warning">
+                    <span class="warning-icon">⚡</span>
+                    <span class="warning-text">STORM APPROACHING - <span id="storm-turns">3</span> TURNS</span>
+                </div>
+
+                <!-- Pan Hint -->
+                <div class="pan-hint" id="pan-hint">드래그하여 맵 이동</div>
+            </div>
+
+            <!-- Node Info Popup -->
+            <div class="modal node-popup" id="node-popup">
+                <div class="modal-content">
+                    <div class="popup-header">
+                        <h2 id="popup-title">Station Alpha</h2>
+                    </div>
+                    <div class="popup-content">
+                        <p class="popup-desc" id="popup-desc">전투</p>
+                        <div class="popup-stat">
+                            <span>난이도</span>
+                            <span id="popup-difficulty" class="difficulty-stars">⭐⭐</span>
+                        </div>
+                        <!-- L-011: Storm node detailed info -->
+                        <div class="popup-storm-info" id="popup-storm-info" style="display: none;">
+                            <h4>⚡ 폭풍 스테이지 정보</h4>
+                            <div class="storm-risks">
+                                <span class="risk-title">위험 요소</span>
+                                <ul id="storm-risks-list"></ul>
+                            </div>
+                            <div class="storm-rewards">
+                                <span class="reward-title">추가 보상</span>
+                                <ul id="storm-rewards-list"></ul>
+                            </div>
+                        </div>
+                        <div class="popup-warning" id="popup-warning" style="display: none;"></div>
+                        <div class="popup-rewards" id="popup-reward">
+                            <!-- Rewards shown here -->
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="btn-cancel-node">취소</button>
+                        <button class="btn btn-primary" id="btn-enter-node">진입</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom HUD - Crew Summary -->
+        <footer class="sector-hud bottom-hud">
+            <div class="crew-roster" id="crew-roster">
+                <!-- Crew cards generated here -->
+            </div>
+        </footer>
+
+        <!-- Rest Confirmation Modal -->
+        <div class="modal" id="rest-modal">
+            <div class="modal-content">
+                <h2>REST</h2>
+                <p>End your turn and advance the storm?</p>
+                <p class="warning-text">Stations behind the storm line will be lost!</p>
+                <div class="modal-actions">
+                    <button class="btn-secondary" id="btn-rest-cancel">CANCEL</button>
+                    <button class="btn-primary" id="btn-rest-confirm">REST</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Modal -->
+        <div class="modal" id="menu-modal">
+            <div class="modal-content">
+                <h2>MENU</h2>
+                <div class="modal-buttons">
+                    <button class="btn-secondary" id="btn-resume">RESUME</button>
+                    <button class="btn-secondary" id="btn-settings">SETTINGS</button>
+                    <button class="btn-danger" id="btn-abandon">ABANDON RUN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/core/utils.js"></script>
+    <script src="../js/core/rng.js"></script>
+    <!-- Data Modules -->
+    <script src="../js/data/crews.js"></script>
+    <script src="../js/data/equipment.js"></script>
+    <script src="../js/data/traits.js"></script>
+    <script src="../js/data/enemies.js"></script>
+    <script src="../js/data/facilities.js"></script>
+    <script src="../js/data/balance.js"></script>
+    <!-- Core -->
+    <script src="../js/core/game-state.js"></script>
+    <script src="../js/core/sector-generator.js"></script>
+    <script src="../js/pages/sector.js"></script>
+</body>
+</html>

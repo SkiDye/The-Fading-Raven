@@ -25,6 +25,10 @@ const BattleController = {
     offsetX: 0,
     offsetY: 0,
 
+    // Isometric rendering mode
+    useIsometric: true,
+    isometricInitialized: false,
+
     // Entities
     crews: [],
     enemies: [],
@@ -127,12 +131,19 @@ const BattleController = {
         this.canvas.height = rect.height;
 
         if (this.stationLayout) {
+            // Legacy grid calculations (still needed for some systems)
             this.tileSize = Math.min(
                 (this.canvas.width - 100) / this.stationLayout.width,
                 (this.canvas.height - 100) / this.stationLayout.height
             );
             this.offsetX = (this.canvas.width - this.stationLayout.width * this.tileSize) / 2;
             this.offsetY = (this.canvas.height - this.stationLayout.height * this.tileSize) / 2;
+
+            // Initialize/update isometric renderer
+            if (this.useIsometric && typeof IsometricRenderer !== 'undefined') {
+                IsometricRenderer.init(this.canvas, this.stationLayout.width, this.stationLayout.height);
+                this.isometricInitialized = true;
+            }
         }
     },
 
@@ -345,11 +356,17 @@ const BattleController = {
 
         const difficultyMult = 1 + (this.battleInfo.difficulty - 1) * 0.25;
 
+        // Calculate tile position from pixel coordinates
+        const tileX = Math.floor((spawnX - this.offsetX) / this.tileSize);
+        const tileY = Math.floor((spawnY - this.offsetY) / this.tileSize);
+
         return {
             id: Utils.generateId(),
             type: type,
             x: spawnX,
             y: spawnY,
+            tileX: tileX,
+            tileY: tileY,
             targetX: null,
             targetY: null,
             path: [],
@@ -436,6 +453,14 @@ const BattleController = {
         });
         this.canvas?.addEventListener('mousemove', (e) => this.handleCanvasMouseMove(e));
 
+        // Camera controls - Mouse wheel for zoom
+        this.canvas?.addEventListener('wheel', (e) => this.handleMouseWheel(e), { passive: false });
+
+        // Camera controls - Middle mouse for pan
+        this.canvas?.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        this.canvas?.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+        this.canvas?.addEventListener('mouseleave', (e) => this.handleMouseUp(e));
+
         // Touch events for mobile support
         this.canvas?.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
         this.canvas?.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
@@ -478,7 +503,85 @@ const BattleController = {
 
         window.addEventListener('resize', Utils.debounce(() => {
             this.resizeCanvas();
+            // Invalidate isometric tile cache on resize
+            if (this.useIsometric && typeof IsometricRenderer !== 'undefined') {
+                IsometricRenderer.invalidateCache();
+            }
         }, 200));
+    },
+
+    // ==========================================
+    // CAMERA CONTROLS
+    // ==========================================
+
+    isPanning: false,
+    panStartPos: null,
+    lastPanPos: null,
+
+    /**
+     * Handle mouse wheel for zoom
+     */
+    handleMouseWheel(e) {
+        if (!this.useIsometric || !this.isometricInitialized) return;
+
+        e.preventDefault();
+
+        // Zoom in/out based on wheel direction
+        if (e.deltaY < 0) {
+            IsometricRenderer.zoomIn();
+        } else {
+            IsometricRenderer.zoomOut();
+        }
+    },
+
+    /**
+     * Handle mouse down for pan start
+     */
+    handleMouseDown(e) {
+        // Middle mouse button (button 1) for panning
+        if (e.button === 1) {
+            e.preventDefault();
+            this.isPanning = true;
+            this.panStartPos = { x: e.clientX, y: e.clientY };
+            this.lastPanPos = { x: e.clientX, y: e.clientY };
+            this.canvas.style.cursor = 'grabbing';
+        }
+    },
+
+    /**
+     * Handle mouse up for pan end
+     */
+    handleMouseUp(e) {
+        if (this.isPanning) {
+            this.isPanning = false;
+            this.panStartPos = null;
+            this.lastPanPos = null;
+            this.canvas.style.cursor = '';
+        }
+    },
+
+    /**
+     * Rotate camera (called from keyboard)
+     */
+    rotateCamera(direction) {
+        if (!this.useIsometric || !this.isometricInitialized) return;
+
+        if (direction > 0) {
+            IsometricRenderer.rotateClockwise();
+        } else {
+            IsometricRenderer.rotateCounterClockwise();
+        }
+    },
+
+    /**
+     * Reset camera to default
+     */
+    resetCamera() {
+        if (!this.useIsometric || !this.isometricInitialized) return;
+
+        IsometricRenderer.resetCamera();
+        IsometricRenderer.calculateOrigin();
+        IsometricRenderer.invalidateCache();
     },
 
     // ==========================================
@@ -488,6 +591,8 @@ const BattleController = {
     touchStartTime: 0,
     touchStartPos: null,
     isDragging: false,
+    // Pinch zoom support
+    lastPinchDistance: 0,
 
     handleTouchStart(e) {
         e.preventDefault();
@@ -576,13 +681,24 @@ const BattleController = {
 
         if (this.selectedCrew) {
             // Move selected crew using pathfinding
-            this.moveCrewTo(this.selectedCrew, x, y);
+            this.moveCrewToScreen(this.selectedCrew, x, y);
         } else {
-            // Try to select a crew
-            for (const crew of this.crews) {
-                if (Utils.distance(x, y, crew.x, crew.y) < 25) {
-                    this.selectCrew(crew.id);
+            // Try to select a crew (isometric or legacy)
+            if (this.useIsometric && this.isometricInitialized) {
+                const selectedCrew = DepthSorter.getEntityAtPosition(
+                    x, y, this.crews,
+                    this.stationLayout, this.offsetX, this.offsetY, this.tileSize, 25
+                );
+                if (selectedCrew) {
+                    this.selectCrew(selectedCrew.id);
                     return;
+                }
+            } else {
+                for (const crew of this.crews) {
+                    if (Utils.distance(x, y, crew.x, crew.y) < 25) {
+                        this.selectCrew(crew.id);
+                        return;
+                    }
                 }
             }
         }
@@ -598,18 +714,40 @@ const BattleController = {
         }
 
         if (this.selectedCrew) {
-            // Check if clicking on enemy - target for attack
-            for (const enemy of this.enemies) {
-                if (Utils.distance(x, y, enemy.x, enemy.y) < enemy.size + 10) {
-                    this.selectedCrew.targetEnemy = enemy;
+            // Check if clicking on enemy - target for attack (isometric or legacy)
+            if (this.useIsometric && this.isometricInitialized) {
+                const selectedEnemy = DepthSorter.getEntityAtPosition(
+                    x, y, this.enemies,
+                    this.stationLayout, this.offsetX, this.offsetY, this.tileSize,
+                    30 // Larger hit radius for enemies
+                );
+                if (selectedEnemy) {
+                    this.selectedCrew.targetEnemy = selectedEnemy;
                     this.selectedCrew.state = 'attacking';
                     return;
+                }
+            } else {
+                for (const enemy of this.enemies) {
+                    if (Utils.distance(x, y, enemy.x, enemy.y) < enemy.size + 10) {
+                        this.selectedCrew.targetEnemy = enemy;
+                        this.selectedCrew.state = 'attacking';
+                        return;
+                    }
                 }
             }
         }
     },
 
     handleCanvasMouseMove(e) {
+        // Handle camera panning
+        if (this.isPanning && this.lastPanPos) {
+            const dx = e.clientX - this.lastPanPos.x;
+            const dy = e.clientY - this.lastPanPos.y;
+            IsometricRenderer.pan(dx, dy);
+            this.lastPanPos = { x: e.clientX, y: e.clientY };
+            return;
+        }
+
         if (!this.targetingMode) return;
 
         this.targetPosition = this.getAdjustedClickPosition(e);
@@ -666,6 +804,39 @@ const BattleController = {
         if (e.key === '?' || e.key === '/') {
             this.showKeyboardHelp();
         }
+
+        // Camera controls (when isometric mode is active)
+        if (this.useIsometric && this.isometricInitialized) {
+            // Z - Rotate counter-clockwise
+            if (e.key === 'z' || e.key === 'Z') {
+                e.preventDefault();
+                this.rotateCamera(-1);
+            }
+
+            // C - Rotate clockwise
+            if (e.key === 'c' || e.key === 'C') {
+                e.preventDefault();
+                this.rotateCamera(1);
+            }
+
+            // R - Reset camera (only when no crew selected)
+            if ((e.key === 'r' || e.key === 'R') && !this.selectedCrew) {
+                e.preventDefault();
+                this.resetCamera();
+            }
+
+            // + / = - Zoom in
+            if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                IsometricRenderer.zoomIn();
+            }
+
+            // - - Zoom out
+            if (e.key === '-' || e.key === '_') {
+                e.preventDefault();
+                IsometricRenderer.zoomOut();
+            }
+        }
     },
 
     // Keyboard help methods (L-002)
@@ -684,6 +855,95 @@ const BattleController = {
     // ==========================================
     // CREW MOVEMENT WITH PATHFINDING
     // ==========================================
+
+    /**
+     * Move crew to a screen position (handles isometric conversion)
+     */
+    moveCrewToScreen(crew, screenX, screenY) {
+        if (this.useIsometric && this.isometricInitialized) {
+            // Convert screen position to tile coordinates
+            const tileInfo = DepthSorter.getTileAtPosition(screenX, screenY, this.stationLayout);
+            if (tileInfo) {
+                this.moveCrewToTile(crew, tileInfo.x, tileInfo.y, screenX, screenY);
+            } else {
+                this.showMovementFeedbackIsometric(screenX, screenY, 'blocked');
+            }
+        } else {
+            // Legacy pixel-based movement
+            this.moveCrewTo(crew, screenX, screenY);
+        }
+    },
+
+    /**
+     * Move crew to a specific tile (isometric mode)
+     */
+    moveCrewToTile(crew, tileX, tileY, screenX, screenY) {
+        if (!this.tileGrid) {
+            return;
+        }
+
+        // Get crew's current tile position
+        const startTileX = Math.floor((crew.x - this.offsetX) / this.tileSize);
+        const startTileY = Math.floor((crew.y - this.offsetY) / this.tileSize);
+
+        // Check if target tile is walkable
+        if (!this.tileGrid.isWalkable(tileX, tileY)) {
+            this.showMovementFeedbackIsometric(screenX, screenY, 'blocked');
+            return;
+        }
+
+        // Find path using A*
+        const path = this.tileGrid.findPath(startTileX, startTileY, tileX, tileY);
+
+        if (path.length > 0) {
+            crew.path = path.slice(1); // Remove start position
+            crew.state = 'moving';
+            crew.targetEnemy = null;
+
+            // Store path for visual display (in isometric coordinates)
+            crew.displayPath = path.map(tile => {
+                const heightLevel = HeightSystem.getLayoutTileHeight(this.stationLayout, tile.x, tile.y);
+                return IsometricRenderer.tileToScreen(tile.x, tile.y, heightLevel);
+            });
+
+            // Move indicator effect at target
+            const targetHeight = HeightSystem.getLayoutTileHeight(this.stationLayout, tileX, tileY);
+            const targetScreen = IsometricRenderer.tileToScreen(tileX, tileY, targetHeight);
+            this.addEffect({
+                type: 'move_indicator',
+                x: targetScreen.x,
+                y: targetScreen.y,
+                duration: 500,
+                timer: 0,
+            });
+        } else {
+            this.showMovementFeedbackIsometric(screenX, screenY, 'no_path');
+        }
+    },
+
+    /**
+     * Show movement feedback in isometric mode
+     */
+    showMovementFeedbackIsometric(screenX, screenY, reason) {
+        const messages = {
+            blocked: '이동 불가',
+            no_path: '경로 없음',
+            out_of_range: '사거리 초과',
+        };
+
+        this.addEffect({
+            type: 'move_blocked',
+            x: screenX,
+            y: screenY,
+            message: messages[reason] || '이동 불가',
+            duration: 800,
+            timer: 0,
+        });
+
+        if (typeof Toast !== 'undefined') {
+            Toast.warning(messages[reason] || '이동할 수 없습니다');
+        }
+    },
 
     moveCrewTo(crew, x, y) {
         if (!this.tileGrid) {
@@ -814,18 +1074,45 @@ const BattleController = {
         switch (this.targetingMode) {
             case 'skill':
                 if (this.selectedCrew) {
+                    // Phase 2: Skill activation effect
+                    this.addEffect({
+                        type: 'skill_activate',
+                        x: this.selectedCrew.x,
+                        y: this.selectedCrew.y,
+                        duration: 400,
+                        timer: 0,
+                        color: this.selectedCrew.color,
+                    });
                     SkillSystem.useSkill(this.selectedCrew, target, this);
                 }
                 break;
 
             case 'equipment':
                 if (this.selectedCrew) {
+                    // Phase 2: Equipment activation effect
+                    this.addEffect({
+                        type: 'skill_activate',
+                        x: this.selectedCrew.x,
+                        y: this.selectedCrew.y,
+                        duration: 300,
+                        timer: 0,
+                        color: '#f6e05e', // Gold for equipment
+                    });
                     EquipmentEffects.use(this.selectedCrew, target, this);
                 }
                 break;
 
             case 'raven':
                 if (this.targetingAbility) {
+                    // Phase 2: Raven ability activation effect
+                    this.addEffect({
+                        type: 'skill_activate',
+                        x: x,
+                        y: y,
+                        duration: 500,
+                        timer: 0,
+                        color: '#fc8181', // Red for Raven
+                    });
                     RavenSystem.useAbility(this.targetingAbility.id, target, this);
                     this.updateRavenButtons();
                 }
@@ -942,6 +1229,11 @@ const BattleController = {
         // Update screen shake
         this.updateScreenShake(dt);
 
+        // Update camera animation (isometric mode)
+        if (this.useIsometric && this.isometricInitialized && IsometricRenderer.isAnimating) {
+            IsometricRenderer.updateCamera(dt);
+        }
+
         // Update wave spawning
         if (this.waveManager) {
             // Use WaveManager for spawning
@@ -1009,6 +1301,19 @@ const BattleController = {
     },
 
     updateCrew(crew, dt) {
+        // Phase 2: Update flash effect
+        if (crew.flashTime > 0) {
+            crew.flashTime -= dt;
+        }
+
+        // Phase 2: Apply knockback
+        if (crew.knockbackTime > 0) {
+            const knockbackProgress = crew.knockbackTime / 100;
+            crew.x += crew.knockbackX * knockbackProgress * (dt / 16);
+            crew.y += crew.knockbackY * knockbackProgress * (dt / 16);
+            crew.knockbackTime -= dt;
+        }
+
         // Update status effects
         if (crew.invulnerable && crew.invulnerableTimer > 0) {
             crew.invulnerableTimer -= dt;
@@ -1059,6 +1364,7 @@ const BattleController = {
             const dist = Utils.distance(crew.x, crew.y, targetPixel.x, targetPixel.y);
             if (dist > 3) {
                 const angle = Utils.angleBetween(crew.x, crew.y, targetPixel.x, targetPixel.y);
+                crew.facingAngle = angle; // Update facing direction
                 let moveSpeed = crew.moveSpeed;
 
                 // Apply trait bonus
@@ -1067,7 +1373,13 @@ const BattleController = {
                 const moveAmount = moveSpeed * (dt / 1000);
                 crew.x += Math.cos(angle) * moveAmount;
                 crew.y += Math.sin(angle) * moveAmount;
+
+                // Update tile coordinates for isometric rendering
+                this.updateEntityTilePosition(crew);
             } else {
+                // Arrived at next tile
+                crew.tileX = nextTile.x;
+                crew.tileY = nextTile.y;
                 crew.path.shift();
                 if (crew.path.length === 0) {
                     crew.state = 'idle';
@@ -1078,9 +1390,13 @@ const BattleController = {
             const dist = Utils.distance(crew.x, crew.y, crew.targetX, crew.targetY);
             if (dist > 5) {
                 const angle = Utils.angleBetween(crew.x, crew.y, crew.targetX, crew.targetY);
+                crew.facingAngle = angle; // Update facing direction
                 const moveAmount = crew.moveSpeed * (dt / 1000);
                 crew.x += Math.cos(angle) * moveAmount;
                 crew.y += Math.sin(angle) * moveAmount;
+
+                // Update tile coordinates for isometric rendering
+                this.updateEntityTilePosition(crew);
             } else {
                 crew.state = 'idle';
                 crew.targetX = null;
@@ -1088,6 +1404,21 @@ const BattleController = {
             }
         } else {
             crew.state = 'idle';
+        }
+    },
+
+    /**
+     * Update entity's tile position from pixel coordinates
+     */
+    updateEntityTilePosition(entity) {
+        if (!this.tileGrid) return;
+
+        const newTileX = Math.floor((entity.x - this.offsetX) / this.tileSize);
+        const newTileY = Math.floor((entity.y - this.offsetY) / this.tileSize);
+
+        if (entity.tileX !== newTileX || entity.tileY !== newTileY) {
+            entity.tileX = newTileX;
+            entity.tileY = newTileY;
         }
     },
 
@@ -1099,6 +1430,8 @@ const BattleController = {
         }
 
         const dist = Utils.distance(crew.x, crew.y, crew.targetEnemy.x, crew.targetEnemy.y);
+        // Always face the target enemy
+        crew.facingAngle = Utils.angleBetween(crew.x, crew.y, crew.targetEnemy.x, crew.targetEnemy.y);
 
         if (dist <= crew.attackRange) {
             // In range - attack
@@ -1108,7 +1441,7 @@ const BattleController = {
             }
         } else {
             // Move towards enemy
-            const angle = Utils.angleBetween(crew.x, crew.y, crew.targetEnemy.x, crew.targetEnemy.y);
+            const angle = crew.facingAngle;
             const moveAmount = crew.moveSpeed * (dt / 1000);
             crew.x += Math.cos(angle) * moveAmount;
             crew.y += Math.sin(angle) * moveAmount;
@@ -1116,6 +1449,19 @@ const BattleController = {
     },
 
     updateEnemy(enemy, dt) {
+        // Phase 2: Update flash effect
+        if (enemy.flashTime > 0) {
+            enemy.flashTime -= dt;
+        }
+
+        // Phase 2: Apply knockback
+        if (enemy.knockbackTime > 0) {
+            const knockbackProgress = enemy.knockbackTime / 100;
+            enemy.x += enemy.knockbackX * knockbackProgress * (dt / 16);
+            enemy.y += enemy.knockbackY * knockbackProgress * (dt / 16);
+            enemy.knockbackTime -= dt;
+        }
+
         // Check if this is an Enemy class instance (Session 3)
         if (typeof enemy.update === 'function') {
             // Use Enemy class update with game context
@@ -1132,8 +1478,16 @@ const BattleController = {
             const nearestCrew = this.findNearestCrew(enemy);
             enemy.target = nearestCrew;
 
+            // Update facing angle for direction indicator
+            if (nearestCrew) {
+                enemy.facingAngle = Utils.angleBetween(enemy.x, enemy.y, nearestCrew.x, nearestCrew.y);
+            }
+
             // Update enemy (handles state, cooldowns, status effects)
             enemy.update(dt, context);
+
+            // Update tile position for isometric rendering
+            this.updateEntityTilePosition(enemy);
 
             // Handle attack event from Enemy class
             if (enemy.state === EnemyState.ATTACKING && enemy.attackCooldown <= 0) {
@@ -1178,6 +1532,8 @@ const BattleController = {
 
         if (nearestCrew) {
             const dist = Utils.distance(enemy.x, enemy.y, nearestCrew.x, nearestCrew.y);
+            // Update facing angle towards target
+            enemy.facingAngle = Utils.angleBetween(enemy.x, enemy.y, nearestCrew.x, nearestCrew.y);
 
             if (dist <= enemy.attackRange) {
                 if (enemy.attackTimer <= 0) {
@@ -1185,10 +1541,12 @@ const BattleController = {
                     enemy.attackTimer = enemy.attackSpeed;
                 }
             } else {
-                const angle = Utils.angleBetween(enemy.x, enemy.y, nearestCrew.x, nearestCrew.y);
+                const angle = enemy.facingAngle;
                 const moveAmount = effectiveSpeed * (dt / 1000);
                 enemy.x += Math.cos(angle) * moveAmount;
                 enemy.y += Math.sin(angle) * moveAmount;
+                // Update tile position for isometric rendering
+                this.updateEntityTilePosition(enemy);
             }
         } else {
             // Move to station center
@@ -1198,9 +1556,12 @@ const BattleController = {
 
             if (dist > 50) {
                 const angle = Utils.angleBetween(enemy.x, enemy.y, centerX, centerY);
+                enemy.facingAngle = angle; // Update facing direction
                 const moveAmount = effectiveSpeed * (dt / 1000);
                 enemy.x += Math.cos(angle) * moveAmount;
                 enemy.y += Math.sin(angle) * moveAmount;
+                // Update tile position for isometric rendering
+                this.updateEntityTilePosition(enemy);
             } else {
                 if (enemy.attackTimer <= 0) {
                     this.stationHealth -= enemy.damage / 5;
@@ -1238,7 +1599,25 @@ const BattleController = {
                             proj.target.health -= damage;
                             actualDamage = damage;
                         }
-                        this.addDamageNumber(proj.target.x, proj.target.y, Math.floor(actualDamage));
+                        this.addDamageNumber(proj.target.x, proj.target.y, Math.floor(actualDamage), false, proj.isCritical);
+
+                        // Phase 2: Hit reaction for ranged attacks
+                        this.applyHitReaction(proj.target, proj.x, proj.y);
+
+                        // Critical hit effect for ranged attacks
+                        if (proj.isCritical) {
+                            this.addCriticalHitEffect(proj.target.x, proj.target.y, proj.color);
+                            // Extra knockback on crit
+                            if (proj.target.knockbackX) {
+                                proj.target.knockbackX *= 1.5;
+                                proj.target.knockbackY *= 1.5;
+                            }
+                        }
+
+                        // Check for enemy death from projectile
+                        if (proj.target.health <= 0) {
+                            this.triggerDeathAnimation(proj.target, 'enemy');
+                        }
 
                         // Apply slow from turret (for Enemy class, use applySlow method)
                         if (proj.applySlows && proj.slowAmount) {
@@ -1254,6 +1633,9 @@ const BattleController = {
                         // Crew target (from hacked turret)
                         proj.target.squadSize--;
                         this.addDamageNumber(proj.target.x, proj.target.y, 1, true);
+
+                        // Phase 2: Hit reaction for crew from ranged
+                        this.applyHitReaction(proj.target, proj.x, proj.y);
                     }
 
                     if (!proj.piercing) return false;
@@ -1282,62 +1664,224 @@ const BattleController = {
         // Apply trait bonuses
         if (crew.trait === 'sharpEdge') damage *= 1.2;
 
-        if (crew.class === 'ranger') {
-            // Ranged attack
-            this.projectiles.push({
-                x: crew.x,
-                y: crew.y,
-                angle: Utils.angleBetween(crew.x, crew.y, enemy.x, enemy.y),
-                speed: 400,
-                damage: damage,
-                target: enemy,
-                color: crew.color,
-            });
-        } else {
-            // Melee attack
-            if (typeof enemy.takeDamage === 'function') {
-                // Use Enemy class method for proper damage handling
-                const actualDamage = enemy.takeDamage(damage, crew, 'melee');
-                this.addDamageNumber(enemy.x, enemy.y, Math.floor(actualDamage));
-            } else {
-                // Fallback for simple objects
-                enemy.health -= damage;
-                this.addDamageNumber(enemy.x, enemy.y, Math.floor(damage));
-            }
+        // Calculate critical hit (15% base chance, +5% for precision trait)
+        const critChance = crew.trait === 'precision' ? 0.20 : 0.15;
+        const combatRng = this.rng?.get('combat');
+        const isCritical = combatRng ? combatRng.random() < critChance : Math.random() < critChance;
+        if (isCritical) {
+            damage *= 1.5; // 50% bonus damage on crit
+        }
 
+        // Set facing direction for animation
+        crew.facingAngle = Utils.angleBetween(crew.x, crew.y, enemy.x, enemy.y);
+
+        // Add windup effect
+        this.addEffect({
+            type: 'attack_windup',
+            x: crew.x,
+            y: crew.y,
+            targetX: enemy.x,
+            targetY: enemy.y,
+            duration: 150,
+            timer: 0,
+            color: crew.color,
+            isRanged: crew.class === 'ranger',
+        });
+
+        if (crew.class === 'ranger') {
+            // Ranged attack (delayed by windup)
+            setTimeout(() => {
+                if (enemy.health <= 0) return;
+                this.projectiles.push({
+                    x: crew.x,
+                    y: crew.y,
+                    angle: Utils.angleBetween(crew.x, crew.y, enemy.x, enemy.y),
+                    speed: 400,
+                    damage: damage,
+                    target: enemy,
+                    color: crew.color,
+                    isCritical: isCritical,
+                });
+            }, 150);
+        } else {
+            // Melee attack (delayed by windup)
+            setTimeout(() => {
+                if (enemy.health <= 0) return;
+
+                let actualDamage;
+                if (typeof enemy.takeDamage === 'function') {
+                    actualDamage = enemy.takeDamage(damage, crew, 'melee');
+                } else {
+                    enemy.health -= damage;
+                    actualDamage = damage;
+                }
+                this.addDamageNumber(enemy.x, enemy.y, Math.floor(actualDamage), false, isCritical);
+
+                // Phase 2: Hit reaction for enemy
+                this.applyHitReaction(enemy, crew.x, crew.y);
+
+                // Critical hit particles
+                if (isCritical) {
+                    this.addCriticalHitEffect(enemy.x, enemy.y, crew.color);
+                    // Extra knockback on crit
+                    enemy.knockbackX *= 1.5;
+                    enemy.knockbackY *= 1.5;
+                }
+
+                // Check for enemy death
+                if (enemy.health <= 0) {
+                    this.triggerDeathAnimation(enemy, 'enemy');
+                }
+
+                this.addEffect({
+                    type: 'melee_hit',
+                    x: enemy.x,
+                    y: enemy.y,
+                    duration: 200,
+                    timer: 0,
+                    color: crew.color,
+                });
+            }, 150);
+        }
+    },
+
+    /**
+     * Add critical hit visual effect (particles)
+     */
+    addCriticalHitEffect(x, y, color) {
+        // Add burst particles
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 / 8) * i;
             this.addEffect({
-                type: 'melee_hit',
-                x: enemy.x,
-                y: enemy.y,
-                duration: 200,
+                type: 'crit_particle',
+                x: x,
+                y: y,
+                angle: angle,
+                duration: 400,
                 timer: 0,
-                color: crew.color,
+                color: color || '#ffd700',
             });
         }
+        // Add impact flash
+        this.addEffect({
+            type: 'crit_flash',
+            x: x,
+            y: y,
+            duration: 200,
+            timer: 0,
+        });
     },
 
     enemyAttack(enemy, crew) {
         if (crew.invulnerable) return;
 
-        let damage = 1; // Squad members lost
-        if (crew.shielded) {
-            damage = Math.max(0, Math.round(damage * (1 - crew.shieldReduction)));
-        }
+        // Set enemy facing direction
+        enemy.facingAngle = Utils.angleBetween(enemy.x, enemy.y, crew.x, crew.y);
 
-        crew.squadSize -= damage;
-        this.addDamageNumber(crew.x, crew.y, enemy.damage, true);
+        // Add windup effect for enemy
+        this.addEffect({
+            type: 'attack_windup',
+            x: enemy.x,
+            y: enemy.y,
+            targetX: crew.x,
+            targetY: crew.y,
+            duration: 150,
+            timer: 0,
+            color: enemy.visual?.color || enemy.color || '#ff6b6b',
+            isEnemy: true,
+        });
 
-        if (crew.squadSize <= 0) {
-            this.deadCrews.push(crew);
-            this.crews = this.crews.filter(c => c.id !== crew.id);
+        // Delayed attack after windup
+        setTimeout(() => {
+            if (crew.squadSize <= 0) return;
+
+            let damage = 1; // Squad members lost
+            if (crew.shielded) {
+                damage = Math.max(0, Math.round(damage * (1 - crew.shieldReduction)));
+            }
+
+            crew.squadSize -= damage;
+            this.addDamageNumber(crew.x, crew.y, enemy.damage, true);
+
+            // Phase 2: Hit reaction for crew
+            this.applyHitReaction(crew, enemy.x, enemy.y);
+
+            if (crew.squadSize <= 0) {
+                // Phase 2: Enhanced death animation
+                this.triggerDeathAnimation(crew, 'crew');
+                this.deadCrews.push(crew);
+                this.crews = this.crews.filter(c => c.id !== crew.id);
+            }
+        }, 150);
+    },
+
+    /**
+     * Phase 2: Apply hit reaction (flash + knockback)
+     */
+    applyHitReaction(target, sourceX, sourceY) {
+        // Flash effect
+        target.flashTime = 150;
+
+        // Knockback calculation
+        const knockbackDist = 8;
+        const angle = Utils.angleBetween(sourceX, sourceY, target.x, target.y);
+        target.knockbackX = Math.cos(angle) * knockbackDist;
+        target.knockbackY = Math.sin(angle) * knockbackDist;
+        target.knockbackTime = 100;
+
+        // Hit effect
+        this.addEffect({
+            type: 'hit_impact',
+            x: target.x,
+            y: target.y,
+            duration: 200,
+            timer: 0,
+            color: '#fff',
+        });
+    },
+
+    /**
+     * Phase 2: Trigger enhanced death animation
+     */
+    triggerDeathAnimation(entity, entityType) {
+        const x = entity.x;
+        const y = entity.y;
+        const color = entity.color || (entityType === 'crew' ? '#4a9eff' : '#ff6b6b');
+
+        // Main death burst
+        this.addEffect({
+            type: 'death_burst',
+            x: x,
+            y: y,
+            duration: 600,
+            timer: 0,
+            color: color,
+            particleCount: entityType === 'crew' ? 12 : 8,
+        });
+
+        // Soul/essence rising effect for crews
+        if (entityType === 'crew') {
             this.addEffect({
-                type: 'death',
-                x: crew.x,
-                y: crew.y,
-                duration: 500,
+                type: 'soul_rise',
+                x: x,
+                y: y,
+                duration: 1000,
                 timer: 0,
+                color: color,
             });
         }
+
+        // Screen shake on death
+        this.screenShake(entityType === 'crew' ? 5 : 3, 150);
+
+        // Legacy death effect for compatibility
+        this.addEffect({
+            type: 'death',
+            x: x,
+            y: y,
+            duration: 500,
+            timer: 0,
+        });
     },
 
     findNearestEnemy(crew) {
@@ -1437,9 +1981,35 @@ const BattleController = {
             this.elements.waveText.textContent = text;
             this.elements.waveAnnouncement.classList.add('active');
 
-            // Screen shake for boss
+            // Phase 3: Wave transition visual effects
+            const centerX = this.canvas.width / 2;
+            const centerY = this.canvas.height / 2;
+
+            // Add wave start effect
+            this.addEffect({
+                type: 'wave_start',
+                x: centerX,
+                y: centerY,
+                duration: 1000,
+                timer: 0,
+                waveNumber: this.waveNumber,
+                isBoss: isBossWave || this.battleInfo.type === 'boss',
+            });
+
+            // Screen shake for boss (enhanced)
             if (isBossWave || this.battleInfo.type === 'boss') {
                 this.screenShake(10, 500);
+                // Add boss entrance effect
+                this.addEffect({
+                    type: 'boss_entrance',
+                    x: centerX,
+                    y: centerY,
+                    duration: 1500,
+                    timer: 0,
+                });
+            } else {
+                // Normal wave screen pulse
+                this.screenShake(3, 200);
             }
 
             setTimeout(() => {
@@ -1448,15 +2018,16 @@ const BattleController = {
         }
     },
 
-    addDamageNumber(x, y, damage, isCrewDamage = false) {
+    addDamageNumber(x, y, damage, isCrewDamage = false, isCritical = false) {
         this.effects.push({
             type: 'damage_number',
             x: x + (Math.random() - 0.5) * 20,
             y: y - 10,
             damage: typeof damage === 'number' ? Math.floor(damage) : damage,
-            duration: 1000,
+            duration: isCritical ? 1200 : 1000, // Longer duration for crits
             timer: 0,
             isCrewDamage,
+            isCritical,
         });
     },
 
@@ -1629,8 +2200,12 @@ const BattleController = {
         ctx.fillStyle = '#0a0a12';
         ctx.fillRect(-10, -10, this.canvas.width + 20, this.canvas.height + 20);
 
-        // Draw station
-        this.renderStation();
+        // Draw station (isometric or legacy)
+        if (this.useIsometric && this.isometricInitialized) {
+            this.renderStationIsometric();
+        } else {
+            this.renderStation();
+        }
 
         // Render Raven effects
         if (RavenSystem) RavenSystem.render(ctx, this);
@@ -1647,11 +2222,14 @@ const BattleController = {
         // Draw turrets
         if (TurretSystem) TurretSystem.render(ctx, this);
 
-        // Draw enemies
-        this.enemies.forEach(e => this.renderEnemy(e));
-
-        // Draw crews
-        this.crews.forEach(c => this.renderCrew(c));
+        // Draw entities with depth sorting (isometric mode)
+        if (this.useIsometric && this.isometricInitialized) {
+            this.renderEntitiesIsometric();
+        } else {
+            // Legacy rendering
+            this.enemies.forEach(e => this.renderEnemy(e));
+            this.crews.forEach(c => this.renderCrew(c));
+        }
 
         // Draw projectiles
         this.projectiles.forEach(p => this.renderProjectile(p));
@@ -1661,11 +2239,12 @@ const BattleController = {
 
         // Draw selection indicator
         if (this.selectedCrew) {
+            const pos = this.getEntityScreenPos(this.selectedCrew);
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.setLineDash([4, 4]);
             ctx.beginPath();
-            ctx.arc(this.selectedCrew.x, this.selectedCrew.y, 30, 0, Math.PI * 2);
+            ctx.arc(pos.x, pos.y, 30, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
         }
@@ -1792,14 +2371,85 @@ const BattleController = {
         });
     },
 
-    renderCrew(crew) {
+    // ==========================================
+    // ISOMETRIC RENDERING
+    // ==========================================
+
+    /**
+     * Render station using isometric tiles
+     */
+    renderStationIsometric() {
         const ctx = this.ctx;
+
+        // Render tiles using cached canvas if available
+        if (IsometricRenderer.isCacheDirty()) {
+            TileRenderer.renderToCache(this.stationLayout);
+        }
+        TileRenderer.drawFromCache(ctx);
+
+        // Render facilities
+        TileRenderer.renderFacilities(ctx, this.stationLayout);
+
+        // Render spawn points
+        TileRenderer.renderSpawnPoints(ctx, this.stationLayout);
+    },
+
+    /**
+     * Render all entities with depth sorting for isometric view
+     */
+    renderEntitiesIsometric() {
+        // Create render list with depth sorting
+        const renderList = DepthSorter.createRenderList(
+            {
+                enemies: this.enemies,
+                crews: this.crews,
+            },
+            this.stationLayout,
+            this.offsetX,
+            this.offsetY,
+            this.tileSize
+        );
+
+        // Render in depth order
+        for (const item of renderList) {
+            if (item.type === 'enemies') {
+                this.renderEnemyIsometric(item.entity);
+            } else if (item.type === 'crews') {
+                this.renderCrewIsometric(item.entity);
+            }
+        }
+    },
+
+    /**
+     * Get screen position for an entity (isometric or legacy)
+     */
+    getEntityScreenPos(entity) {
+        if (this.useIsometric && this.isometricInitialized) {
+            return DepthSorter.getEntityScreenPosition(
+                entity,
+                this.stationLayout,
+                this.offsetX,
+                this.offsetY,
+                this.tileSize
+            );
+        }
+        return { x: entity.x, y: entity.y };
+    },
+
+    /**
+     * Render a crew member in isometric view
+     */
+    renderCrewIsometric(crew) {
+        const ctx = this.ctx;
+        const pos = this.getEntityScreenPos(crew);
+        const x = pos.x;
+        const y = pos.y;
 
         // Invulnerability effect
         if (crew.invulnerable) {
             ctx.fillStyle = 'rgba(183, 148, 244, 0.3)';
             ctx.beginPath();
-            ctx.arc(crew.x, crew.y, 28, 0, Math.PI * 2);
+            ctx.arc(x, y, 28, 0, Math.PI * 2);
             ctx.fill();
         }
 
@@ -1808,14 +2458,277 @@ const BattleController = {
             ctx.strokeStyle = 'rgba(99, 179, 237, 0.7)';
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(crew.x, crew.y, 26, 0, Math.PI * 2);
+            ctx.arc(x, y, 26, 0, Math.PI * 2);
             ctx.stroke();
         }
 
+        // Flash effect when hit
+        const isFlashing = crew.flashTime > 0;
+        const flashIntensity = isFlashing ? (crew.flashTime / 150) : 0;
+
         // Crew circle
-        ctx.fillStyle = crew.color;
+        if (isFlashing) {
+            const r = parseInt(crew.color.slice(1, 3), 16);
+            const g = parseInt(crew.color.slice(3, 5), 16);
+            const b = parseInt(crew.color.slice(5, 7), 16);
+            const flashR = Math.min(255, r + (255 - r) * flashIntensity);
+            const flashG = Math.min(255, g + (255 - g) * flashIntensity);
+            const flashB = Math.min(255, b + (255 - b) * flashIntensity);
+            ctx.fillStyle = `rgb(${Math.floor(flashR)}, ${Math.floor(flashG)}, ${Math.floor(flashB)})`;
+        } else {
+            ctx.fillStyle = crew.color;
+        }
         ctx.beginPath();
-        ctx.arc(crew.x, crew.y, 20, 0, Math.PI * 2);
+        ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Border
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Name initial
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(crew.name[0], x, y);
+
+        // Health bar
+        const healthPct = crew.squadSize / crew.maxSquadSize;
+        const barWidth = 30;
+        const barHeight = 4;
+        const barX = x - barWidth / 2;
+        const barY = y - 30;
+
+        ctx.fillStyle = '#333';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = healthPct > 0.5 ? '#48bb78' : healthPct > 0.25 ? '#f6ad55' : '#fc8181';
+        ctx.fillRect(barX, barY, barWidth * healthPct, barHeight);
+
+        // Squad count
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px sans-serif';
+        ctx.fillText(crew.squadSize, x, barY - 8);
+
+        // Skill cooldown indicator
+        if (SkillSystem) {
+            const cdPct = SkillSystem.getCooldownPercent(crew.id);
+            if (cdPct > 0) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(x, y, 23, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - cdPct));
+                ctx.stroke();
+            }
+        }
+
+        // Stun indicator
+        if (crew.stunned) {
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('💫', x, y - 35);
+        }
+
+        // Direction indicator
+        let facingAngle = crew.facingAngle;
+        if (!facingAngle && crew.targetEnemy) {
+            const targetPos = this.getEntityScreenPos(crew.targetEnemy);
+            facingAngle = Math.atan2(targetPos.y - y, targetPos.x - x);
+        }
+
+        if (facingAngle !== undefined) {
+            const arrowDist = 28;
+            const arrowX = x + Math.cos(facingAngle) * arrowDist;
+            const arrowY = y + Math.sin(facingAngle) * arrowDist;
+
+            ctx.fillStyle = crew.color;
+            ctx.beginPath();
+            ctx.moveTo(arrowX + Math.cos(facingAngle) * 6, arrowY + Math.sin(facingAngle) * 6);
+            ctx.lineTo(arrowX + Math.cos(facingAngle + 2.5) * 5, arrowY + Math.sin(facingAngle + 2.5) * 5);
+            ctx.lineTo(arrowX + Math.cos(facingAngle - 2.5) * 5, arrowY + Math.sin(facingAngle - 2.5) * 5);
+            ctx.closePath();
+            ctx.fill();
+        }
+    },
+
+    /**
+     * Render an enemy in isometric view
+     */
+    renderEnemyIsometric(enemy) {
+        const ctx = this.ctx;
+        const pos = this.getEntityScreenPos(enemy);
+        const x = pos.x;
+        const y = pos.y;
+
+        // Get render data
+        const color = enemy.visual?.color || enemy.color || '#ff6b6b';
+        const size = enemy.visual?.size || enemy.size || 15;
+        const isStunned = enemy.isStunned || enemy.stunned;
+        const isSlowed = enemy.slowMultiplier < 1 || enemy.slowed;
+        const hasShield = enemy.hasShield;
+
+        // Enemy circle
+        ctx.fillStyle = enemy.flashTime > 0 ? '#ffffff' : color;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Boss indicator
+        if (enemy.isBoss) {
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y, size + 3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Shield indicator
+        if (hasShield) {
+            ctx.strokeStyle = 'rgba(100, 200, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, size + 4, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Marked indicator
+        if (enemy.marked) {
+            ctx.strokeStyle = '#4a9eff';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.arc(x, y, size + 5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Illuminated indicator
+        if (enemy.illuminated) {
+            ctx.fillStyle = 'rgba(246, 173, 85, 0.2)';
+            ctx.beginPath();
+            ctx.arc(x, y, size + 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Stun indicator
+        if (isStunned) {
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('💫', x, y - size - 5);
+        }
+
+        // Slow indicator
+        if (isSlowed) {
+            ctx.fillStyle = '#63b3ed';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('❄️', x, y);
+        }
+
+        // Health bar
+        const healthPct = enemy.health / enemy.maxHealth;
+        const barWidth = size * 2;
+        const barHeight = 3;
+        const barX = x - barWidth / 2;
+        const barY = y - size - 8;
+
+        ctx.fillStyle = '#333';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = enemy.isBoss ? '#ffd700' : '#fc8181';
+        ctx.fillRect(barX, barY, barWidth * healthPct, barHeight);
+
+        // Boss emoji
+        if (enemy.type === 'pirateCaptain' || enemy.type === 'stormCore') {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('👹', x, y);
+        }
+
+        // Direction indicator
+        let facingAngle = enemy.facingAngle;
+        if (!facingAngle && enemy.target) {
+            const targetPos = this.getEntityScreenPos(enemy.target);
+            facingAngle = Math.atan2(targetPos.y - y, targetPos.x - x);
+        }
+
+        if (facingAngle !== undefined) {
+            const arrowDist = size + 8;
+            const arrowX = x + Math.cos(facingAngle) * arrowDist;
+            const arrowY = y + Math.sin(facingAngle) * arrowDist;
+
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(arrowX + Math.cos(facingAngle) * 4, arrowY + Math.sin(facingAngle) * 4);
+            ctx.lineTo(arrowX + Math.cos(facingAngle + 2.5) * 4, arrowY + Math.sin(facingAngle + 2.5) * 4);
+            ctx.lineTo(arrowX + Math.cos(facingAngle - 2.5) * 4, arrowY + Math.sin(facingAngle - 2.5) * 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+    },
+
+    renderCrew(crew) {
+        const ctx = this.ctx;
+
+        // Phase 3: Smooth health bar transition
+        if (crew.displayHealth === undefined) crew.displayHealth = crew.squadSize;
+        crew.displayHealth += (crew.squadSize - crew.displayHealth) * 0.15;
+
+        // Phase 3: Idle breathing animation
+        if (!crew.idlePhase) crew.idlePhase = Math.random() * Math.PI * 2;
+        const idleTime = performance.now() / 1000;
+        const breathScale = crew.state === 'idle' ? 1 + Math.sin(idleTime * 2 + crew.idlePhase) * 0.03 : 1;
+
+        // Phase 3: Combat state indicator
+        if (crew.state === 'attacking') {
+            const pulsePhase = (idleTime * 4) % 1;
+            ctx.strokeStyle = `rgba(255, 100, 100, ${0.5 - pulsePhase * 0.5})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(crew.x, crew.y, 20 * breathScale + 5 + pulsePhase * 10, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Invulnerability effect
+        if (crew.invulnerable) {
+            ctx.fillStyle = 'rgba(183, 148, 244, 0.3)';
+            ctx.beginPath();
+            ctx.arc(crew.x, crew.y, 28 * breathScale, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Shield effect
+        if (crew.shielded) {
+            ctx.strokeStyle = 'rgba(99, 179, 237, 0.7)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(crew.x, crew.y, 26 * breathScale, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Phase 2: Flash effect when hit
+        const isFlashing = crew.flashTime > 0;
+        const flashIntensity = isFlashing ? (crew.flashTime / 150) : 0;
+
+        // Crew circle with breathing
+        if (isFlashing) {
+            const r = parseInt(crew.color.slice(1, 3), 16);
+            const g = parseInt(crew.color.slice(3, 5), 16);
+            const b = parseInt(crew.color.slice(5, 7), 16);
+            const flashR = Math.min(255, r + (255 - r) * flashIntensity);
+            const flashG = Math.min(255, g + (255 - g) * flashIntensity);
+            const flashB = Math.min(255, b + (255 - b) * flashIntensity);
+            ctx.fillStyle = `rgb(${Math.floor(flashR)}, ${Math.floor(flashG)}, ${Math.floor(flashB)})`;
+        } else {
+            ctx.fillStyle = crew.color;
+        }
+        ctx.beginPath();
+        ctx.arc(crew.x, crew.y, 20 * breathScale, 0, Math.PI * 2);
         ctx.fill();
 
         // Border
@@ -1830,8 +2743,9 @@ const BattleController = {
         ctx.textBaseline = 'middle';
         ctx.fillText(crew.name[0], crew.x, crew.y);
 
-        // Health bar
+        // Phase 3: Smooth health bar with damage indicator
         const healthPct = crew.squadSize / crew.maxSquadSize;
+        const displayHealthPct = crew.displayHealth / crew.maxSquadSize;
         const barWidth = 30;
         const barHeight = 4;
         const barX = crew.x - barWidth / 2;
@@ -1839,6 +2753,11 @@ const BattleController = {
 
         ctx.fillStyle = '#333';
         ctx.fillRect(barX, barY, barWidth, barHeight);
+        // Damage indicator (red bar showing lost health)
+        if (displayHealthPct > healthPct) {
+            ctx.fillStyle = '#fc8181';
+            ctx.fillRect(barX, barY, barWidth * displayHealthPct, barHeight);
+        }
         ctx.fillStyle = healthPct > 0.5 ? '#48bb78' : healthPct > 0.25 ? '#f6ad55' : '#fc8181';
         ctx.fillRect(barX, barY, barWidth * healthPct, barHeight);
 
@@ -1865,10 +2784,41 @@ const BattleController = {
             ctx.font = '12px sans-serif';
             ctx.fillText('💫', crew.x, crew.y - 35);
         }
+
+        // Phase 1: Direction indicator (triangle pointing towards target/movement)
+        let facingAngle = crew.facingAngle;
+        if (!facingAngle && crew.targetEnemy) {
+            facingAngle = Utils.angleBetween(crew.x, crew.y, crew.targetEnemy.x, crew.targetEnemy.y);
+        } else if (!facingAngle && crew.path && crew.path.length > 0) {
+            const nextTile = crew.path[0];
+            const targetPixel = this.tileGrid?.tileToPixel(nextTile.x, nextTile.y, this.offsetX, this.offsetY);
+            if (targetPixel) {
+                facingAngle = Utils.angleBetween(crew.x, crew.y, targetPixel.x, targetPixel.y);
+            }
+        }
+
+        if (facingAngle !== undefined) {
+            const arrowDist = 28;
+            const arrowX = crew.x + Math.cos(facingAngle) * arrowDist;
+            const arrowY = crew.y + Math.sin(facingAngle) * arrowDist;
+
+            ctx.fillStyle = crew.color;
+            ctx.beginPath();
+            // Triangle pointing in facing direction
+            ctx.moveTo(arrowX + Math.cos(facingAngle) * 6, arrowY + Math.sin(facingAngle) * 6);
+            ctx.lineTo(arrowX + Math.cos(facingAngle + 2.5) * 5, arrowY + Math.sin(facingAngle + 2.5) * 5);
+            ctx.lineTo(arrowX + Math.cos(facingAngle - 2.5) * 5, arrowY + Math.sin(facingAngle - 2.5) * 5);
+            ctx.closePath();
+            ctx.fill();
+        }
     },
 
     renderEnemy(enemy) {
         const ctx = this.ctx;
+
+        // Phase 3: Smooth health bar transition
+        if (enemy.displayHealth === undefined) enemy.displayHealth = enemy.health;
+        enemy.displayHealth += (enemy.health - enemy.displayHealth) * 0.15;
 
         // Get render data (support both Enemy class and simple objects)
         const color = enemy.visual?.color || enemy.color || '#ff6b6b';
@@ -1877,8 +2827,26 @@ const BattleController = {
         const isSlowed = enemy.slowMultiplier < 1 || enemy.slowed;
         const hasShield = enemy.hasShield;
 
-        // Enemy circle
-        ctx.fillStyle = enemy.flashTime > 0 ? '#ffffff' : color;
+        // Phase 2: Flash effect when hit
+        const isFlashing = enemy.flashTime > 0;
+        const flashIntensity = isFlashing ? (enemy.flashTime / 150) : 0;
+
+        // Enemy circle with flash effect
+        if (isFlashing) {
+            // Parse hex color and flash to white
+            let r = 255, g = 107, b = 107; // default red
+            if (color.startsWith('#') && color.length === 7) {
+                r = parseInt(color.slice(1, 3), 16);
+                g = parseInt(color.slice(3, 5), 16);
+                b = parseInt(color.slice(5, 7), 16);
+            }
+            const flashR = Math.min(255, r + (255 - r) * flashIntensity);
+            const flashG = Math.min(255, g + (255 - g) * flashIntensity);
+            const flashB = Math.min(255, b + (255 - b) * flashIntensity);
+            ctx.fillStyle = `rgb(${Math.floor(flashR)}, ${Math.floor(flashG)}, ${Math.floor(flashB)})`;
+        } else {
+            ctx.fillStyle = color;
+        }
         ctx.beginPath();
         ctx.arc(enemy.x, enemy.y, size, 0, Math.PI * 2);
         ctx.fill();
@@ -1936,8 +2904,9 @@ const BattleController = {
             ctx.fillText('❄️', enemy.x, enemy.y);
         }
 
-        // Health bar
+        // Phase 3: Smooth health bar with damage indicator
         const healthPct = enemy.health / enemy.maxHealth;
+        const displayHealthPct = enemy.displayHealth / enemy.maxHealth;
         const barWidth = size * 2;
         const barHeight = 3;
         const barX = enemy.x - barWidth / 2;
@@ -1945,6 +2914,11 @@ const BattleController = {
 
         ctx.fillStyle = '#333';
         ctx.fillRect(barX, barY, barWidth, barHeight);
+        // Damage indicator (shows health being lost)
+        if (displayHealthPct > healthPct) {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(barX, barY, barWidth * displayHealthPct, barHeight);
+        }
         ctx.fillStyle = enemy.isBoss ? '#ffd700' : '#fc8181';
         ctx.fillRect(barX, barY, barWidth * healthPct, barHeight);
 
@@ -1956,28 +2930,87 @@ const BattleController = {
             ctx.textBaseline = 'middle';
             ctx.fillText('👹', enemy.x, enemy.y);
         }
+
+        // Phase 1: Direction indicator (triangle pointing towards target)
+        let facingAngle = enemy.facingAngle;
+        if (!facingAngle && enemy.target) {
+            facingAngle = Utils.angleBetween(enemy.x, enemy.y, enemy.target.x, enemy.target.y);
+        }
+
+        if (facingAngle !== undefined) {
+            const arrowDist = size + 8;
+            const arrowX = enemy.x + Math.cos(facingAngle) * arrowDist;
+            const arrowY = enemy.y + Math.sin(facingAngle) * arrowDist;
+
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            // Small triangle pointing in facing direction
+            ctx.moveTo(arrowX + Math.cos(facingAngle) * 4, arrowY + Math.sin(facingAngle) * 4);
+            ctx.lineTo(arrowX + Math.cos(facingAngle + 2.5) * 4, arrowY + Math.sin(facingAngle + 2.5) * 4);
+            ctx.lineTo(arrowX + Math.cos(facingAngle - 2.5) * 4, arrowY + Math.sin(facingAngle - 2.5) * 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
     },
 
     renderProjectile(proj) {
         const ctx = this.ctx;
+        const color = proj.color || '#4a9eff';
 
-        ctx.fillStyle = proj.color || '#4a9eff';
+        // Phase 3: Enhanced projectile with glow and longer trail
+
+        // Store trail positions if not exists
+        if (!proj.trailPositions) {
+            proj.trailPositions = [];
+        }
+
+        // Add current position to trail
+        proj.trailPositions.push({ x: proj.x, y: proj.y });
+
+        // Keep only last 8 positions
+        if (proj.trailPositions.length > 8) {
+            proj.trailPositions.shift();
+        }
+
+        // Draw trail with fading effect
+        if (proj.trailPositions.length > 1) {
+            for (let i = 0; i < proj.trailPositions.length - 1; i++) {
+                const alpha = (i / proj.trailPositions.length) * 0.6;
+                const width = 1 + (i / proj.trailPositions.length) * 2;
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.moveTo(proj.trailPositions[i].x, proj.trailPositions[i].y);
+                ctx.lineTo(proj.trailPositions[i + 1].x, proj.trailPositions[i + 1].y);
+                ctx.stroke();
+            }
+        }
+
+        // Glow effect
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(proj.x, proj.y, 4, 0, Math.PI * 2);
+        ctx.arc(proj.x, proj.y, 8, 0, Math.PI * 2);
         ctx.fill();
 
-        // Trail
-        ctx.strokeStyle = proj.color || '#4a9eff';
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(proj.x, proj.y);
-        ctx.lineTo(
-            proj.x - Math.cos(proj.angle) * 15,
-            proj.y - Math.sin(proj.angle) * 15
-        );
-        ctx.stroke();
+        // Core projectile
         ctx.globalAlpha = 1;
+        ctx.fillStyle = proj.isCritical ? '#ffd700' : color;
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, proj.isCritical ? 5 : 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // White center for critical
+        if (proj.isCritical) {
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(proj.x, proj.y, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
     },
 
     renderMines() {
@@ -2018,6 +3051,9 @@ const BattleController = {
                 continue;
             }
 
+            // Get crew screen position (isometric or legacy)
+            const crewPos = this.getEntityScreenPos(crew);
+
             // Draw path line
             ctx.strokeStyle = crew.color || '#4a9eff';
             ctx.lineWidth = 2;
@@ -2025,7 +3061,7 @@ const BattleController = {
             ctx.setLineDash([5, 5]);
 
             ctx.beginPath();
-            ctx.moveTo(crew.x, crew.y);
+            ctx.moveTo(crewPos.x, crewPos.y);
 
             for (const point of crew.displayPath) {
                 ctx.lineTo(point.x, point.y);
@@ -2088,11 +3124,27 @@ const BattleController = {
 
         switch (effect.type) {
             case 'damage_number':
-                ctx.fillStyle = effect.isCrewDamage ? '#fc8181' : '#fff';
-                ctx.font = 'bold 14px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.globalAlpha = 1 - progress;
-                ctx.fillText(`-${effect.damage}`, effect.x, effect.y - progress * 30);
+                if (effect.isCritical) {
+                    // Critical hit - golden text with "!" and larger font
+                    ctx.fillStyle = '#ffd700';
+                    ctx.font = 'bold 18px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.globalAlpha = 1 - progress;
+                    // Shake effect for critical
+                    const shakeX = (Math.random() - 0.5) * 4 * (1 - progress);
+                    ctx.fillText(`-${effect.damage}!`, effect.x + shakeX, effect.y - progress * 40);
+                    // Add glow effect
+                    ctx.shadowColor = '#ffd700';
+                    ctx.shadowBlur = 10;
+                    ctx.fillText(`-${effect.damage}!`, effect.x + shakeX, effect.y - progress * 40);
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.fillStyle = effect.isCrewDamage ? '#fc8181' : '#fff';
+                    ctx.font = 'bold 14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.globalAlpha = 1 - progress;
+                    ctx.fillText(`-${effect.damage}`, effect.x, effect.y - progress * 30);
+                }
                 ctx.globalAlpha = 1;
                 break;
 
@@ -2412,6 +3464,335 @@ const BattleController = {
                     ctx.moveTo(effect.x + Math.cos(angle) * 15, effect.y + Math.sin(angle) * 15);
                     ctx.lineTo(effect.x + Math.cos(angle) * 30, effect.y + Math.sin(angle) * 30);
                     ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 1: Attack Windup Animation
+            case 'attack_windup':
+                const windupAngle = Utils.angleBetween(effect.x, effect.y, effect.targetX, effect.targetY);
+                ctx.strokeStyle = effect.color || '#fff';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 1 - progress;
+
+                if (effect.isRanged) {
+                    // Ranged windup - aiming line
+                    const lineLen = 25 + progress * 15;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(effect.x, effect.y);
+                    ctx.lineTo(
+                        effect.x + Math.cos(windupAngle) * lineLen,
+                        effect.y + Math.sin(windupAngle) * lineLen
+                    );
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // Targeting circle
+                    ctx.beginPath();
+                    ctx.arc(
+                        effect.x + Math.cos(windupAngle) * lineLen,
+                        effect.y + Math.sin(windupAngle) * lineLen,
+                        4, 0, Math.PI * 2
+                    );
+                    ctx.stroke();
+                } else {
+                    // Melee windup - pull back then strike arc
+                    const pullback = Math.sin(progress * Math.PI) * 8;
+                    // Draw arc showing attack direction
+                    ctx.beginPath();
+                    ctx.arc(effect.x - Math.cos(windupAngle) * pullback,
+                            effect.y - Math.sin(windupAngle) * pullback,
+                            25, windupAngle - 0.5, windupAngle + 0.5);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 1: Critical Hit Particles
+            case 'crit_particle':
+                ctx.fillStyle = '#ffd700';
+                ctx.globalAlpha = 1 - progress;
+                const particleDist = 10 + progress * 35;
+                const particleSize = 4 * (1 - progress);
+                ctx.beginPath();
+                ctx.arc(
+                    effect.x + Math.cos(effect.angle) * particleDist,
+                    effect.y + Math.sin(effect.angle) * particleDist,
+                    particleSize, 0, Math.PI * 2
+                );
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 1: Critical Hit Flash
+            case 'crit_flash':
+                ctx.fillStyle = '#ffd700';
+                ctx.globalAlpha = (1 - progress) * 0.5;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 25 * (1 - progress * 0.5), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 2: Hit Impact Effect
+            case 'hit_impact':
+                ctx.strokeStyle = effect.color || '#fff';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 1 - progress;
+                // Impact ring
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 8 + progress * 15, 0, Math.PI * 2);
+                ctx.stroke();
+                // Impact cross
+                const impactSize = 6 * (1 - progress);
+                ctx.beginPath();
+                ctx.moveTo(effect.x - impactSize, effect.y);
+                ctx.lineTo(effect.x + impactSize, effect.y);
+                ctx.moveTo(effect.x, effect.y - impactSize);
+                ctx.lineTo(effect.x, effect.y + impactSize);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 2: Enhanced Death Burst
+            case 'death_burst':
+                const particleCount = effect.particleCount || 8;
+                ctx.fillStyle = effect.color || '#fc8181';
+                ctx.globalAlpha = 1 - progress;
+
+                // Central flash
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 15 * (1 - progress), 0, Math.PI * 2);
+                ctx.fill();
+
+                // Burst particles
+                for (let i = 0; i < particleCount; i++) {
+                    const burstAngle = (Math.PI * 2 / particleCount) * i + progress * 0.5;
+                    const burstDist = progress * 60;
+                    const burstSize = 5 * (1 - progress * 0.7);
+
+                    ctx.beginPath();
+                    ctx.arc(
+                        effect.x + Math.cos(burstAngle) * burstDist,
+                        effect.y + Math.sin(burstAngle) * burstDist,
+                        burstSize, 0, Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+
+                // Shockwave ring
+                ctx.strokeStyle = effect.color || '#fc8181';
+                ctx.lineWidth = 3 * (1 - progress);
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, progress * 40, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 2: Soul Rise Effect (for crew death)
+            case 'soul_rise':
+                ctx.globalAlpha = (1 - progress) * 0.8;
+
+                // Rising soul orb
+                const soulY = effect.y - progress * 50;
+                const soulSize = 8 * (1 - progress * 0.5);
+
+                // Glow
+                const soulGradient = ctx.createRadialGradient(
+                    effect.x, soulY, 0,
+                    effect.x, soulY, soulSize * 2
+                );
+                soulGradient.addColorStop(0, effect.color || '#4a9eff');
+                soulGradient.addColorStop(1, 'rgba(74, 158, 255, 0)');
+                ctx.fillStyle = soulGradient;
+                ctx.beginPath();
+                ctx.arc(effect.x, soulY, soulSize * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(effect.x, soulY, soulSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Trail particles
+                for (let i = 0; i < 3; i++) {
+                    const trailY = soulY + (i + 1) * 10;
+                    const trailSize = soulSize * (0.6 - i * 0.15);
+                    const trailAlpha = (1 - progress) * (0.6 - i * 0.2);
+                    ctx.globalAlpha = trailAlpha;
+                    ctx.fillStyle = effect.color || '#4a9eff';
+                    ctx.beginPath();
+                    ctx.arc(effect.x, trailY, trailSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 2: Skill Activation Effect
+            case 'skill_activate':
+                ctx.globalAlpha = 1 - progress;
+
+                // Rotating runes/symbols
+                for (let i = 0; i < 6; i++) {
+                    const runeAngle = (Math.PI * 2 / 6) * i + progress * Math.PI * 2;
+                    const runeDist = 25 + progress * 15;
+                    const runeX = effect.x + Math.cos(runeAngle) * runeDist;
+                    const runeY = effect.y + Math.sin(runeAngle) * runeDist;
+
+                    ctx.fillStyle = effect.color || '#b794f4';
+                    ctx.beginPath();
+                    ctx.arc(runeX, runeY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Central burst
+                ctx.strokeStyle = effect.color || '#b794f4';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 20 + progress * 30, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Inner glow
+                const skillGradient = ctx.createRadialGradient(
+                    effect.x, effect.y, 0,
+                    effect.x, effect.y, 30
+                );
+                skillGradient.addColorStop(0, `rgba(183, 148, 244, ${0.3 * (1 - progress)})`);
+                skillGradient.addColorStop(1, 'rgba(183, 148, 244, 0)');
+                ctx.fillStyle = skillGradient;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 30, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 2: Status Effect Applied
+            case 'status_apply':
+                ctx.globalAlpha = 1 - progress;
+                ctx.fillStyle = effect.color || '#68d391';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+
+                // Status icon rising
+                const statusY = effect.y - 20 - progress * 20;
+                ctx.fillText(effect.icon || '✦', effect.x, statusY);
+
+                // Swirl particles
+                for (let i = 0; i < 4; i++) {
+                    const swirlAngle = (Math.PI * 2 / 4) * i + progress * Math.PI * 3;
+                    const swirlDist = 15 * (1 - progress);
+                    ctx.beginPath();
+                    ctx.arc(
+                        effect.x + Math.cos(swirlAngle) * swirlDist,
+                        effect.y + Math.sin(swirlAngle) * swirlDist,
+                        2, 0, Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 3: Wave Start Effect
+            case 'wave_start':
+                ctx.globalAlpha = 1 - progress;
+
+                // Expanding ring
+                ctx.strokeStyle = effect.isBoss ? '#ffd700' : '#4a9eff';
+                ctx.lineWidth = 3 * (1 - progress);
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 50 + progress * 200, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Inner glow
+                const waveGradient = ctx.createRadialGradient(
+                    effect.x, effect.y, 0,
+                    effect.x, effect.y, 100 * (1 - progress)
+                );
+                const waveColor = effect.isBoss ? '255, 215, 0' : '74, 158, 255';
+                waveGradient.addColorStop(0, `rgba(${waveColor}, ${0.3 * (1 - progress)})`);
+                waveGradient.addColorStop(1, `rgba(${waveColor}, 0)`);
+                ctx.fillStyle = waveGradient;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 100 * (1 - progress), 0, Math.PI * 2);
+                ctx.fill();
+
+                // Wave number indicator
+                if (progress < 0.5) {
+                    ctx.fillStyle = effect.isBoss ? '#ffd700' : '#fff';
+                    ctx.font = 'bold 24px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.globalAlpha = 1 - progress * 2;
+                    ctx.fillText(`${effect.waveNumber}`, effect.x, effect.y);
+                }
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 3: Boss Entrance Effect
+            case 'boss_entrance':
+                ctx.globalAlpha = 1 - progress;
+
+                // Multiple expanding rings
+                for (let i = 0; i < 3; i++) {
+                    const ringProgress = Math.max(0, progress - i * 0.15);
+                    if (ringProgress <= 0) continue;
+
+                    ctx.strokeStyle = '#ffd700';
+                    ctx.lineWidth = 4 * (1 - ringProgress);
+                    ctx.beginPath();
+                    ctx.arc(effect.x, effect.y, ringProgress * 300, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Danger lines
+                ctx.strokeStyle = '#fc8181';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 8; i++) {
+                    const lineAngle = (Math.PI * 2 / 8) * i + progress * Math.PI;
+                    const lineStart = 50 + progress * 100;
+                    const lineEnd = 100 + progress * 200;
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        effect.x + Math.cos(lineAngle) * lineStart,
+                        effect.y + Math.sin(lineAngle) * lineStart
+                    );
+                    ctx.lineTo(
+                        effect.x + Math.cos(lineAngle) * lineEnd,
+                        effect.y + Math.sin(lineAngle) * lineEnd
+                    );
+                    ctx.stroke();
+                }
+
+                // Central skull indicator
+                if (progress < 0.7) {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.font = '40px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.globalAlpha = (1 - progress) * 1.5;
+                    ctx.fillText('💀', effect.x, effect.y);
+                }
+                ctx.globalAlpha = 1;
+                break;
+
+            // Phase 3: Projectile Impact
+            case 'projectile_impact':
+                ctx.globalAlpha = 1 - progress;
+                ctx.fillStyle = effect.color || '#4a9eff';
+
+                // Splash particles
+                for (let i = 0; i < 6; i++) {
+                    const splashAngle = (Math.PI * 2 / 6) * i + progress;
+                    const splashDist = progress * 20;
+                    const splashSize = 3 * (1 - progress);
+                    ctx.beginPath();
+                    ctx.arc(
+                        effect.x + Math.cos(splashAngle) * splashDist,
+                        effect.y + Math.sin(splashAngle) * splashDist,
+                        splashSize, 0, Math.PI * 2
+                    );
+                    ctx.fill();
                 }
                 ctx.globalAlpha = 1;
                 break;

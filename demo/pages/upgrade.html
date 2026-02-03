@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upgrade - The Fading Raven</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/pages/upgrade.css">
+</head>
+<body>
+    <div class="page-container upgrade-page">
+        <!-- Header -->
+        <header class="upgrade-header">
+            <h1>UPGRADE CREWS</h1>
+            <div class="credits-display">
+                <span class="credits-icon">💰</span>
+                <span class="credits-value" id="current-credits">0</span>
+                <span class="credits-label">Credits</span>
+            </div>
+            <button class="btn-primary" id="btn-done">DONE</button>
+        </header>
+
+        <!-- Main Content -->
+        <main class="upgrade-main">
+            <div class="crew-grid" id="crew-grid">
+                <!-- Crew upgrade cards generated here -->
+            </div>
+        </main>
+
+        <!-- Selected Crew Detail Panel -->
+        <aside class="detail-panel" id="detail-panel">
+            <div class="detail-header">
+                <div class="crew-portrait large" id="detail-portrait">
+                    <span class="portrait-letter">G</span>
+                </div>
+                <div class="crew-basic-info">
+                    <h2 id="detail-name">Commander Name</h2>
+                    <span class="crew-class-badge" id="detail-class">Guardian</span>
+                    <span class="crew-rank" id="detail-rank">Veteran</span>
+                </div>
+            </div>
+
+            <div class="detail-stats">
+                <h3>STATS</h3>
+                <div class="stat-row">
+                    <span>Squad Size</span>
+                    <span id="detail-size">8</span>
+                </div>
+                <div class="stat-row">
+                    <span>Trait</span>
+                    <span id="detail-trait">Energetic</span>
+                </div>
+                <div class="stat-row">
+                    <span>Equipment</span>
+                    <span id="detail-equipment">None</span>
+                </div>
+            </div>
+
+            <div class="upgrade-options">
+                <h3>UPGRADES</h3>
+
+                <!-- Rank Upgrade -->
+                <div class="upgrade-option" id="upgrade-rank">
+                    <div class="option-info">
+                        <span class="option-name">Rank: <span id="next-rank">Elite</span></span>
+                        <span class="option-desc">+Health, +Damage, +Accuracy</span>
+                    </div>
+                    <button class="btn-upgrade" id="btn-upgrade-rank">
+                        <span class="cost" id="cost-rank">20</span>
+                    </button>
+                </div>
+
+                <!-- Skill Upgrade -->
+                <div class="upgrade-option" id="upgrade-skill">
+                    <div class="option-info">
+                        <span class="option-name">Skill: <span id="skill-name">Shield Bash</span> Lv<span id="skill-level">2</span></span>
+                        <span class="option-desc" id="skill-desc">Increased range and damage</span>
+                    </div>
+                    <button class="btn-upgrade" id="btn-upgrade-skill">
+                        <span class="cost" id="cost-skill">10</span>
+                    </button>
+                </div>
+
+                <!-- Equipment Upgrade (if has equipment) -->
+                <div class="upgrade-option" id="upgrade-equipment">
+                    <div class="option-info">
+                        <span class="option-name">Equipment: <span id="equip-name">-</span></span>
+                        <span class="option-desc" id="equip-desc">No equipment</span>
+                    </div>
+                    <button class="btn-upgrade" id="btn-upgrade-equip" disabled>
+                        <span class="cost" id="cost-equip">-</span>
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn-secondary btn-close" id="btn-close-detail">CLOSE</button>
+        </aside>
+
+        <!-- Equipment Selection Modal -->
+        <div class="modal" id="equip-modal">
+            <div class="modal-content">
+                <h2>SELECT EQUIPMENT</h2>
+                <div class="equipment-list" id="equipment-list">
+                    <!-- Available equipment -->
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" id="btn-equip-cancel">CANCEL</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/core/utils.js"></script>
+    <script src="../js/core/rng.js"></script>
+    <!-- Data Modules -->
+    <script src="../js/data/crews.js"></script>
+    <script src="../js/data/equipment.js"></script>
+    <script src="../js/data/traits.js"></script>
+    <script src="../js/data/enemies.js"></script>
+    <script src="../js/data/facilities.js"></script>
+    <script src="../js/data/balance.js"></script>
+    <!-- Core -->
+    <script src="../js/core/game-state.js"></script>
+    <script src="../js/core/meta-progress.js"></script>
+    <script src="../js/pages/upgrade.js"></script>
+</body>
+</html>

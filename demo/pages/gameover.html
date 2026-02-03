@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Over - The Fading Raven</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/pages/endscreen.css">
+</head>
+<body>
+    <div class="page-container endscreen-page gameover scrollable">
+        <div class="endscreen-bg"></div>
+
+        <main class="endscreen-content">
+            <header class="endscreen-header">
+                <h1 class="title-gameover">GAME OVER</h1>
+                <p class="endscreen-message" id="gameover-message">All commanders have fallen.</p>
+            </header>
+
+            <section class="run-stats">
+                <h2>RUN STATISTICS</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-stations">12</span>
+                        <span class="stat-label">Stations Defended</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-turns">15</span>
+                        <span class="stat-label">Turns Survived</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-enemies">324</span>
+                        <span class="stat-label">Enemies Defeated</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-credits">156</span>
+                        <span class="stat-label">Total Credits</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="run-info">
+                <div class="info-row">
+                    <span>Difficulty</span>
+                    <span id="run-difficulty">Normal</span>
+                </div>
+                <div class="info-row">
+                    <span>Seed</span>
+                    <span id="run-seed" class="seed">ABCD-1234-WXYZ</span>
+                </div>
+                <div class="info-row">
+                    <span>Best Commander</span>
+                    <span id="best-commander">Marcus (Guardian)</span>
+                </div>
+            </section>
+
+            <footer class="endscreen-actions">
+                <button class="btn-primary btn-large" id="btn-retry">TRY AGAIN</button>
+                <button class="btn-secondary" id="btn-menu">MAIN MENU</button>
+            </footer>
+        </main>
+    </div>
+
+    <script src="../js/core/utils.js"></script>
+    <script src="../js/core/rng.js"></script>
+    <!-- Data Modules -->
+    <script src="../js/data/crews.js"></script>
+    <script src="../js/data/equipment.js"></script>
+    <script src="../js/data/traits.js"></script>
+    <script src="../js/data/enemies.js"></script>
+    <script src="../js/data/facilities.js"></script>
+    <script src="../js/data/balance.js"></script>
+    <!-- Core -->
+    <script src="../js/core/game-state.js"></script>
+    <script src="../js/pages/gameover.js"></script>
+</body>
+</html>

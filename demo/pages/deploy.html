@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploy - The Fading Raven</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/pages/deploy.css">
+</head>
+<body>
+    <div class="page-container deploy-page">
+        <!-- Header -->
+        <header class="deploy-header">
+            <div class="header-left">
+                <h1>DEPLOYMENT</h1>
+                <span class="station-name" id="station-name">Station Alpha</span>
+            </div>
+            <div class="header-center">
+                <div class="wave-preview">
+                    <span class="wave-label">Wave 1/<span id="total-waves">3</span></span>
+                    <div class="enemy-icons" id="enemy-preview">
+                        <!-- Enemy type icons -->
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="btn-hud" id="btn-scout">🔭 SCOUT</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="deploy-main">
+            <!-- Station Map -->
+            <div class="station-map-container">
+                <canvas id="station-canvas"></canvas>
+
+                <!-- Tile Info Tooltip -->
+                <div class="tile-tooltip" id="tile-tooltip">
+                    <span class="tile-type" id="tooltip-type">Floor</span>
+                    <span class="tile-info" id="tooltip-info"></span>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="deploy-sidebar">
+                <div class="sidebar-section">
+                    <h3>AVAILABLE CREWS</h3>
+                    <div class="crew-list" id="crew-list">
+                        <!-- Crew cards -->
+                    </div>
+                </div>
+
+                <div class="sidebar-section deployment-info">
+                    <h3>DEPLOYMENT</h3>
+                    <p class="info-text">Click a crew, then click a tile to deploy.</p>
+                    <p class="info-text">Crews can only be placed on valid tiles.</p>
+                </div>
+
+                <div class="sidebar-actions">
+                    <button class="btn btn-primary btn-large" id="btn-start-battle" disabled>
+                        전투 시작
+                    </button>
+                    <button class="btn btn-secondary" id="btn-retreat">
+                        후퇴
+                    </button>
+                </div>
+
+                <div class="battle-info">
+                    <div class="info-item">
+                        <span class="info-label">전투 유형</span>
+                        <span class="info-value" id="battle-type">일반 전투</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">난이도</span>
+                        <span class="info-value" id="battle-difficulty">⭐⭐</span>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Selected Crew Info -->
+        <div class="selected-crew-panel" id="selected-panel">
+            <div class="crew-portrait" id="selected-portrait"></div>
+            <div class="crew-info">
+                <h4 id="selected-name">Select a Crew</h4>
+                <span class="crew-class" id="selected-class">-</span>
+                <div class="crew-stats" id="selected-stats">
+                    <!-- Stats -->
+                </div>
+            </div>
+            <button class="btn-icon" id="btn-deselect" title="Deselect">✕</button>
+        </div>
+
+        <!-- Flee Confirmation Modal -->
+        <div class="modal" id="flee-modal">
+            <div class="modal-content">
+                <h2>FLEE STATION?</h2>
+                <p>Your crews will escape, but you will gain no rewards.</p>
+                <p class="warning-text">This station will be lost to the storm!</p>
+                <div class="modal-actions">
+                    <button class="btn-secondary" id="btn-flee-cancel">STAY</button>
+                    <button class="btn-danger" id="btn-flee-confirm">FLEE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/core/utils.js"></script>
+    <script src="../js/core/rng.js"></script>
+    <!-- Data Modules -->
+    <script src="../js/data/crews.js"></script>
+    <script src="../js/data/equipment.js"></script>
+    <script src="../js/data/traits.js"></script>
+    <script src="../js/data/enemies.js"></script>
+    <script src="../js/data/facilities.js"></script>
+    <script src="../js/data/balance.js"></script>
+    <!-- Core -->
+    <script src="../js/core/game-state.js"></script>
+    <script src="../js/core/station-generator.js"></script>
+    <script src="../js/pages/deploy.js"></script>
+</body>
+</html>

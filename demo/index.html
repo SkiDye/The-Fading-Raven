@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Fading Raven</title>
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/pages/menu.css">
+</head>
+<body>
+    <div class="page-container">
+        <!-- Animated Background -->
+        <div class="menu-bg">
+            <div class="starfield"></div>
+            <div class="stars"></div>
+            <div class="nebula"></div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="menu-content">
+            <header class="game-header">
+                <h1 class="game-title">THE FADING RAVEN</h1>
+                <p class="game-subtitle">Defend the Last Stations</p>
+            </header>
+
+            <nav class="menu-nav">
+                <button class="menu-btn" id="btn-new-game">
+                    <span class="btn-text">NEW GAME</span>
+                    <span class="btn-glow"></span>
+                </button>
+                <button class="menu-btn" id="btn-continue" disabled>
+                    <span class="btn-text">CONTINUE</span>
+                    <span class="btn-glow"></span>
+                </button>
+                <button class="menu-btn" id="btn-settings">
+                    <span class="btn-text">SETTINGS</span>
+                    <span class="btn-glow"></span>
+                </button>
+                <button class="menu-btn" id="btn-credits">
+                    <span class="btn-text">CREDITS</span>
+                    <span class="btn-glow"></span>
+                </button>
+            </nav>
+
+            <footer class="menu-footer">
+                <p class="version">v0.1.0 Demo</p>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Seed Modal -->
+    <div class="modal" id="seed-modal">
+        <div class="modal-content">
+            <h2>새 게임 시작</h2>
+            <div class="seed-input-group">
+                <label for="seed-input">시드 입력 (선택사항)</label>
+                <div class="input-with-button">
+                    <input type="text" id="seed-input" placeholder="ABC1-DEF2-GH34" maxlength="14">
+                    <button class="btn btn-icon" id="btn-random-seed" title="무작위 생성">🎲</button>
+                </div>
+                <p class="seed-hint">영문/숫자 조합 (예: ABC1-DEF2-GH34)<br>같은 시드로 동일한 맵을 재현할 수 있습니다</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btn-cancel-seed">취소</button>
+                <button class="btn btn-primary" id="btn-start-game">게임 시작</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/core/utils.js"></script>
+    <script src="js/core/rng.js"></script>
+    <!-- Data Modules -->
+    <script src="js/data/crews.js"></script>
+    <script src="js/data/equipment.js"></script>
+    <script src="js/data/traits.js"></script>
+    <script src="js/data/enemies.js"></script>
+    <script src="js/data/facilities.js"></script>
+    <script src="js/data/balance.js"></script>
+    <!-- Core -->
+    <script src="js/core/game-state.js"></script>
+    <script src="js/pages/menu.js"></script>
+</body>
+</html>

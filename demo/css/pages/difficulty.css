@@ -1,0 +1,296 @@
+/* ============================================
+   DIFFICULTY SELECTION PAGE
+   ============================================ */
+
+.difficulty-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    padding: var(--space-lg);
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: var(--space-xl);
+}
+
+.page-header h1 {
+    color: var(--color-primary);
+    margin-bottom: var(--space-sm);
+}
+
+.seed-display {
+    color: var(--color-text-secondary);
+    font-size: 1.05rem;
+}
+
+.seed-display span {
+    font-family: var(--font-mono);
+    color: var(--color-primary);
+    letter-spacing: 2px;
+    font-size: 1.1rem;
+}
+
+/* Difficulty Grid */
+.difficulty-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+    flex: 1;
+    align-content: start;
+}
+
+.difficulty-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-lg);
+    background: var(--color-bg-panel);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    overflow: hidden;
+}
+
+.difficulty-card:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.difficulty-card:hover .diff-icon {
+    transform: scale(1.2);
+}
+
+.difficulty-card.locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.difficulty-card.locked:hover {
+    border-color: var(--color-border);
+    transform: none;
+    box-shadow: none;
+}
+
+.diff-icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-md);
+    transition: transform var(--transition-normal);
+}
+
+.diff-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--color-text);
+    margin-bottom: var(--space-md);
+}
+
+.diff-features {
+    list-style: none;
+    margin-bottom: var(--space-md);
+    flex: 1;
+}
+
+.diff-features li {
+    padding: var(--space-xs) 0;
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+}
+
+.diff-desc {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+/* Dynamic card styles from JS */
+.difficulty-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-md);
+}
+
+.difficulty-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.difficulty-multiplier {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-warning);
+    background: rgba(246, 173, 85, 0.1);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+}
+
+.difficulty-desc {
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+    margin-bottom: var(--space-md);
+}
+
+.difficulty-modifiers {
+    list-style: none;
+    text-align: left;
+    padding: var(--space-md);
+    background: var(--color-bg-section);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-md);
+}
+
+.difficulty-modifiers li {
+    padding: var(--space-xs) 0;
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+}
+
+.difficulty-modifiers li::before {
+    content: '• ';
+    color: var(--color-primary);
+}
+
+.difficulty-card.selected {
+    border-color: var(--color-primary);
+    background: rgba(74, 158, 255, 0.05);
+    box-shadow: 0 0 20px rgba(74, 158, 255, 0.2);
+}
+
+.locked-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: var(--radius-md);
+    z-index: 1;
+}
+
+.locked-overlay span {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-danger);
+    text-align: center;
+}
+
+/* Specific Card Colors */
+.difficulty-card[data-difficulty="normal"]:hover {
+    border-color: var(--color-success);
+}
+
+.difficulty-card[data-difficulty="hard"]:hover {
+    border-color: var(--color-warning);
+}
+
+.difficulty-card[data-difficulty="veryhard"]:hover {
+    border-color: var(--color-danger);
+}
+
+.difficulty-card[data-difficulty="nightmare"]:hover:not(.locked) {
+    border-color: var(--color-purple);
+}
+
+/* Footer */
+.page-footer {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-md);
+    margin-top: var(--space-lg);
+    padding: var(--space-md) 0;
+    flex-shrink: 0;
+}
+
+.page-footer .btn {
+    min-width: 120px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .difficulty-wrapper {
+        padding: var(--space-md);
+    }
+
+    .page-header {
+        margin-bottom: var(--space-lg);
+    }
+
+    .page-header h1 {
+        font-size: 1.4rem;
+    }
+
+    .difficulty-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-sm);
+    }
+
+    .difficulty-card {
+        padding: var(--space-md);
+    }
+
+    .diff-icon {
+        font-size: 2rem;
+        margin-bottom: var(--space-sm);
+    }
+
+    .diff-name,
+    .difficulty-name {
+        font-size: 1.1rem;
+    }
+
+    .diff-features li,
+    .difficulty-modifiers li {
+        font-size: 0.85rem;
+    }
+
+    .difficulty-modifiers {
+        padding: var(--space-sm);
+    }
+
+    .page-footer {
+        flex-direction: row;
+        gap: var(--space-sm);
+        padding: var(--space-sm) 0;
+        margin-top: var(--space-md);
+    }
+
+    .page-footer .btn {
+        flex: 1;
+        min-width: auto;
+        padding: var(--space-sm) var(--space-md);
+    }
+}
+
+@media (max-width: 480px) {
+    .difficulty-wrapper {
+        padding: var(--space-sm);
+    }
+
+    .page-header h1 {
+        font-size: 1.2rem;
+    }
+
+    .seed-display {
+        font-size: 0.9rem;
+    }
+
+    .difficulty-card {
+        padding: var(--space-sm);
+    }
+
+    .diff-icon {
+        font-size: 1.5rem;
+    }
+}
