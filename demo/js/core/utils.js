@@ -210,11 +210,18 @@ const Utils = {
      * Navigate to a page
      */
     navigateTo(page) {
-        const basePath = window.location.pathname.includes('/pages/')
-            ? '../'
-            : './';
-        const pagePath = page === 'index' ? '' : `pages/${page}.html`;
-        window.location.href = basePath + pagePath;
+        const isInPagesFolder = window.location.pathname.includes('/pages/');
+        let targetPath;
+
+        if (page === 'index') {
+            // Navigate to main index
+            targetPath = isInPagesFolder ? '../index.html' : './index.html';
+        } else {
+            // Navigate to pages subfolder
+            targetPath = isInPagesFolder ? `${page}.html` : `pages/${page}.html`;
+        }
+
+        window.location.href = targetPath;
     },
 
     /**

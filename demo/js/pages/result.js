@@ -94,7 +94,8 @@ const ResultController = {
         if (!currentNode) return false;
         const sectorMap = GameState.currentRun?.sectorMap;
         if (!sectorMap) return false;
-        return currentNode.row === sectorMap.length - 1;
+        // Node has 'depth' property, sectorMap has 'totalDepth'
+        return currentNode.depth === sectorMap.totalDepth;
     },
 
     bindEvents() {
@@ -701,9 +702,11 @@ const ResultController = {
 
         // Check for boss victory
         if (this.result.victory && this.result.battleType === 'boss') {
-            // Check if this was the final boss
+            // Check if this was the final boss (gate node)
             const currentNode = this.findCurrentNode();
-            if (currentNode && currentNode.row === GameState.currentRun.sectorMap.length - 1) {
+            const sectorMap = GameState.currentRun?.sectorMap;
+            // Node has 'depth' property, sectorMap has 'totalDepth'
+            if (currentNode && sectorMap && currentNode.depth === sectorMap.totalDepth) {
                 GameState.endRun(true);
                 Utils.navigateTo('victory');
                 return;
@@ -724,13 +727,22 @@ const ResultController = {
         const map = GameState.currentRun?.sectorMap;
         if (!map) return null;
 
-        for (const row of map) {
-            for (const node of row) {
-                if (node.id === GameState.currentRun.currentNodeId) {
-                    return node;
+        // sectorMap.nodes is a flat array of all nodes
+        if (map.nodes) {
+            return map.nodes.find(node => node.id === GameState.currentRun.currentNodeId) || null;
+        }
+
+        // Fallback: iterate through layers (2D array)
+        if (map.layers) {
+            for (const layer of map.layers) {
+                for (const node of layer) {
+                    if (node.id === GameState.currentRun.currentNodeId) {
+                        return node;
+                    }
                 }
             }
         }
+
         return null;
     }
 };

@@ -241,6 +241,81 @@ Bad North 레퍼런스 문서를 분석하여 전투 밸런스 시스템 구현.
 
 ---
 
+## 아이소메트릭 시스템 호환성 업데이트 ✅
+
+**상태:** 완료
+
+Session 2의 2.5D 아이소메트릭 렌더링 시스템과 전투 메카닉 연동.
+
+### 추가된 좌표계 유틸리티
+
+**`combat-mechanics.js` 업데이트:**
+
+```javascript
+// 좌표계 변환 유틸리티
+getUnitTilePosition(unit, tileGrid)     // 픽셀/타일 좌표 → 타일 좌표
+getUnitHeight(unit, stationLayout)       // HeightSystem 연동 높이 조회
+getKnockbackDirection(attacker, defender) // 카메라 회전 고려한 넉백 방향
+knockbackPxToTiles(knockbackPx)          // 픽셀 → 타일 거리 변환
+```
+
+### 호환성 수정 사항
+
+| 함수 | 수정 내용 |
+|------|----------|
+| `wouldFallIntoVoid()` | 타일 좌표 지원, StationLayout 형식 대응 |
+| `isHeightBlocked()` | 높이 차이 체크 (신규) |
+| `getDistanceBetween()` | 타일/픽셀 좌표 모두 지원 |
+| `getTileDistance()` | 타일 거리 계산 (신규) |
+| `getAngleBetween()` | 타일/픽셀 좌표 모두 지원 |
+| `processKnockbackWithVoidCheck()` | finalTilePosition 반환, IsometricRenderer 연동 |
+| `findNearestEdgeTile()` | 타일 기반 엣지 탐색 (신규) |
+| `findNearestEdge()` | 레거시 호환 유지 + 타일 기반 변환 |
+
+### 연동되는 Session 2 시스템
+
+- `IsometricRenderer.tileToScreen()` - 타일 → 스크린 좌표 변환
+- `IsometricRenderer.screenToTileInt()` - 스크린 → 타일 좌표 변환
+- `IsometricRenderer.camera.rotation` - 카메라 회전 상태
+- `HeightSystem.getEntityHeight()` - 엔티티 높이 조회
+- `HeightSystem.getLayoutTileHeight()` - 타일 높이 조회
+
+---
+
+## 전투 시스템 등급 스케일링 연동 ✅
+
+**상태:** 완료
+
+Unit Grade (standard/veteran/elite) 스케일링을 실제 전투 시스템에 연동.
+
+### battle.js 추가 헬퍼 함수
+
+```javascript
+getCrewMoveSpeed(crew)    // 등급 + 특성 적용된 최종 이동속도
+getCrewAttackSpeed(crew)  // 등급 적용된 최종 공격속도(쿨다운)
+```
+
+### 적용된 위치
+
+| 위치 | 기존 | 변경 |
+|------|------|------|
+| 경로 이동 | `crew.moveSpeed` | `this.getCrewMoveSpeed(crew)` |
+| 직접 이동 | `crew.moveSpeed` | `this.getCrewMoveSpeed(crew)` |
+| 추격 이동 | `crew.moveSpeed` | `this.getCrewMoveSpeed(crew)` |
+| 공격 쿨다운 | `crew.attackSpeed` | `this.getCrewAttackSpeed(crew)` |
+
+### 등급별 효과
+
+| 등급 | 이동속도 | 공격속도 |
+|------|----------|----------|
+| Standard | ×1.0 | ×1.0 (기본) |
+| Veteran | ×1.05 | ÷1.1 (10% 빠름) |
+| Elite | ×1.1 | ÷1.2 (20% 빠름) |
+
+*swiftMovement 특성은 별도로 ×1.33 적용*
+
+---
+
 ## 기타 참고사항
 
 - `hud.js`는 battle.html의 기존 HUD와 별개로 설계됨 (사용 안 함)

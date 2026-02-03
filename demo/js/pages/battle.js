@@ -592,10 +592,21 @@ const BattleController = {
     touchStartPos: null,
     isDragging: false,
     // Pinch zoom support
+    isPinching: false,
     lastPinchDistance: 0,
 
     handleTouchStart(e) {
         e.preventDefault();
+
+        // Two-finger touch = pinch zoom start
+        if (e.touches.length === 2 && this.useIsometric && this.isometricInitialized) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            this.lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
+            this.isPinching = true;
+            return;
+        }
+
         const touch = e.touches[0];
         this.touchStartTime = Date.now();
         this.touchStartPos = { x: touch.clientX, y: touch.clientY };
@@ -604,6 +615,23 @@ const BattleController = {
 
     handleTouchMove(e) {
         e.preventDefault();
+
+        // Pinch zoom
+        if (e.touches.length === 2 && this.isPinching && this.useIsometric && this.isometricInitialized) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (this.lastPinchDistance > 0) {
+                const scale = distance / this.lastPinchDistance;
+                const currentZoom = IsometricRenderer.getZoom();
+                IsometricRenderer.setZoom(currentZoom * scale, false);
+            }
+
+            this.lastPinchDistance = distance;
+            return;
+        }
+
         if (!this.touchStartPos) return;
 
         const touch = e.touches[0];
@@ -627,6 +655,16 @@ const BattleController = {
 
     handleTouchEnd(e) {
         e.preventDefault();
+
+        // End pinch zoom
+        if (this.isPinching) {
+            this.isPinching = false;
+            this.lastPinchDistance = 0;
+            if (e.touches.length === 0) {
+                return;
+            }
+        }
+
         if (!this.touchStartPos) return;
 
         const touch = e.changedTouches[0];
@@ -1074,11 +1112,9 @@ const BattleController = {
         switch (this.targetingMode) {
             case 'skill':
                 if (this.selectedCrew) {
-                    // Phase 2: Skill activation effect
-                    this.addEffect({
+                    // Phase 2: Skill activation effect (using screen coordinates)
+                    this.addEffectAtEntity(this.selectedCrew, {
                         type: 'skill_activate',
-                        x: this.selectedCrew.x,
-                        y: this.selectedCrew.y,
                         duration: 400,
                         timer: 0,
                         color: this.selectedCrew.color,
@@ -1089,11 +1125,9 @@ const BattleController = {
 
             case 'equipment':
                 if (this.selectedCrew) {
-                    // Phase 2: Equipment activation effect
-                    this.addEffect({
+                    // Phase 2: Equipment activation effect (using screen coordinates)
+                    this.addEffectAtEntity(this.selectedCrew, {
                         type: 'skill_activate',
-                        x: this.selectedCrew.x,
-                        y: this.selectedCrew.y,
                         duration: 300,
                         timer: 0,
                         color: '#f6e05e', // Gold for equipment
@@ -1105,6 +1139,7 @@ const BattleController = {
             case 'raven':
                 if (this.targetingAbility) {
                     // Phase 2: Raven ability activation effect
+                    // Note: x,y here are already screen coordinates from click position
                     this.addEffect({
                         type: 'skill_activate',
                         x: x,
@@ -1365,11 +1400,9 @@ const BattleController = {
             if (dist > 3) {
                 const angle = Utils.angleBetween(crew.x, crew.y, targetPixel.x, targetPixel.y);
                 crew.facingAngle = angle; // Update facing direction
-                let moveSpeed = crew.moveSpeed;
 
-                // Apply trait bonus
-                if (crew.trait === 'swiftMovement') moveSpeed *= 1.33;
-
+                // Get final move speed with grade scaling and trait bonus
+                const moveSpeed = this.getCrewMoveSpeed(crew);
                 const moveAmount = moveSpeed * (dt / 1000);
                 crew.x += Math.cos(angle) * moveAmount;
                 crew.y += Math.sin(angle) * moveAmount;
@@ -1391,7 +1424,10 @@ const BattleController = {
             if (dist > 5) {
                 const angle = Utils.angleBetween(crew.x, crew.y, crew.targetX, crew.targetY);
                 crew.facingAngle = angle; // Update facing direction
-                const moveAmount = crew.moveSpeed * (dt / 1000);
+
+                // Get final move speed with grade scaling and trait bonus
+                const moveSpeed = this.getCrewMoveSpeed(crew);
+                const moveAmount = moveSpeed * (dt / 1000);
                 crew.x += Math.cos(angle) * moveAmount;
                 crew.y += Math.sin(angle) * moveAmount;
 
@@ -1422,6 +1458,47 @@ const BattleController = {
         }
     },
 
+    /**
+     * Get crew's final movement speed with all modifiers applied
+     * - Unit grade scaling (standard/veteran/elite)
+     * - Trait bonus (swiftMovement +33%)
+     * @param {Object} crew - The crew entity
+     * @returns {number} Final movement speed in pixels/second
+     */
+    getCrewMoveSpeed(crew) {
+        let moveSpeed = crew.moveSpeed || 80;
+
+        // Apply unit grade scaling (CombatMechanics integration)
+        if (typeof CombatMechanics !== 'undefined' && CombatMechanics.getGradeScaledMoveSpeed) {
+            moveSpeed = CombatMechanics.getGradeScaledMoveSpeed(crew, moveSpeed);
+        }
+
+        // Apply trait bonus
+        if (crew.trait === 'swiftMovement') {
+            moveSpeed *= 1.33;
+        }
+
+        return moveSpeed;
+    },
+
+    /**
+     * Get crew's final attack speed (cooldown) with all modifiers applied
+     * - Unit grade scaling (standard/veteran/elite)
+     * Higher grade = lower cooldown = faster attacks
+     * @param {Object} crew - The crew entity
+     * @returns {number} Attack cooldown in milliseconds
+     */
+    getCrewAttackSpeed(crew) {
+        const baseAttackSpeed = crew.attackSpeed || 1000;
+
+        // Apply unit grade scaling (CombatMechanics integration)
+        if (typeof CombatMechanics !== 'undefined' && CombatMechanics.getGradeScaledAttackSpeed) {
+            return CombatMechanics.getGradeScaledAttackSpeed(crew, baseAttackSpeed);
+        }
+
+        return baseAttackSpeed;
+    },
+
     updateCrewAttacking(crew, dt) {
         if (!crew.targetEnemy || crew.targetEnemy.health <= 0) {
             crew.targetEnemy = null;
@@ -1437,12 +1514,16 @@ const BattleController = {
             // In range - attack
             if (crew.attackTimer <= 0) {
                 this.crewAttack(crew, crew.targetEnemy);
-                crew.attackTimer = crew.attackSpeed;
+                // Apply grade-scaled attack speed
+                crew.attackTimer = this.getCrewAttackSpeed(crew);
             }
         } else {
             // Move towards enemy
             const angle = crew.facingAngle;
-            const moveAmount = crew.moveSpeed * (dt / 1000);
+
+            // Get final move speed with grade scaling and trait bonus
+            const moveSpeed = this.getCrewMoveSpeed(crew);
+            const moveAmount = moveSpeed * (dt / 1000);
             crew.x += Math.cos(angle) * moveAmount;
             crew.y += Math.sin(angle) * moveAmount;
         }
@@ -1581,7 +1662,9 @@ const BattleController = {
             const targetHealth = proj.target.health !== undefined ? proj.target.health : proj.target.squadSize;
             if (targetHealth > 0) {
                 const targetSize = proj.target.size || 20;
-                if (Utils.distance(proj.x, proj.y, proj.target.x, proj.target.y) < targetSize + 5) {
+                // Get target screen position for collision check (projectile uses screen coords)
+                const targetScreenPos = this.getEffectPos(proj.target);
+                if (Utils.distance(proj.x, proj.y, targetScreenPos.x, targetScreenPos.y) < targetSize + 5) {
                     // Apply damage
                     if (proj.target.health !== undefined) {
                         // Enemy target
@@ -1599,14 +1682,15 @@ const BattleController = {
                             proj.target.health -= damage;
                             actualDamage = damage;
                         }
-                        this.addDamageNumber(proj.target.x, proj.target.y, Math.floor(actualDamage), false, proj.isCritical);
+                        this.addDamageNumber(targetScreenPos.x, targetScreenPos.y, Math.floor(actualDamage), false, proj.isCritical);
 
                         // Phase 2: Hit reaction for ranged attacks
-                        this.applyHitReaction(proj.target, proj.x, proj.y);
+                        // Create a pseudo-source entity at projectile position for knockback direction
+                        this.applyHitReaction(proj.target, { x: proj.target.x - 1, y: proj.target.y });
 
                         // Critical hit effect for ranged attacks
                         if (proj.isCritical) {
-                            this.addCriticalHitEffect(proj.target.x, proj.target.y, proj.color);
+                            this.addCriticalHitEffect(proj.target, proj.color);
                             // Extra knockback on crit
                             if (proj.target.knockbackX) {
                                 proj.target.knockbackX *= 1.5;
@@ -1632,10 +1716,10 @@ const BattleController = {
                     } else {
                         // Crew target (from hacked turret)
                         proj.target.squadSize--;
-                        this.addDamageNumber(proj.target.x, proj.target.y, 1, true);
+                        this.addDamageNumber(targetScreenPos.x, targetScreenPos.y, 1, true);
 
                         // Phase 2: Hit reaction for crew from ranged
-                        this.applyHitReaction(proj.target, proj.x, proj.y);
+                        this.applyHitReaction(proj.target, { x: proj.target.x - 1, y: proj.target.y });
                     }
 
                     if (!proj.piercing) return false;
@@ -1675,13 +1759,17 @@ const BattleController = {
         // Set facing direction for animation
         crew.facingAngle = Utils.angleBetween(crew.x, crew.y, enemy.x, enemy.y);
 
-        // Add windup effect
+        // Get screen positions for effects
+        const crewScreenPos = this.getEffectPos(crew);
+        const enemyScreenPos = this.getEffectPos(enemy);
+
+        // Add windup effect (using screen coordinates)
         this.addEffect({
             type: 'attack_windup',
-            x: crew.x,
-            y: crew.y,
-            targetX: enemy.x,
-            targetY: enemy.y,
+            x: crewScreenPos.x,
+            y: crewScreenPos.y,
+            targetX: enemyScreenPos.x,
+            targetY: enemyScreenPos.y,
             duration: 150,
             timer: 0,
             color: crew.color,
@@ -1692,10 +1780,13 @@ const BattleController = {
             // Ranged attack (delayed by windup)
             setTimeout(() => {
                 if (enemy.health <= 0) return;
+                // Get fresh screen positions (entity may have moved)
+                const freshCrewPos = this.getEffectPos(crew);
+                const freshEnemyPos = this.getEffectPos(enemy);
                 this.projectiles.push({
-                    x: crew.x,
-                    y: crew.y,
-                    angle: Utils.angleBetween(crew.x, crew.y, enemy.x, enemy.y),
+                    x: freshCrewPos.x,
+                    y: freshCrewPos.y,
+                    angle: Math.atan2(freshEnemyPos.y - freshCrewPos.y, freshEnemyPos.x - freshCrewPos.x),
                     speed: 400,
                     damage: damage,
                     target: enemy,
@@ -1715,14 +1806,16 @@ const BattleController = {
                     enemy.health -= damage;
                     actualDamage = damage;
                 }
-                this.addDamageNumber(enemy.x, enemy.y, Math.floor(actualDamage), false, isCritical);
+                // Get fresh screen positions
+                const freshEnemyPos = this.getEffectPos(enemy);
+                this.addDamageNumber(freshEnemyPos.x, freshEnemyPos.y, Math.floor(actualDamage), false, isCritical);
 
                 // Phase 2: Hit reaction for enemy
-                this.applyHitReaction(enemy, crew.x, crew.y);
+                this.applyHitReaction(enemy, crew);
 
                 // Critical hit particles
                 if (isCritical) {
-                    this.addCriticalHitEffect(enemy.x, enemy.y, crew.color);
+                    this.addCriticalHitEffect(enemy, crew.color);
                     // Extra knockback on crit
                     enemy.knockbackX *= 1.5;
                     enemy.knockbackY *= 1.5;
@@ -1733,10 +1826,8 @@ const BattleController = {
                     this.triggerDeathAnimation(enemy, 'enemy');
                 }
 
-                this.addEffect({
+                this.addEffectAtEntity(enemy, {
                     type: 'melee_hit',
-                    x: enemy.x,
-                    y: enemy.y,
                     duration: 200,
                     timer: 0,
                     color: crew.color,
@@ -1747,15 +1838,18 @@ const BattleController = {
 
     /**
      * Add critical hit visual effect (particles)
+     * @param {Object} entity - Entity at which to display the effect
+     * @param {string} color - Effect color
      */
-    addCriticalHitEffect(x, y, color) {
+    addCriticalHitEffect(entity, color) {
+        const pos = this.getEffectPos(entity);
         // Add burst particles
         for (let i = 0; i < 8; i++) {
             const angle = (Math.PI * 2 / 8) * i;
             this.addEffect({
                 type: 'crit_particle',
-                x: x,
-                y: y,
+                x: pos.x,
+                y: pos.y,
                 angle: angle,
                 duration: 400,
                 timer: 0,
@@ -1765,8 +1859,8 @@ const BattleController = {
         // Add impact flash
         this.addEffect({
             type: 'crit_flash',
-            x: x,
-            y: y,
+            x: pos.x,
+            y: pos.y,
             duration: 200,
             timer: 0,
         });
@@ -1778,13 +1872,17 @@ const BattleController = {
         // Set enemy facing direction
         enemy.facingAngle = Utils.angleBetween(enemy.x, enemy.y, crew.x, crew.y);
 
-        // Add windup effect for enemy
+        // Get screen positions for effects
+        const enemyScreenPos = this.getEffectPos(enemy);
+        const crewScreenPos = this.getEffectPos(crew);
+
+        // Add windup effect for enemy (using screen coordinates)
         this.addEffect({
             type: 'attack_windup',
-            x: enemy.x,
-            y: enemy.y,
-            targetX: crew.x,
-            targetY: crew.y,
+            x: enemyScreenPos.x,
+            y: enemyScreenPos.y,
+            targetX: crewScreenPos.x,
+            targetY: crewScreenPos.y,
             duration: 150,
             timer: 0,
             color: enemy.visual?.color || enemy.color || '#ff6b6b',
@@ -1801,10 +1899,12 @@ const BattleController = {
             }
 
             crew.squadSize -= damage;
-            this.addDamageNumber(crew.x, crew.y, enemy.damage, true);
+            // Get fresh screen position
+            const freshCrewPos = this.getEffectPos(crew);
+            this.addDamageNumber(freshCrewPos.x, freshCrewPos.y, enemy.damage, true);
 
             // Phase 2: Hit reaction for crew
-            this.applyHitReaction(crew, enemy.x, enemy.y);
+            this.applyHitReaction(crew, enemy);
 
             if (crew.squadSize <= 0) {
                 // Phase 2: Enhanced death animation
@@ -1817,23 +1917,23 @@ const BattleController = {
 
     /**
      * Phase 2: Apply hit reaction (flash + knockback)
+     * @param {Object} target - Entity receiving the hit
+     * @param {Object} source - Entity that caused the hit (for knockback direction)
      */
-    applyHitReaction(target, sourceX, sourceY) {
+    applyHitReaction(target, source) {
         // Flash effect
         target.flashTime = 150;
 
-        // Knockback calculation
+        // Knockback calculation (using tile coordinates for direction)
         const knockbackDist = 8;
-        const angle = Utils.angleBetween(sourceX, sourceY, target.x, target.y);
+        const angle = Utils.angleBetween(source.x, source.y, target.x, target.y);
         target.knockbackX = Math.cos(angle) * knockbackDist;
         target.knockbackY = Math.sin(angle) * knockbackDist;
         target.knockbackTime = 100;
 
-        // Hit effect
-        this.addEffect({
+        // Hit effect (using screen coordinates)
+        this.addEffectAtEntity(target, {
             type: 'hit_impact',
-            x: target.x,
-            y: target.y,
             duration: 200,
             timer: 0,
             color: '#fff',
@@ -1844,15 +1944,15 @@ const BattleController = {
      * Phase 2: Trigger enhanced death animation
      */
     triggerDeathAnimation(entity, entityType) {
-        const x = entity.x;
-        const y = entity.y;
+        // Get screen position for effects
+        const pos = this.getEffectPos(entity);
         const color = entity.color || (entityType === 'crew' ? '#4a9eff' : '#ff6b6b');
 
         // Main death burst
         this.addEffect({
             type: 'death_burst',
-            x: x,
-            y: y,
+            x: pos.x,
+            y: pos.y,
             duration: 600,
             timer: 0,
             color: color,
@@ -1863,8 +1963,8 @@ const BattleController = {
         if (entityType === 'crew') {
             this.addEffect({
                 type: 'soul_rise',
-                x: x,
-                y: y,
+                x: pos.x,
+                y: pos.y,
                 duration: 1000,
                 timer: 0,
                 color: color,
@@ -1877,8 +1977,8 @@ const BattleController = {
         // Legacy death effect for compatibility
         this.addEffect({
             type: 'death',
-            x: x,
-            y: y,
+            x: pos.x,
+            y: pos.y,
             duration: 500,
             timer: 0,
         });
@@ -2033,6 +2133,27 @@ const BattleController = {
 
     addEffect(effect) {
         this.effects.push(effect);
+    },
+
+    /**
+     * Get screen position for effect rendering
+     * Converts entity tile coordinates to screen coordinates in isometric mode
+     */
+    getEffectPos(entity) {
+        if (!entity) return { x: 0, y: 0 };
+        return this.getEntityScreenPos(entity);
+    },
+
+    /**
+     * Add effect at entity position (auto-converts to screen coords)
+     */
+    addEffectAtEntity(entity, effectProps) {
+        const pos = this.getEffectPos(entity);
+        this.addEffect({
+            ...effectProps,
+            x: pos.x,
+            y: pos.y,
+        });
     },
 
     updateHUD() {
@@ -2445,11 +2566,30 @@ const BattleController = {
         const x = pos.x;
         const y = pos.y;
 
+        // Phase 3: Smooth health bar transition (shared with non-isometric)
+        if (crew.displayHealth === undefined) crew.displayHealth = crew.squadSize;
+        crew.displayHealth += (crew.squadSize - crew.displayHealth) * 0.15;
+
+        // Phase 3: Idle breathing animation
+        if (!crew.idlePhase) crew.idlePhase = Math.random() * Math.PI * 2;
+        const idleTime = performance.now() / 1000;
+        const breathScale = crew.state === 'idle' ? 1 + Math.sin(idleTime * 2 + crew.idlePhase) * 0.03 : 1;
+
+        // Phase 3: Combat state indicator
+        if (crew.state === 'attacking') {
+            const pulsePhase = (idleTime * 4) % 1;
+            ctx.strokeStyle = `rgba(255, 100, 100, ${0.5 - pulsePhase * 0.5})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, 20 * breathScale + 5 + pulsePhase * 10, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
         // Invulnerability effect
         if (crew.invulnerable) {
             ctx.fillStyle = 'rgba(183, 148, 244, 0.3)';
             ctx.beginPath();
-            ctx.arc(x, y, 28, 0, Math.PI * 2);
+            ctx.arc(x, y, 28 * breathScale, 0, Math.PI * 2);
             ctx.fill();
         }
 
@@ -2458,15 +2598,15 @@ const BattleController = {
             ctx.strokeStyle = 'rgba(99, 179, 237, 0.7)';
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(x, y, 26, 0, Math.PI * 2);
+            ctx.arc(x, y, 26 * breathScale, 0, Math.PI * 2);
             ctx.stroke();
         }
 
-        // Flash effect when hit
+        // Phase 2: Flash effect when hit
         const isFlashing = crew.flashTime > 0;
         const flashIntensity = isFlashing ? (crew.flashTime / 150) : 0;
 
-        // Crew circle
+        // Crew circle with breathing
         if (isFlashing) {
             const r = parseInt(crew.color.slice(1, 3), 16);
             const g = parseInt(crew.color.slice(3, 5), 16);
@@ -2479,7 +2619,7 @@ const BattleController = {
             ctx.fillStyle = crew.color;
         }
         ctx.beginPath();
-        ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.arc(x, y, 20 * breathScale, 0, Math.PI * 2);
         ctx.fill();
 
         // Border
@@ -2494,22 +2634,78 @@ const BattleController = {
         ctx.textBaseline = 'middle';
         ctx.fillText(crew.name[0], x, y);
 
-        // Health bar
+        // Squad member visualization - humanoid figures around the main circle
+        const squadRadius = 30 * breathScale;
+        const maxMembers = crew.maxSquadSize;
+        const aliveMembers = crew.squadSize;
+
+        for (let i = 0; i < maxMembers; i++) {
+            // Distribute members evenly around the circle (starting from top)
+            const angle = -Math.PI / 2 + (Math.PI * 2 / maxMembers) * i;
+            const memberX = x + Math.cos(angle) * squadRadius;
+            const memberY = y + Math.sin(angle) * squadRadius;
+
+            ctx.save();
+            ctx.translate(memberX, memberY);
+
+            if (i < aliveMembers) {
+                // Alive member - humanoid shape (head + body ellipse)
+                ctx.fillStyle = crew.color;
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 3, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+
+                ctx.fillStyle = crew.color;
+                ctx.beginPath();
+                ctx.arc(0, -4, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                // Dead member - ghostly/dim humanoid
+                ctx.globalAlpha = 0.3;
+                ctx.fillStyle = '#666';
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 3, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#999';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, -4, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+
+            ctx.restore();
+        }
+
+        // Phase 3: Smooth health bar with damage indicator
         const healthPct = crew.squadSize / crew.maxSquadSize;
+        const displayHealthPct = crew.displayHealth / crew.maxSquadSize;
         const barWidth = 30;
         const barHeight = 4;
         const barX = x - barWidth / 2;
-        const barY = y - 30;
+        const barY = y - 38; // Moved up to accommodate squad figures
 
         ctx.fillStyle = '#333';
         ctx.fillRect(barX, barY, barWidth, barHeight);
+        // Damage indicator
+        if (displayHealthPct > healthPct) {
+            ctx.fillStyle = '#fc8181';
+            ctx.fillRect(barX, barY, barWidth * displayHealthPct, barHeight);
+        }
         ctx.fillStyle = healthPct > 0.5 ? '#48bb78' : healthPct > 0.25 ? '#f6ad55' : '#fc8181';
         ctx.fillRect(barX, barY, barWidth * healthPct, barHeight);
 
         // Squad count
         ctx.fillStyle = '#fff';
         ctx.font = '10px sans-serif';
-        ctx.fillText(crew.squadSize, x, barY - 8);
+        ctx.fillText(`${crew.squadSize}/${crew.maxSquadSize}`, x, barY - 6);
 
         // Skill cooldown indicator
         if (SkillSystem) {
@@ -2561,6 +2757,10 @@ const BattleController = {
         const x = pos.x;
         const y = pos.y;
 
+        // Phase 3: Smooth health bar transition
+        if (enemy.displayHealth === undefined) enemy.displayHealth = enemy.health;
+        enemy.displayHealth += (enemy.health - enemy.displayHealth) * 0.15;
+
         // Get render data
         const color = enemy.visual?.color || enemy.color || '#ff6b6b';
         const size = enemy.visual?.size || enemy.size || 15;
@@ -2568,8 +2768,25 @@ const BattleController = {
         const isSlowed = enemy.slowMultiplier < 1 || enemy.slowed;
         const hasShield = enemy.hasShield;
 
-        // Enemy circle
-        ctx.fillStyle = enemy.flashTime > 0 ? '#ffffff' : color;
+        // Phase 2: Enhanced flash effect
+        const isFlashing = enemy.flashTime > 0;
+        const flashIntensity = isFlashing ? (enemy.flashTime / 150) : 0;
+
+        // Enemy circle with flash effect
+        if (isFlashing) {
+            let r = 255, g = 107, b = 107;
+            if (color.startsWith('#') && color.length === 7) {
+                r = parseInt(color.slice(1, 3), 16);
+                g = parseInt(color.slice(3, 5), 16);
+                b = parseInt(color.slice(5, 7), 16);
+            }
+            const flashR = Math.min(255, r + (255 - r) * flashIntensity);
+            const flashG = Math.min(255, g + (255 - g) * flashIntensity);
+            const flashB = Math.min(255, b + (255 - b) * flashIntensity);
+            ctx.fillStyle = `rgb(${Math.floor(flashR)}, ${Math.floor(flashG)}, ${Math.floor(flashB)})`;
+        } else {
+            ctx.fillStyle = color;
+        }
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fill();
@@ -2627,8 +2844,9 @@ const BattleController = {
             ctx.fillText('❄️', x, y);
         }
 
-        // Health bar
+        // Phase 3: Smooth health bar with damage indicator
         const healthPct = enemy.health / enemy.maxHealth;
+        const displayHealthPct = enemy.displayHealth / enemy.maxHealth;
         const barWidth = size * 2;
         const barHeight = 3;
         const barX = x - barWidth / 2;
@@ -2636,6 +2854,11 @@ const BattleController = {
 
         ctx.fillStyle = '#333';
         ctx.fillRect(barX, barY, barWidth, barHeight);
+        // Damage indicator
+        if (displayHealthPct > healthPct) {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(barX, barY, barWidth * displayHealthPct, barHeight);
+        }
         ctx.fillStyle = enemy.isBoss ? '#ffd700' : '#fc8181';
         ctx.fillRect(barX, barY, barWidth * healthPct, barHeight);
 
@@ -2743,13 +2966,67 @@ const BattleController = {
         ctx.textBaseline = 'middle';
         ctx.fillText(crew.name[0], crew.x, crew.y);
 
+        // Squad member visualization - humanoid figures around the main circle
+        const squadRadius = 30 * breathScale;
+        const maxMembers = crew.maxSquadSize;
+        const aliveMembers = crew.squadSize;
+
+        for (let i = 0; i < maxMembers; i++) {
+            // Distribute members evenly around the circle (starting from top)
+            const angle = -Math.PI / 2 + (Math.PI * 2 / maxMembers) * i;
+            const memberX = crew.x + Math.cos(angle) * squadRadius;
+            const memberY = crew.y + Math.sin(angle) * squadRadius;
+
+            ctx.save();
+            ctx.translate(memberX, memberY);
+
+            if (i < aliveMembers) {
+                // Alive member - humanoid shape (head + body ellipse)
+                // Body (ellipse - taller than wide)
+                ctx.fillStyle = crew.color;
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 3, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+
+                // Head (small circle)
+                ctx.fillStyle = crew.color;
+                ctx.beginPath();
+                ctx.arc(0, -4, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                // Dead member - ghostly/dim humanoid
+                ctx.globalAlpha = 0.3;
+                // Body
+                ctx.fillStyle = '#666';
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 3, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#999';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+
+                // Head
+                ctx.beginPath();
+                ctx.arc(0, -4, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+
+            ctx.restore();
+        }
+
         // Phase 3: Smooth health bar with damage indicator
         const healthPct = crew.squadSize / crew.maxSquadSize;
         const displayHealthPct = crew.displayHealth / crew.maxSquadSize;
         const barWidth = 30;
         const barHeight = 4;
         const barX = crew.x - barWidth / 2;
-        const barY = crew.y - 30;
+        const barY = crew.y - 38; // Moved up to accommodate squad dots
 
         ctx.fillStyle = '#333';
         ctx.fillRect(barX, barY, barWidth, barHeight);
@@ -2761,10 +3038,10 @@ const BattleController = {
         ctx.fillStyle = healthPct > 0.5 ? '#48bb78' : healthPct > 0.25 ? '#f6ad55' : '#fc8181';
         ctx.fillRect(barX, barY, barWidth * healthPct, barHeight);
 
-        // Squad count
+        // Squad count (above health bar)
         ctx.fillStyle = '#fff';
         ctx.font = '10px sans-serif';
-        ctx.fillText(crew.squadSize, crew.x, barY - 8);
+        ctx.fillText(`${crew.squadSize}/${crew.maxSquadSize}`, crew.x, barY - 6);
 
         // Skill cooldown indicator
         if (SkillSystem) {

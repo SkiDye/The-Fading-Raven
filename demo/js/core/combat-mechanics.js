@@ -5,9 +5,99 @@
  * - Shield mechanics (disabled during melee)
  * - Lance raise mechanic (Sentinel weakness)
  * - Recovery/replenish time formula
+ *
+ * Coordinate System Notes:
+ * - Supports both tile coordinates (tileX, tileY) and pixel coordinates (x, y)
+ * - Integrates with IsometricRenderer for 2.5D coordinate conversion
+ * - Uses HeightSystem for elevation-aware calculations
  */
 
 const CombatMechanics = {
+    // ==========================================
+    // COORDINATE SYSTEM UTILITIES
+    // ==========================================
+
+    /**
+     * Get tile coordinates from unit (supports both formats)
+     * @param {Object} unit - Unit with position data
+     * @param {Object} tileGrid - Optional tile grid for pixel conversion
+     * @returns {{tileX: number, tileY: number}} Tile coordinates
+     */
+    getUnitTilePosition(unit, tileGrid = null) {
+        // If unit has tile coordinates, use them directly
+        if (unit.tileX !== undefined && unit.tileY !== undefined) {
+            return { tileX: unit.tileX, tileY: unit.tileY };
+        }
+
+        // Convert pixel coordinates to tile coordinates
+        if (unit.x !== undefined && unit.y !== undefined) {
+            // Use IsometricRenderer if available
+            if (typeof IsometricRenderer !== 'undefined' && IsometricRenderer.screenToTileInt) {
+                const tile = IsometricRenderer.screenToTileInt(unit.x, unit.y, 0);
+                return { tileX: tile.x, tileY: tile.y };
+            }
+
+            // Fallback to simple grid conversion
+            const tileSize = tileGrid?.tileSize || 32;
+            return {
+                tileX: Math.floor(unit.x / tileSize),
+                tileY: Math.floor(unit.y / tileSize),
+            };
+        }
+
+        return { tileX: 0, tileY: 0 };
+    },
+
+    /**
+     * Get height level for a unit's position
+     * @param {Object} unit - Unit with position data
+     * @param {Object} stationLayout - Station layout for height lookup
+     * @returns {number} Height level (0-3)
+     */
+    getUnitHeight(unit, stationLayout) {
+        // Use HeightSystem if available
+        if (typeof HeightSystem !== 'undefined' && HeightSystem.getEntityHeight) {
+            return HeightSystem.getEntityHeight(unit, stationLayout);
+        }
+
+        // Fallback: no height
+        return 0;
+    },
+
+    /**
+     * Calculate knockback direction accounting for camera rotation
+     * @param {Object} attacker - Attacking unit
+     * @param {Object} defender - Defending unit
+     * @returns {number} Knockback angle in radians
+     */
+    getKnockbackDirection(attacker, defender) {
+        const attackerPos = this.getUnitTilePosition(attacker);
+        const defenderPos = this.getUnitTilePosition(defender);
+
+        // Calculate base angle in tile space
+        const dx = defenderPos.tileX - attackerPos.tileX;
+        const dy = defenderPos.tileY - attackerPos.tileY;
+        let angle = Math.atan2(dy, dx);
+
+        // Apply camera rotation if IsometricRenderer is available
+        if (typeof IsometricRenderer !== 'undefined') {
+            const rotation = IsometricRenderer.camera?.rotation || 0;
+            angle += (rotation * Math.PI) / 2;
+        }
+
+        return angle;
+    },
+
+    /**
+     * Convert knockback distance from pixels to tiles
+     * @param {number} knockbackPx - Knockback in pixels
+     * @returns {number} Knockback in tiles
+     */
+    knockbackPxToTiles(knockbackPx) {
+        const tileSize = IsometricRenderer?.config?.tileWidth || 64;
+        return knockbackPx / tileSize;
+    },
+
     // ==========================================
     // LANDING KNOCKBACK SYSTEM
     // ==========================================
@@ -61,29 +151,57 @@ const CombatMechanics = {
 
     /**
      * Check if knockback would push unit into void (instant death)
-     * @param {Object} unit - Unit position { x, y }
+     * Supports both pixel coordinates and tile coordinates
+     * @param {Object} unit - Unit position { x, y } or { tileX, tileY }
      * @param {number} knockbackPx - Knockback distance in pixels
-     * @param {number} knockbackAngle - Direction of knockback
-     * @param {Object} tileGrid - Reference to TileGrid for checking tiles
+     * @param {number} knockbackAngle - Direction of knockback (radians)
+     * @param {Object} tileGrid - Reference to TileGrid/StationLayout for checking tiles
      * @returns {boolean} True if would fall into void
      */
     wouldFallIntoVoid(unit, knockbackPx, knockbackAngle, tileGrid) {
         if (!tileGrid) return false;
 
-        // Calculate end position
-        const endX = unit.x + Math.cos(knockbackAngle) * knockbackPx;
-        const endY = unit.y + Math.sin(knockbackAngle) * knockbackPx;
+        // Get unit's current tile position
+        const currentPos = this.getUnitTilePosition(unit, tileGrid);
 
-        // Convert to tile coordinates
-        const tileSize = tileGrid.tileSize || 32;
-        const tileX = Math.floor(endX / tileSize);
-        const tileY = Math.floor(endY / tileSize);
+        // Convert knockback to tiles
+        const knockbackTiles = this.knockbackPxToTiles(knockbackPx);
 
-        // Check tile type
-        const tile = tileGrid.getTile?.(tileX, tileY);
+        // Calculate end tile position
+        const endTileX = Math.floor(currentPos.tileX + Math.cos(knockbackAngle) * knockbackTiles);
+        const endTileY = Math.floor(currentPos.tileY + Math.sin(knockbackAngle) * knockbackTiles);
 
-        // TileType.VOID = 0 (space/instant death)
+        // Check tile type using appropriate method
+        let tile;
+        if (tileGrid.getTile) {
+            tile = tileGrid.getTile(endTileX, endTileY);
+        } else if (tileGrid.tiles && Array.isArray(tileGrid.tiles)) {
+            // StationLayout format: tiles[y][x]
+            tile = tileGrid.tiles[endTileY]?.[endTileX];
+        }
+
+        // TileType.VOID = 0 (space/instant death), undefined = out of bounds
         return tile === 0 || tile === undefined;
+    },
+
+    /**
+     * Check if moving between tiles would cross a height barrier
+     * @param {number} fromX - Starting tile X
+     * @param {number} fromY - Starting tile Y
+     * @param {number} toX - Ending tile X
+     * @param {number} toY - Ending tile Y
+     * @param {Object} stationLayout - Station layout for height lookup
+     * @returns {boolean} True if movement is blocked by height
+     */
+    isHeightBlocked(fromX, fromY, toX, toY, stationLayout) {
+        if (typeof HeightSystem === 'undefined') return false;
+
+        const fromHeight = HeightSystem.getLayoutTileHeight?.(stationLayout, fromX, fromY) || 0;
+        const toHeight = HeightSystem.getLayoutTileHeight?.(stationLayout, toX, toY) || 0;
+
+        // Can't be knocked UP to higher ground (can fall down)
+        const heightDiff = toHeight - fromHeight;
+        return heightDiff > 1; // Allow 1 level climb, block 2+ levels
     },
 
     // ==========================================
@@ -352,22 +470,64 @@ const CombatMechanics = {
     // ==========================================
 
     /**
-     * Get distance between two units
+     * Get distance between two units (supports both pixel and tile coordinates)
+     * @param {Object} unit1 - First unit
+     * @param {Object} unit2 - Second unit
+     * @param {boolean} useTiles - If true, calculate in tile space
+     * @returns {number} Distance (in pixels or tiles)
      */
-    getDistanceBetween(unit1, unit2) {
+    getDistanceBetween(unit1, unit2, useTiles = false) {
         if (!unit1 || !unit2) return Infinity;
-        const dx = (unit2.x || 0) - (unit1.x || 0);
-        const dy = (unit2.y || 0) - (unit1.y || 0);
+
+        let dx, dy;
+
+        if (useTiles || (unit1.tileX !== undefined && unit2.tileX !== undefined)) {
+            // Use tile coordinates
+            const pos1 = this.getUnitTilePosition(unit1);
+            const pos2 = this.getUnitTilePosition(unit2);
+            dx = pos2.tileX - pos1.tileX;
+            dy = pos2.tileY - pos1.tileY;
+        } else {
+            // Use pixel coordinates
+            dx = (unit2.x || 0) - (unit1.x || 0);
+            dy = (unit2.y || 0) - (unit1.y || 0);
+        }
+
         return Math.sqrt(dx * dx + dy * dy);
     },
 
     /**
-     * Get angle from unit1 to unit2
+     * Get distance in tiles between two units
+     * @param {Object} unit1 - First unit
+     * @param {Object} unit2 - Second unit
+     * @returns {number} Distance in tiles
      */
-    getAngleBetween(unit1, unit2) {
+    getTileDistance(unit1, unit2) {
+        return this.getDistanceBetween(unit1, unit2, true);
+    },
+
+    /**
+     * Get angle from unit1 to unit2 (supports both coordinate systems)
+     * @param {Object} unit1 - Source unit
+     * @param {Object} unit2 - Target unit
+     * @param {boolean} useTiles - If true, calculate in tile space
+     * @returns {number} Angle in degrees
+     */
+    getAngleBetween(unit1, unit2, useTiles = false) {
         if (!unit1 || !unit2) return 0;
-        const dx = (unit2.x || 0) - (unit1.x || 0);
-        const dy = (unit2.y || 0) - (unit1.y || 0);
+
+        let dx, dy;
+
+        if (useTiles || (unit1.tileX !== undefined && unit2.tileX !== undefined)) {
+            const pos1 = this.getUnitTilePosition(unit1);
+            const pos2 = this.getUnitTilePosition(unit2);
+            dx = pos2.tileX - pos1.tileX;
+            dy = pos2.tileY - pos1.tileY;
+        } else {
+            dx = (unit2.x || 0) - (unit1.x || 0);
+            dy = (unit2.y || 0) - (unit1.y || 0);
+        }
+
         return Math.atan2(dy, dx) * (180 / Math.PI);
     },
 
@@ -377,15 +537,21 @@ const CombatMechanics = {
 
     /**
      * Process knockback and check for void death
+     * Supports both pixel and tile coordinate systems
      * @param {Object} unit - Unit being knocked back
-     * @param {number} knockbackPx - Knockback distance
+     * @param {number} knockbackPx - Knockback distance in pixels
      * @param {number} knockbackAngle - Direction of knockback (radians)
-     * @param {Object} tileGrid - Reference to TileGrid
-     * @returns {Object} { finalPosition, fellIntoVoid, grabbedLedge, rescueWindow }
+     * @param {Object} tileGrid - Reference to TileGrid/StationLayout
+     * @returns {Object} { finalPosition, finalTilePosition, fellIntoVoid, grabbedLedge, rescueWindow }
      */
     processKnockbackWithVoidCheck(unit, knockbackPx, knockbackAngle, tileGrid) {
+        // Get current position in both formats
+        const currentTile = this.getUnitTilePosition(unit, tileGrid);
+        const hasTileCoords = unit.tileX !== undefined;
+
         const result = {
-            finalPosition: { x: unit.x, y: unit.y },
+            finalPosition: { x: unit.x || 0, y: unit.y || 0 },
+            finalTilePosition: { tileX: currentTile.tileX, tileY: currentTile.tileY },
             fellIntoVoid: false,
             grabbedLedge: false,
             rescueWindow: 0,
@@ -396,49 +562,115 @@ const CombatMechanics = {
             return result;
         }
 
-        // Calculate end position
-        const endX = unit.x + Math.cos(knockbackAngle) * knockbackPx;
-        const endY = unit.y + Math.sin(knockbackAngle) * knockbackPx;
+        // Convert knockback to tiles for tile-based checking
+        const knockbackTiles = this.knockbackPxToTiles(knockbackPx);
 
-        // Check if would fall into void
-        if (this.wouldFallIntoVoid({ x: endX, y: endY }, 0, 0, tileGrid)) {
+        // Calculate end tile position
+        const endTileX = currentTile.tileX + Math.cos(knockbackAngle) * knockbackTiles;
+        const endTileY = currentTile.tileY + Math.sin(knockbackAngle) * knockbackTiles;
+
+        // Check if would fall into void using tile coordinates
+        const endUnit = { tileX: Math.floor(endTileX), tileY: Math.floor(endTileY) };
+        if (this.wouldFallIntoVoid(endUnit, 0, 0, tileGrid)) {
             result.fellIntoVoid = true;
 
             // Check for ledge grab (elite units)
             const unitGrade = unit.rank || 'standard';
-            const voidCheck = BalanceData.checkVoidDeath({ x: endX, y: endY }, tileGrid, unitGrade);
+            const voidCheck = BalanceData.checkVoidDeath(endUnit, tileGrid, unitGrade);
 
             if (voidCheck.canGrabLedge) {
                 result.fellIntoVoid = false;
                 result.grabbedLedge = true;
                 result.rescueWindow = voidCheck.rescueWindow;
 
-                // Position at edge, not in void
-                const edgePosition = this.findNearestEdge(unit, endX, endY, tileGrid);
-                result.finalPosition = edgePosition;
+                // Find edge position in tile space
+                const edgeTile = this.findNearestEdgeTile(currentTile, endTileX, endTileY, tileGrid);
+                result.finalTilePosition = edgeTile;
+
+                // Convert to screen position if IsometricRenderer available
+                if (typeof IsometricRenderer !== 'undefined' && IsometricRenderer.tileToScreen) {
+                    const screen = IsometricRenderer.tileToScreen(edgeTile.tileX, edgeTile.tileY, 0);
+                    result.finalPosition = { x: screen.x, y: screen.y };
+                }
             }
         } else {
-            // Normal knockback - find valid position
-            result.finalPosition = { x: endX, y: endY };
+            // Normal knockback - update both position formats
+            result.finalTilePosition = { tileX: Math.floor(endTileX), tileY: Math.floor(endTileY) };
+
+            // Calculate pixel position
+            if (typeof IsometricRenderer !== 'undefined' && IsometricRenderer.tileToScreen) {
+                const screen = IsometricRenderer.tileToScreen(endTileX, endTileY, 0);
+                result.finalPosition = { x: screen.x, y: screen.y };
+            } else {
+                // Fallback pixel calculation
+                result.finalPosition = {
+                    x: (unit.x || 0) + Math.cos(knockbackAngle) * knockbackPx,
+                    y: (unit.y || 0) + Math.sin(knockbackAngle) * knockbackPx,
+                };
+            }
         }
 
         return result;
     },
 
     /**
-     * Find nearest valid edge position (for ledge grab)
-     * @param {Object} unit - Original unit position
-     * @param {number} targetX - Target X position
-     * @param {number} targetY - Target Y position
-     * @param {Object} tileGrid - Reference to TileGrid
-     * @returns {Object} { x, y } nearest valid edge position
+     * Find nearest valid edge position in tile coordinates (for ledge grab)
+     * @param {Object} startTile - Starting tile { tileX, tileY }
+     * @param {number} targetTileX - Target tile X
+     * @param {number} targetTileY - Target tile Y
+     * @param {Object} tileGrid - Reference to TileGrid/StationLayout
+     * @returns {Object} { tileX, tileY } nearest valid edge tile
      */
-    findNearestEdge(unit, targetX, targetY, tileGrid) {
-        // Binary search for last valid position
-        let validX = unit.x;
-        let validY = unit.y;
+    findNearestEdgeTile(startTile, targetTileX, targetTileY, tileGrid) {
+        // Linear search for last valid tile position
+        let validTileX = startTile.tileX;
+        let validTileY = startTile.tileY;
 
         const steps = 10;
+        const dx = (targetTileX - startTile.tileX) / steps;
+        const dy = (targetTileY - startTile.tileY) / steps;
+
+        for (let i = 1; i <= steps; i++) {
+            const testTileX = startTile.tileX + dx * i;
+            const testTileY = startTile.tileY + dy * i;
+
+            const testUnit = { tileX: Math.floor(testTileX), tileY: Math.floor(testTileY) };
+            if (this.wouldFallIntoVoid(testUnit, 0, 0, tileGrid)) {
+                break;
+            }
+
+            validTileX = testTileX;
+            validTileY = testTileY;
+        }
+
+        return { tileX: validTileX, tileY: validTileY };
+    },
+
+    /**
+     * Find nearest valid edge position (legacy pixel-based, kept for compatibility)
+     * @param {Object} unit - Original unit position
+     * @param {number} targetX - Target X position (pixels)
+     * @param {number} targetY - Target Y position (pixels)
+     * @param {Object} tileGrid - Reference to TileGrid
+     * @returns {Object} { x, y } nearest valid edge position (pixels)
+     */
+    findNearestEdge(unit, targetX, targetY, tileGrid) {
+        // Convert to tile-based calculation
+        const startTile = this.getUnitTilePosition(unit, tileGrid);
+        const targetTile = this.getUnitTilePosition({ x: targetX, y: targetY }, tileGrid);
+
+        const edgeTile = this.findNearestEdgeTile(startTile, targetTile.tileX, targetTile.tileY, tileGrid);
+
+        // Convert back to pixels if possible
+        if (typeof IsometricRenderer !== 'undefined' && IsometricRenderer.tileToScreen) {
+            const screen = IsometricRenderer.tileToScreen(edgeTile.tileX, edgeTile.tileY, 0);
+            return { x: screen.x, y: screen.y };
+        }
+
+        // Fallback: interpolate pixel position
+        const steps = 10;
+        let validX = unit.x;
+        let validY = unit.y;
         const dx = (targetX - unit.x) / steps;
         const dy = (targetY - unit.y) / steps;
 
@@ -449,7 +681,6 @@ const CombatMechanics = {
             if (this.wouldFallIntoVoid({ x: testX, y: testY }, 0, 0, tileGrid)) {
                 break;
             }
-
             validX = testX;
             validY = testY;
         }
