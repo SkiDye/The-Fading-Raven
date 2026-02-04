@@ -3,7 +3,8 @@
 ## The Fading Raven
 **장르**: 실시간 전술 로그라이트 (Bad North 영감)
 **테마**: 우주 SF - 정거장 방어
-**현재 상태**: 웹 프로토타입 완성, Godot 이관 예정
+**엔진**: Godot 4.x (3D)
+**현재 상태**: 3D 구현 Phase 1-3 완료 (전투, 섹터맵, 정거장 미리보기, 분대선택)
 
 ---
 
@@ -70,9 +71,10 @@ The-Fading-Raven/
 
 | 문서 | 경로 |
 |------|------|
+| **인수인계 총정리** | `docs/handover/00-SUMMARY.md` |
+| **3D 구현 계획** | `docs/3D-IMPLEMENTATION-PLAN.md` |
 | 게임 디자인 (GDD) | `docs/game-design/game-design-document.md` |
-| **레퍼런스 비교** | `docs/implementation/REFERENCE-COMPARISON.md` |
+| 레퍼런스 비교 | `docs/implementation/REFERENCE-COMPARISON.md` |
 | Bad North 레퍼런스 | `docs/references/bad-north/` |
-| Godot 이관 계획 | `docs/implementation/GODOT-MIGRATION.md` |
 | 공유 상태 정의 | `docs/implementation/SHARED-STATE.md` |
 | 3D 에셋 프롬프트 | `docs/assets/3D-ASSET-PROMPTS.md` |

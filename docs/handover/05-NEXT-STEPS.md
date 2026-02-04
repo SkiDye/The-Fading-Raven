@@ -1,5 +1,7 @@
 # 다음 단계
 
+> **최종 업데이트**: 2026-02-05
+
 ## Git 규칙
 - **푸시는 `main` 브랜치에** (master 아님)
 - 원격 저장소: `https://github.com/SkiDye/The-Fading-Raven.git`
@@ -7,114 +9,115 @@
 ---
 
 ## 현재 상태
-- 웹 프로토타입 완성
-- Godot 4.x 이관 진행 중
-- TFR 컨셉 재설계 완료
+
+### Godot 4.x 3D 구현 진행률
+
+| Phase | 내용 | 상태 | 완료일 |
+|-------|------|------|--------|
+| **Phase 1** | 3D 전투 엔티티 | ✅ 완료 | 2026-02-05 |
+| **Phase 2** | 3D 섹터 맵 | ✅ 완료 | 2026-02-05 |
+| **Phase 2.5** | 팀장 관리 & 업그레이드 | 🔴 대기 | - |
+| **Phase 3** | 정거장 미리보기 & 분대 선택 | ✅ 완료 | 2026-02-05 |
+| **Phase 4** | 화면 전환 & 이펙트 | 🔴 대기 | - |
 
 ---
 
-## 구현 우선순위 (TFR 컨셉 기반)
+## Phase 4 작업 목록
 
-### Phase 1: 핵심 차별점 (⭐ 최우선)
+### 4.1 신규 씬
+| 항목 | 설명 | 우선순위 |
+|------|------|----------|
+| `NewGameSetup.tscn` | 새 게임 설정 (난이도, 시작 팀장 2명, 시작 장비) | P0 |
+| `BattleResult.tscn` | 전투 결과 (획득 크레딧, 새 팀장/장비) | P0 |
 
-1. **Raven 드론 시스템**
-   - Scout (정찰): 다음 웨이브 미리보기
-   - Flare (조명탄): 폭풍 스테이지 시야
-   - Resupply (긴급 보급): 1팀 즉시 회복
-   - Orbital Strike (궤도 폭격): 지정 타일 고데미지
-   - Raven HUD 버튼 4개
+### 4.2 미구현 3D 엔티티
+| 항목 | 설명 | 우선순위 |
+|------|------|----------|
+| `Turret3D.tscn` | Engineer 터렛 (자동 공격 AI) | P1 |
+| `Projectile3D.tscn` | 투사체 (Ranger, Turret용) | P1 |
 
-2. **시설 보너스 시스템**
-   - 의료 모듈: Resupply -50%
-   - 무기고: 데미지 +20%
-   - 통신탑: Raven 능력 +1회
-   - 발전소: 터렛 +50%
+### 4.3 3D 이펙트
+| 항목 | 설명 | 우선순위 |
+|------|------|----------|
+| `Explosion3D.tscn` | GPUParticles3D 폭발 이펙트 | P2 |
+| `HitEffect3D.tscn` | GPUParticles3D 피격 이펙트 | P2 |
+| `FloatingText3D.tscn` | Label3D 빌보드 데미지 숫자 | P2 |
 
-3. **용어 통일**
-   - Commander → Team Leader
-   - Replenish → Resupply
-   - Flee → Emergency Evac
+### 4.4 씬 전환
+| 전환 | 효과 | 우선순위 |
+|------|------|----------|
+| 메뉴 → 섹터 맵 | 페이드 아웃/인 | P2 |
+| 섹터 맵 → 미리보기 | 카메라 줌인 (3D 트랜지션) | P2 |
+| 미리보기 → 전투 | 크로스페이드 | P2 |
+| 전투 → 결과 | 슬로우 페이드 | P2 |
 
-### Phase 2: 컨트롤/UI
-
-1. **카메라/컨트롤**
-   - Q/E 키 회전
-   - 마우스 휠 줌
-   - 스페이스바 일시정지
-
-2. **Tactical Mode**
-   - 크루 선택 시 자동 진입
-   - ~0.3배 시간 감속
-   - Raven AI 연출 (HUD, 스캔라인)
-
-3. **긴급 귀환 (Emergency Evac)**
-   - Emergency Evac 버튼 (셔틀 아이콘)
-   - Raven 셔틀 하강/회수 연출
-   - 크레딧 0 처리
-
-4. **구조 임무 (RESCUE)**
-   - SectorGenerator에 RESCUE 노드
-   - 탈출자 보호 전투
-   - 새 팀장 + 크루 4명 보상
-
-### Phase 3: 고유 시스템
-
-1. **폭풍 스테이지**
-   - STORM_STATION 노드
-   - Fog of War (시야 제한)
-   - Flare (조명탄) 연동
-
-2. **엔지니어 메카닉**
-   - 터렛 배치 시스템
-   - 시설 수리 (20초)
-   - 적 Hacker 해킹
-
-3. **바이오닉 메카닉**
-   - Blink (순간이동)
-   - 암살 보너스 (비교전 시 2배)
-
-### Phase 4: 폴리시
-
-1. 난이도 시스템 (Easy/Normal/Hard/Very Hard)
-2. 비콘 활성화 (BEACON 노드)
-3. 메타 프로그레션 (영구 언락)
-4. Tactical Mode 연출 완성
+### 4.5 레거시 정리
+| 항목 | 설명 | 우선순위 |
+|------|------|----------|
+| 2D 씬 삭제 | Battle.tscn, sector_map.tscn 등 | P3 |
+| 레거시 autoload | godot/autoload/ 정리 | P3 |
 
 ---
 
-## Godot 이관 계획
+## Phase 2.5 (업그레이드 시스템)
 
-### 3 Phase 구조
-| Phase | 목표 | 주요 작업 |
-|-------|------|----------|
-| **1** | 코어 + 데이터 | GameState, Resource 변환, RNG |
-| **2** | 전투 시스템 | TileMap, 크루/적, 웨이브 |
-| **3** | UI + 캠페인 | 섹터 맵, 메타 진행, 폴리시 |
+### 목표
+UpgradeScreen.tscn 개선 - Bad North 스타일 업그레이드
 
-### 사전 준비
-- [ ] Godot 4.2+ 설치
-- [ ] MCP 설치 (godot-mcp 권장)
-- [ ] Claude Code MCP 연동
+### 작업 항목
+| 항목 | 설명 |
+|------|------|
+| 팀장 목록 (좌측 패널) | 초상화, 클래스 아이콘, 상태 텍스트 |
+| 팀장 상세 (우측 패널) | 대형 초상화, 특성, 통계 |
+| 클래스 선택 | Militia → 5클래스 선택 (6크레딧) |
+| 클래스 업그레이드 | Standard → Veteran (12) → Elite (20) |
+| 스킬 업그레이드 | Lv1(7) → Lv2(10) → Lv3(14) |
+| 장비 업그레이드 | Lv2(8), Lv3(14-16) |
 
-### 웹 → Godot 매핑
+---
+
+## 전체 게임 플로우 목표
+
 ```
-js/data/*.js       → resources/*.tres
-js/core/game-state.js → autoload/game_state.gd
-js/pages/battle.js → scripts/combat/battle_controller.gd
+[MainMenu.tscn] (2D)
+    ↓ NEW GAME
+[NewGameSetup.tscn] (2D) 🔴 신규
+    - 난이도 선택
+    - 시작 팀장 2명 선택
+    - 시작 장비/특성 선택
+    ↓ START
+[SectorMap3D.tscn] (3D) ←──────────────────────────┐
+    │                                              │
+    ├── 팀장 초상화 클릭 ────→ [UpgradeScreen] ───┘
+    │   (또는 U키)                  │
+    │                               └─ BACK 버튼
+    │
+    └── 노드 클릭
+          ↓
+[StationPreview3D.tscn] (3D) ✅
+    ↓ CONTINUE
+[SquadSelection.tscn] (2D) ✅
+    ↓ DEPLOY
+[Battle3D.tscn] (3D) ✅
+    ↓ 승리/패배
+[BattleResult.tscn] (2D) 🔴 신규
+    ↓ CONTINUE
+[UpgradeScreen.tscn] (2D) ← 전투 후 자동 (선택적)
+    ↓ DONE
+[SectorMap3D.tscn] (반복)
 ```
 
 ---
 
-## 주요 참조 문서
+## 핵심 참조 문서
 
 | 용도 | 경로 |
 |------|------|
-| **레퍼런스 비교 (필독)** | `docs/implementation/REFERENCE-COMPARISON.md` |
+| **3D 구현 계획** | `docs/3D-IMPLEMENTATION-PLAN.md` |
+| 인수인계 총정리 | `docs/handover/00-SUMMARY.md` |
 | 상세 GDD | `docs/game-design/game-design-document.md` |
-| Godot 이관 계획 | `docs/implementation/GODOT-MIGRATION.md` |
 | 공유 상태 정의 | `docs/implementation/SHARED-STATE.md` |
-| 전투 시스템 | `docs/implementation/combat-system.md` |
-| 적 AI | `docs/implementation/enemy-ai.md` |
+| Bad North 레퍼런스 | `docs/references/bad-north/` |
 | 3D 에셋 프롬프트 | `docs/assets/3D-ASSET-PROMPTS.md` |
 
 ---
@@ -126,3 +129,28 @@ js/pages/battle.js → scripts/combat/battle_controller.gd
 3. **용어 통일** - Team Leader, Resupply, Emergency Evac
 4. **시드 기반 RNG** - 동일 시드 = 동일 결과 보장
 5. **영구 사망** - 로그라이트 긴장감의 핵심
+6. **GLB 모델 규격** - 1유닛=1타일, 바닥 중앙 원점, -Z 전방
+
+---
+
+## 즉시 시작 가능한 작업
+
+### 옵션 A: Phase 4 진행
+1. `NewGameSetup.tscn` 구현
+2. `BattleResult.tscn` 구현
+3. `Turret3D.tscn` 구현
+4. 씬 전환 트랜지션
+
+### 옵션 B: Phase 2.5 진행
+1. `UpgradeScreen.tscn` 개선
+2. 클래스/스킬 업그레이드 UI
+3. 섹터 맵과 연동
+
+### 옵션 C: 통합 테스트
+1. 전체 게임 플로우 테스트
+2. 버그 수정
+3. 밸런스 조정
+
+---
+
+*최종 업데이트: 2026-02-05*
