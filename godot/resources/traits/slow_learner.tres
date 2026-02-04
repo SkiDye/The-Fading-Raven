@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "slow_learner"
+display_name = "Slow Learner"
+display_name_ko = "느린 학습"
+description = "학습 속도가 느려 경험치 획득량이 감소합니다."
+is_positive = false
+rarity = 1
+required_class = ""
+incompatible_traits = []
+stat_modifiers = {"exp_gain": -0.25, "skill_learn_speed": -0.20}
+special_effects = ["reduced_training_efficiency"]
+color = Color(0.5, 0.5, 0.5, 1.0)

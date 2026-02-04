@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="FacilityData" load_steps=2 format=3 uid="uid://c6h8m3k2y1p4"]
+
+[ext_resource type="Script" path="res://src/data/FacilityData.gd" id="1_housing"]
+
+[resource]
+script = ExtResource("1_housing")
+id = "housing"
+display_name = "Housing"
+display_name_ko = "주거시설"
+description = "크루들의 거주 공간입니다. 편안한 휴식을 통해 체력이 증가합니다."
+facility_type = 0
+size = Vector2i(2, 2)
+priority = 2
+max_hp = 120
+defense = 0.0
+passive_bonus = {"crew_hp": 0.1}
+active_effect_id = ""
+effect_radius = 0.0
+save_credits = 50
+loss_penalty = "morale_loss"
+color = Color(0.3, 0.7, 1.0, 1.0)

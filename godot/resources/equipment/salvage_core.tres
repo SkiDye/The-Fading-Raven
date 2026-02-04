@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3 uid="uid://equip_salvage_core"]
+
+[ext_resource type="Script" path="res://src/data/EquipmentData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "salvage_core"
+display_name = "Salvage Core"
+display_name_ko = "회수 코어"
+description = "전투에서 획득하는 크레딧이 20% 증가합니다."
+equipment_type = 0
+rarity = 2
+required_class = ""
+unlock_id = ""
+stat_modifiers = {
+	"credit_bonus": 0.2
+}
+special_effects = []
+cooldown = 0.0
+charges = -1
+active_effect_id = ""
+color = Color(1.0, 0.85, 0.3, 1.0)

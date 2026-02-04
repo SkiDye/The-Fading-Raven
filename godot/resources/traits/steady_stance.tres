@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "steady_stance"
+display_name = "Steady Stance"
+display_name_ko = "안정된 자세"
+description = "흔들림 없는 자세로 넉백에 저항하고 방어력이 증가합니다."
+is_positive = true
+rarity = 1
+required_class = ""
+incompatible_traits = ["clumsy"]
+stat_modifiers = {"defense": 0.10, "stability": 0.30}
+special_effects = ["knockback_resist", "stagger_resist"]
+color = Color(0.3, 0.5, 0.7, 1.0)

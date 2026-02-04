@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CrewClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/CrewClassData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "sentinel"
+display_name = "Sentinel"
+display_name_ko = "센티넬"
+description = "Defensive specialist with long energy lances. Best at chokepoint defense."
+base_squad_size = 8
+base_hp = 12
+base_damage = 4
+attack_speed = 0.8
+move_speed = 1.2
+attack_range = 2.0
+color = Color(0.0, 0.8, 0.4, 1.0)
+skill_id = "lance_charge"
+skill_name = "Lance Charge"
+skill_description = "Charge forward with lances extended, dealing massive damage."
+skill_cooldown = 25.0
+strengths = ["long_reach", "chokepoint_defense", "anti_brute"]
+weaknesses = ["stationary_attack", "melee_disabled", "ranged_vulnerable", "flank_vulnerable"]
+armor = 0.1
+evasion = 0.0

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/EnemyData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "sniper"
+display_name = "Sniper"
+display_name_ko = "스나이퍼"
+description = "Deadly marksman. 3-second aim time, then instant kill. Must be eliminated quickly."
+tier = 3
+wave_cost = 6
+is_boss = false
+hp = 10
+damage = 99
+attack_speed = 0.3
+move_speed = 1.0
+attack_range = 8.0
+damage_type = 1
+armor = 0.0
+evasion = 0.0
+knockback_resistance = 0.0
+color = Color(0.8, 0.1, 0.1, 1)
+scale = 1.0
+aggression = 0.5
+preferred_target = ""
+ability_id = "sniper"

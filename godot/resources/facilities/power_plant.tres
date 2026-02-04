@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="FacilityData" load_steps=2 format=3 uid="uid://f7g3l9c5h2n8"]
+
+[ext_resource type="Script" path="res://src/data/FacilityData.gd" id="1_power_plant"]
+
+[resource]
+script = ExtResource("1_power_plant")
+id = "power_plant"
+display_name = "Power Plant"
+display_name_ko = "발전소"
+description = "함선에 전력을 공급하는 시설입니다. 터렛의 공격력이 증가합니다."
+facility_type = 4
+size = Vector2i(3, 2)
+priority = 5
+max_hp = 200
+defense = 0.15
+passive_bonus = {"turret_damage": 0.25}
+active_effect_id = ""
+effect_radius = 0.0
+save_credits = 100
+loss_penalty = "turret_disabled"
+color = Color(1.0, 0.9, 0.2, 1.0)

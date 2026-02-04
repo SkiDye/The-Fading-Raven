@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "quick_recovery"
+display_name = "Quick Recovery"
+display_name_ko = "빠른 회복"
+description = "회복력이 뛰어나 체력 재생이 빠르고 부상에서 빨리 회복됩니다."
+is_positive = true
+rarity = 2
+required_class = ""
+incompatible_traits = []
+stat_modifiers = {"hp_regen": 0.25, "recovery_speed": 0.20}
+special_effects = ["injury_recovery_bonus", "heal_bonus"]
+color = Color(0.3, 1.0, 0.5, 1.0)

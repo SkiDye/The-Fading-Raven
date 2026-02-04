@@ -1,0 +1,190 @@
+[gd_scene load_steps=2 format=3 uid="uid://upgradescreen001"]
+
+[ext_resource type="Script" path="res://src/ui/campaign/UpgradeScreen.gd" id="1_upgradescreen"]
+
+[node name="UpgradeScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_upgradescreen")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 60.0
+grow_horizontal = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 12
+
+[node name="TitleLabel" type="Label" parent="TopBar/MarginContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "UPGRADE CREW"
+
+[node name="Spacer" type="Control" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CreditsLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Credits: 0"
+vertical_alignment = 1
+
+[node name="MarginContainer2" type="MarginContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+
+[node name="DoneBtn" type="Button" parent="TopBar"]
+custom_minimum_size = Vector2(100, 40)
+layout_mode = 2
+text = "DONE"
+
+[node name="MarginContainer3" type="MarginContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/margin_right = 16
+
+[node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = 300
+
+[node name="LeftPanel" type="PanelContainer" parent="HSplitContainer"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="HSplitContainer/LeftPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer/LeftPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CrewListLabel" type="Label" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Your Crew"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="CrewList" type="VBoxContainer" parent="HSplitContainer/LeftPanel/MarginContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="RightPanel" type="PanelContainer" parent="HSplitContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="CrewNameLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Guardian"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="HealthContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HealthTitle" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/HealthContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+text = "HEALTH"
+
+[node name="HealthLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/HealthContainer"]
+layout_mode = 2
+text = "Health: 8 / 8"
+
+[node name="HealBtn" type="Button" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/HealthContainer"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Full Health"
+
+[node name="HSeparator2" type="HSeparator" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="SkillContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SkillTitle" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/SkillContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+text = "SKILL"
+
+[node name="SkillNameLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/SkillContainer"]
+layout_mode = 2
+text = "Shield Bash"
+
+[node name="SkillLevelLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/SkillContainer"]
+layout_mode = 2
+text = "Level: 1 / 3"
+
+[node name="UpgradeSkillBtn" type="Button" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/SkillContainer"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Upgrade - 7 credits"
+
+[node name="HSeparator3" type="HSeparator" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="EquipmentContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EquipmentTitle" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/EquipmentContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+text = "EQUIPMENT"
+
+[node name="EquipmentLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/EquipmentContainer"]
+layout_mode = 2
+text = "No equipment"
+
+[node name="EquipBtn" type="Button" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/EquipmentContainer"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Change Equipment"

@@ -1,0 +1,33 @@
+# Godot
+.godot/
+*.import
+export_presets.cfg
+*.translation
+
+# Node.js (web demo)
+node_modules/
+dist/
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temp files
+*.tmp
+*.log
+nul
+
+# Screenshots (optional)
+*.png
+!godot/assets/**/*.png
+
+# Session files
+sessions/

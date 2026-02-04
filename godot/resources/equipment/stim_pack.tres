@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3 uid="uid://equip_stim_pack"]
+
+[ext_resource type="Script" path="res://src/data/EquipmentData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "stim_pack"
+display_name = "Stim Pack"
+display_name_ko = "자극제 팩"
+description = "아군 전체의 이동속도를 일시적으로 크게 증가시킵니다."
+equipment_type = 1
+rarity = 1
+required_class = ""
+unlock_id = ""
+stat_modifiers = {}
+special_effects = []
+cooldown = 30.0
+charges = -1
+active_effect_id = "stim_pack_speed"
+color = Color(0.4, 1.0, 0.6, 1.0)

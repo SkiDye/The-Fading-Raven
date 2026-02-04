@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "heavy_impact"
+display_name = "Heavy Impact"
+display_name_ko = "강력한 충격"
+description = "공격 시 강한 충격을 주어 적을 밀어내고 추가 피해를 입힙니다."
+is_positive = true
+rarity = 2
+required_class = ""
+incompatible_traits = ["swift_movement"]
+stat_modifiers = {"damage": 0.20, "attack_speed": -0.10}
+special_effects = ["knockback", "stagger_chance"]
+color = Color(0.8, 0.4, 0.1, 1.0)

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "fragile"
+display_name = "Fragile"
+display_name_ko = "허약한"
+description = "약한 체질로 최대 체력이 감소하고 부상에 취약합니다."
+is_positive = false
+rarity = 1
+required_class = ""
+incompatible_traits = ["titan_frame"]
+stat_modifiers = {"hp": -0.20, "defense": -0.10}
+special_effects = ["injury_vulnerable", "critical_vulnerable"]
+color = Color(0.7, 0.7, 0.8, 1.0)

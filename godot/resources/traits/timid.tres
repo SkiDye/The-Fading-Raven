@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "timid"
+display_name = "Timid"
+display_name_ko = "소심한"
+description = "소심한 성격으로 전투 시 사기가 쉽게 떨어집니다."
+is_positive = false
+rarity = 1
+required_class = ""
+incompatible_traits = ["fearless"]
+stat_modifiers = {"morale": -0.20, "damage": -0.05}
+special_effects = ["fear_vulnerable", "flee_chance"]
+color = Color(0.6, 0.6, 0.7, 1.0)

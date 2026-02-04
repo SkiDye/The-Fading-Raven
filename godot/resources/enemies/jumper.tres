@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/EnemyData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "jumper"
+display_name = "Jumper"
+display_name_ko = "점퍼"
+description = "Can jump over Sentinel defense lines. Fast and agile."
+tier = 2
+wave_cost = 4
+is_boss = false
+hp = 20
+damage = 4
+attack_speed = 1.2
+move_speed = 2.5
+attack_range = 1.0
+damage_type = 0
+armor = 0.0
+evasion = 0.2
+knockback_resistance = 0.0
+color = Color(0.6, 0.2, 0.8, 1)
+scale = 0.9
+aggression = 1.5
+preferred_target = ""
+ability_id = "jumper"

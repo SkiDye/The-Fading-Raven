@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/EnemyData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "shield_generator"
+display_name = "Shield Generator"
+display_name_ko = "실드 제너레이터"
+description = "Projects energy shields to nearby enemies. Priority target - destroy to remove shields."
+tier = 3
+wave_cost = 5
+is_boss = false
+hp = 20
+damage = 0
+attack_speed = 0.0
+move_speed = 1.0
+attack_range = 0.0
+damage_type = 0
+armor = 0.0
+evasion = 0.0
+knockback_resistance = 0.0
+color = Color(0.3, 0.8, 0.8, 1)
+scale = 1.2
+aggression = 0.3
+preferred_target = ""
+ability_id = "shield_generator"

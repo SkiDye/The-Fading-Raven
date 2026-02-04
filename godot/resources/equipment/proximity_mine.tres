@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3 uid="uid://equip_proximity_mine"]
+
+[ext_resource type="Script" path="res://src/data/EquipmentData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "proximity_mine"
+display_name = "Proximity Mine"
+display_name_ko = "근접 지뢰"
+description = "지정한 위치에 지뢰를 설치합니다. 적이 접근하면 폭발합니다."
+equipment_type = 2
+rarity = 2
+required_class = ""
+unlock_id = ""
+stat_modifiers = {}
+special_effects = []
+cooldown = 0.0
+charges = 2
+active_effect_id = "proximity_mine_deploy"
+color = Color(0.8, 0.3, 0.3, 1.0)

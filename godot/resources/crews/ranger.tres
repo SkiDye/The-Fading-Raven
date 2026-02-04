@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CrewClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/CrewClassData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "ranger"
+display_name = "Ranger"
+display_name_ko = "레인저"
+description = "Ranged damage dealer with laser rifles. Deadly from elevated positions."
+base_squad_size = 8
+base_hp = 8
+base_damage = 4
+attack_speed = 1.2
+move_speed = 1.4
+attack_range = 5.0
+color = Color(1.0, 0.6, 0.0, 1.0)
+skill_id = "volley_fire"
+skill_name = "Volley Fire"
+skill_description = "Concentrated barrage at target area, ignoring shields."
+skill_cooldown = 15.0
+strengths = ["ranged_attack", "high_ground_bonus", "interception"]
+weaknesses = ["blocked_by_shields", "low_accuracy_vs_moving", "melee_vulnerable", "weak_early"]
+armor = 0.0
+evasion = 0.1

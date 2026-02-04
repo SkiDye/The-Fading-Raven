@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CrewClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/CrewClassData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "engineer"
+display_name = "Engineer"
+display_name_ko = "엔지니어"
+description = "Support class that deploys turrets and repairs facilities."
+base_squad_size = 6
+base_hp = 8
+base_damage = 2
+attack_speed = 0.8
+move_speed = 1.3
+attack_range = 3.0
+color = Color(0.9, 0.9, 0.2, 1.0)
+skill_id = "deploy_turret"
+skill_name = "Deploy Turret"
+skill_description = "Deploy an automated turret at target location."
+skill_cooldown = 30.0
+strengths = ["turret_deployment", "facility_repair", "chokepoint_enhancement"]
+weaknesses = ["weak_combat", "escort_required", "turret_limit", "hacker_vulnerable"]
+armor = 0.0
+evasion = 0.0
