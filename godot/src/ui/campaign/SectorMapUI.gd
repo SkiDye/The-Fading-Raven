@@ -292,8 +292,8 @@ func _update_credits() -> void:
 		return
 
 	var credits: int = 0
-	if GameState and "credits" in GameState:
-		credits = GameState.credits
+	if GameState and GameState.has_method("get_credits"):
+		credits = GameState.get_credits()
 
 	_credits_label.text = "Credits: %d" % credits
 
