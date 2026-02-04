@@ -373,17 +373,17 @@ func get_health_ratio() -> float:
 
 
 ## 다른 엔티티와의 거리 (타일 단위)
-func distance_to_entity(other: Entity) -> float:
+func distance_to_entity(other: Node2D) -> float:
 	return position.distance_to(other.position) / Constants.TILE_SIZE
 
 
 ## 다른 엔티티 방향
-func direction_to_entity(other: Entity) -> Vector2:
+func direction_to_entity(other: Node2D) -> Vector2:
 	return (other.position - position).normalized()
 
 
 ## 공격 범위 내 여부
-func is_in_range(other: Entity, attack_range: float) -> bool:
+func is_in_range(other: Node2D, attack_range: float) -> bool:
 	return distance_to_entity(other) <= attack_range
 
 

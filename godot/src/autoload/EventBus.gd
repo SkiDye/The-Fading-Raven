@@ -64,8 +64,11 @@ signal crew_deselected()
 signal tile_hovered(position: Vector2i)
 signal tile_clicked(position: Vector2i, button: int)
 signal move_command_issued(crew: Node, target: Vector2i)
+signal move_mode_requested(crew: Node)
+signal move_mode_ended()
 signal skill_targeting_started(crew: Node, skill_id: String)
 signal skill_targeting_ended()
+signal resupply_requested(crew: Node)
 
 
 # ===== RAVEN SIGNALS =====
@@ -84,6 +87,9 @@ signal slow_motion_started()
 signal slow_motion_ended()
 signal battle_started()
 signal battle_ended(victory: bool)
+signal emergency_evac_started()
+signal emergency_evac_completed()
+signal emergency_evac_progress(progress: float)
 
 
 # ===== CAMPAIGN SIGNALS =====
@@ -93,6 +99,15 @@ signal sector_node_entered(node_id: String)
 signal storm_front_advanced(new_depth: int)
 signal commander_encountered(commander_data: Variant)
 signal equipment_found(equipment_data: Variant)
+
+
+# ===== META PROGRESSION SIGNALS =====
+
+signal achievement_unlocked(achievement_id: String, achievement_name: String)
+signal class_unlocked(class_id: String)
+signal equipment_unlocked(equipment_id: String)
+signal trait_unlocked(trait_id: String)
+signal difficulty_unlocked(difficulty: int)
 
 
 # ===== AUDIO SIGNALS =====

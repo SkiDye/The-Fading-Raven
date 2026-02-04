@@ -8,12 +8,12 @@ extends RefCounted
 
 # ===== PROPERTIES =====
 
-var grid: TileGrid
+var grid  # TileGrid - type hint removed to avoid circular reference
 
 
 # ===== INITIALIZATION =====
 
-func _init(tile_grid: TileGrid) -> void:
+func _init(tile_grid) -> void:
 	grid = tile_grid
 
 

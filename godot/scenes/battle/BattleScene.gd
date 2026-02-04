@@ -3,12 +3,15 @@ extends Node2D
 ## 전투 씬 컨트롤러
 ## BattleController, WaveManager, TileGrid를 초기화하고 연결
 
-@onready var battle_controller: BattleController = $BattleController
-@onready var tile_grid: TileGrid = $TileGridContainer/TileGrid
-@onready var wave_manager: WaveManager = $Systems/WaveManager
+@onready var battle_controller = $BattleController
+@onready var tile_grid = $TileGridContainer/TileGrid
+@onready var wave_manager = $Systems/WaveManager
 @onready var crews_container: Node2D = $EntityContainer/Crews
 @onready var enemies_container: Node2D = $EntityContainer/Enemies
 @onready var camera: Camera2D = $Camera2D
+
+# 타일 마커 표시
+var _tile_marker_display: TileMarkerDisplay
 
 # UI
 @onready var wave_label: Label = $UI/BattleHUD/TopBar/MarginLeft/WaveLabel
@@ -23,6 +26,10 @@ extends Node2D
 @onready var flare_btn: Button = $UI/BattleHUD/BottomBar/RavenPanel/RavenButtons/FlareBtn
 @onready var resupply_btn: Button = $UI/BattleHUD/BottomBar/RavenPanel/RavenButtons/ResupplyBtn
 @onready var orbital_btn: Button = $UI/BattleHUD/BottomBar/RavenPanel/RavenButtons/OrbitalBtn
+
+# Camera rotation buttons
+@onready var rotate_left_btn: Button = $UI/BattleHUD/CameraButtons/RotateLeftBtn
+@onready var rotate_right_btn: Button = $UI/BattleHUD/CameraButtons/RotateRightBtn
 
 var _is_initialized: bool = false
 
@@ -62,6 +69,12 @@ func _connect_signals() -> void:
 		resupply_btn.pressed.connect(func(): _use_raven_ability(Constants.RavenAbility.RESUPPLY))
 	if orbital_btn:
 		orbital_btn.pressed.connect(func(): _use_raven_ability(Constants.RavenAbility.ORBITAL_STRIKE))
+
+	# Camera rotation buttons
+	if rotate_left_btn:
+		rotate_left_btn.pressed.connect(func(): _rotate_camera(-1))
+	if rotate_right_btn:
+		rotate_right_btn.pressed.connect(func(): _rotate_camera(1))
 
 
 func _setup_ui() -> void:
@@ -104,6 +117,9 @@ func _initialize_battle() -> void:
 
 	# 9. 크루 슬롯 UI 생성
 	_create_crew_slot_ui()
+
+	# 10. 타일 마커 표시 초기화
+	_setup_tile_marker_display()
 
 	_is_initialized = true
 	print("[BattleScene] Battle initialized! Crews: %d" % crew_data_list.size())
@@ -206,6 +222,21 @@ func _setup_camera() -> void:
 	camera.zoom = Vector2(1.2, 1.2)
 
 
+func _setup_tile_marker_display() -> void:
+	# TileMarkerDisplay 노드 생성 및 추가
+	_tile_marker_display = TileMarkerDisplay.new()
+	_tile_marker_display.name = "TileMarkerDisplay"
+
+	# TileGrid 컨테이너에 추가 (타일 위에 표시되도록)
+	if has_node("TileGridContainer"):
+		$TileGridContainer.add_child(_tile_marker_display)
+	else:
+		add_child(_tile_marker_display)
+
+	# TileGrid 설정
+	_tile_marker_display.set_tile_grid(tile_grid)
+
+
 func _create_crew_slot_ui() -> void:
 	if crew_slots == null:
 		return
@@ -266,8 +297,28 @@ func _create_crew_slot(crew: Node, index: int) -> Control:
 	return slot
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_update_ui()
+	_update_camera_rotation(delta)
+
+
+## 카메라 회전 애니메이션 업데이트
+func _update_camera_rotation(delta: float) -> void:
+	if camera == null:
+		return
+
+	# 현재 회전과 목표 회전의 차이 계산
+	var diff := _target_camera_rotation - _camera_rotation
+
+	# 작은 차이면 스냅
+	if absf(diff) < 0.01:
+		_camera_rotation = _target_camera_rotation
+		camera.rotation = _camera_rotation
+		return
+
+	# 부드러운 회전 애니메이션
+	_camera_rotation = lerpf(_camera_rotation, _target_camera_rotation, CAMERA_ROTATION_SPEED * delta)
+	camera.rotation = _camera_rotation
 
 
 func _update_ui() -> void:
@@ -304,6 +355,11 @@ func _update_raven_buttons() -> void:
 		orbital_btn.disabled = charges == 0
 
 
+var _camera_rotation: float = 0.0  # 현재 카메라 회전 (라디안)
+const CAMERA_ROTATION_SPEED: float = 8.0  # 회전 애니메이션 속도
+var _target_camera_rotation: float = 0.0  # 목표 회전
+
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
@@ -313,7 +369,11 @@ func _input(event: InputEvent) -> void:
 				else:
 					_show_pause_menu()
 			KEY_Q:
-				_use_selected_crew_skill()
+				_rotate_camera(-1)  # 반시계 방향 90도
+			KEY_E:
+				_rotate_camera(1)   # 시계 방향 90도
+			KEY_R:
+				_use_selected_crew_skill()  # 스킬 사용 키를 R로 변경
 			KEY_1:
 				_select_crew_by_index(0)
 			KEY_2:
@@ -330,6 +390,17 @@ func _select_crew_by_index(index: int) -> void:
 
 	if index < battle_controller.crews.size():
 		battle_controller.select_squad(battle_controller.crews[index])
+
+
+## 카메라 90도 회전
+## [param direction]: -1 = 반시계, 1 = 시계
+func _rotate_camera(direction: int) -> void:
+	_target_camera_rotation += direction * PI / 2.0  # 90도 = PI/2 라디안
+	# 정규화 (-PI ~ PI)
+	while _target_camera_rotation > PI:
+		_target_camera_rotation -= TAU
+	while _target_camera_rotation < -PI:
+		_target_camera_rotation += TAU
 
 
 func _use_selected_crew_skill() -> void:
@@ -360,7 +431,7 @@ func _show_pause_menu() -> void:
 
 # ===== SIGNAL HANDLERS =====
 
-func _on_battle_ended(result: BattleController.BattleResult) -> void:
+func _on_battle_ended(result: Variant) -> void:
 	print("[BattleScene] Battle ended! Victory: %s, Credits: %d" % [result.victory, result.credits_earned])
 
 	# GameState에 결과 저장

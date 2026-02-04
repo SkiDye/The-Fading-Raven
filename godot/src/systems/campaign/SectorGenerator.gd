@@ -106,22 +106,24 @@ class SectorData:
 
 # ===== GENERATOR =====
 
-var _rng: SeededRNG
+const SeededRNGClass = preload("res://src/systems/campaign/SeededRNG.gd")
+
+var _rng  # SeededRNG
 var _difficulty: Constants.Difficulty
 
 
-func generate(seed: int, difficulty: Constants.Difficulty) -> SectorData:
+func generate(seed_value: int, difficulty: Constants.Difficulty) -> SectorData:
 	## 섹터 맵 생성
-	_rng = SeededRNG.new(seed)
+	_rng = SeededRNGClass.new(seed_value)
 	_difficulty = difficulty
 
 	var data := SectorData.new()
-	data.seed = seed
+	data.seed = seed_value
 	data.difficulty = difficulty
 	data.nodes = {}
 
-	# 1. 깊이 결정
-	var depth_range: Array = Constants.BALANCE.campaign.depth_range[difficulty]
+	# 1. 깊이 결정 (난이도별 범위 사용)
+	var depth_range: Array = Constants.get_sector_depth_range(difficulty)
 	data.total_depth = _rng.range_int(depth_range[0], depth_range[1])
 
 	# 2. 레이어별 노드 생성
@@ -176,9 +178,9 @@ func _generate_layer(layer_idx: int, total_depth: int) -> Array:
 		result.append(gate)
 		return result
 
-	# 일반 레이어
-	var node_range: Array = Constants.BALANCE.campaign.nodes_per_layer[_difficulty]
-	var node_count := _rng.range_int(node_range[0], node_range[1])
+	# 일반 레이어 (난이도별 노드 수 범위 사용)
+	var node_range: Array = Constants.get_nodes_per_layer_range(_difficulty)
+	var node_count: int = _rng.range_int(node_range[0], node_range[1])
 
 	var positions := _distribute_positions(node_count)
 
@@ -203,9 +205,9 @@ func _distribute_positions(count: int) -> Array[float]:
 	var spacing := 1.0 / (count + 1)
 
 	for i in range(count):
-		var base := spacing * (i + 1)
-		var offset := _rng.range_float(-0.08, 0.08)
-		result.append(clampf(base + offset, 0.1, 0.9))
+		var base: float = spacing * (i + 1)
+		var jitter: float = _rng.range_float(-0.08, 0.08)
+		result.append(clampf(base + jitter, 0.1, 0.9))
 
 	return result
 
@@ -266,20 +268,43 @@ func _find_nearest_node(node: SectorNode, layer: Array) -> SectorNode:
 func _place_events(data: SectorData) -> void:
 	## 특수 이벤트 노드 배치
 	var last_event_layer: Dictionary = {
-		"commander": -10,
+		"rescue": -10,
 		"equipment": -10,
+		"salvage": -10,
+		"depot": -10,
 		"storm": -10,
 		"boss": -10,
-		"rest": -10
+		"rest": -10,
+		"beacon": -10
 	}
 
 	var event_counts: Dictionary = {
-		"commander": 0,
-		"equipment": 0
+		"rescue": 0,
+		"equipment": 0,
+		"salvage": 0,
+		"depot": 0,
+		"beacon": 0
 	}
 
-	var intervals: Dictionary = Constants.BALANCE.campaign.event_intervals
-	var chances: Dictionary = Constants.BALANCE.campaign.event_chances
+	var intervals: Dictionary = Constants.BALANCE.campaign.get("event_intervals", {
+		"rescue": 3,
+		"equipment": 2,
+		"salvage": 3,
+		"depot": 4,
+		"storm": 4,
+		"boss": 5,
+		"beacon": 6
+	})
+	var chances: Dictionary = Constants.BALANCE.campaign.get("event_chances", {
+		"rescue": 0.25,
+		"equipment": 0.3,
+		"salvage": 0.2,
+		"depot": 0.15,
+		"storm": 0.2,
+		"boss": 0.15,
+		"rest": 0.5,
+		"beacon": 0.2
+	})
 
 	for layer_idx in range(1, data.total_depth):
 		var layer: Array = data.layers[layer_idx]
@@ -288,32 +313,48 @@ func _place_events(data: SectorData) -> void:
 			if node.node_type != Constants.NodeType.BATTLE:
 				continue
 
-			# 커맨더 노드 (깊이 2+, 최대 3개)
-			if layer_idx >= 2 and layer_idx - last_event_layer.commander >= intervals.commander:
-				if event_counts.commander < 3 and _rng.chance(chances.commander):
-					node.node_type = Constants.NodeType.COMMANDER
-					event_counts.commander += 1
-					last_event_layer.commander = layer_idx
+			# RESCUE 노드 (깊이 2+, 최대 3개) - 탈출자 보호 → 새 팀장 영입
+			if layer_idx >= 2 and layer_idx - last_event_layer.rescue >= intervals.get("rescue", 3):
+				if event_counts.rescue < 3 and _rng.chance(chances.get("rescue", 0.25)):
+					node.node_type = Constants.NodeType.RESCUE
+					event_counts.rescue += 1
+					last_event_layer.rescue = layer_idx
 					continue
 
 			# 장비 노드 (깊이 1+, 최대 6개)
-			if layer_idx >= 1 and layer_idx - last_event_layer.equipment >= intervals.equipment:
-				if event_counts.equipment < 6 and _rng.chance(chances.equipment):
+			if layer_idx >= 1 and layer_idx - last_event_layer.equipment >= intervals.get("equipment", 2):
+				if event_counts.equipment < 6 and _rng.chance(chances.get("equipment", 0.3)):
 					node.node_type = Constants.NodeType.EQUIPMENT
 					event_counts.equipment += 1
 					last_event_layer.equipment = layer_idx
 					continue
 
+			# SALVAGE 노드 (깊이 2+, 최대 4개) - 난파선 탐색 → 장비
+			if layer_idx >= 2 and layer_idx - last_event_layer.salvage >= intervals.get("salvage", 3):
+				if event_counts.salvage < 4 and _rng.chance(chances.get("salvage", 0.2)):
+					node.node_type = Constants.NodeType.SALVAGE
+					event_counts.salvage += 1
+					last_event_layer.salvage = layer_idx
+					continue
+
+			# DEPOT 노드 (깊이 3+, 최대 2개) - 무료 장비
+			if layer_idx >= 3 and layer_idx - last_event_layer.depot >= intervals.get("depot", 4):
+				if event_counts.depot < 2 and _rng.chance(chances.get("depot", 0.15)):
+					node.node_type = Constants.NodeType.DEPOT
+					event_counts.depot += 1
+					last_event_layer.depot = layer_idx
+					continue
+
 			# 스톰 노드 (깊이 4+)
-			if layer_idx >= 4 and layer_idx - last_event_layer.storm >= intervals.storm:
-				if _rng.chance(chances.storm):
+			if layer_idx >= 4 and layer_idx - last_event_layer.storm >= intervals.get("storm", 4):
+				if _rng.chance(chances.get("storm", 0.2)):
 					node.node_type = Constants.NodeType.STORM
 					last_event_layer.storm = layer_idx
 					continue
 
 			# 보스 노드 (깊이 5+, 5의 배수에서 확률 증가)
-			if layer_idx >= 5 and layer_idx - last_event_layer.boss >= intervals.boss:
-				var boss_chance: float = chances.boss
+			if layer_idx >= 5 and layer_idx - last_event_layer.boss >= intervals.get("boss", 5):
+				var boss_chance: float = chances.get("boss", 0.15)
 				if layer_idx % 5 == 0:
 					boss_chance = 0.7
 				if _rng.chance(boss_chance):
@@ -323,8 +364,16 @@ func _place_events(data: SectorData) -> void:
 
 			# 휴식 노드 (깊이 6, 12, 18)
 			if layer_idx in [6, 12, 18]:
-				if _rng.chance(chances.rest):
+				if _rng.chance(chances.get("rest", 0.5)):
 					node.node_type = Constants.NodeType.REST
+					continue
+
+			# BEACON 노드 (깊이 5+, 최대 2개) - 체크포인트
+			if layer_idx >= 5 and layer_idx - last_event_layer.beacon >= intervals.get("beacon", 6):
+				if event_counts.beacon < 2 and _rng.chance(chances.get("beacon", 0.2)):
+					node.node_type = Constants.NodeType.BEACON
+					event_counts.beacon += 1
+					last_event_layer.beacon = layer_idx
 					continue
 
 
@@ -373,8 +422,46 @@ static func get_node_type_name(node_type: Constants.NodeType) -> String:
 			return "Rest"
 		Constants.NodeType.GATE:
 			return "Gate"
+		Constants.NodeType.RESCUE:
+			return "Rescue"
+		Constants.NodeType.SALVAGE:
+			return "Salvage"
+		Constants.NodeType.DEPOT:
+			return "Depot"
+		Constants.NodeType.BEACON:
+			return "Beacon"
 		_:
 			return "Unknown"
+
+
+static func get_node_type_name_ko(node_type: Constants.NodeType) -> String:
+	match node_type:
+		Constants.NodeType.START:
+			return "시작"
+		Constants.NodeType.BATTLE:
+			return "전투"
+		Constants.NodeType.COMMANDER:
+			return "지휘관"
+		Constants.NodeType.EQUIPMENT:
+			return "장비"
+		Constants.NodeType.STORM:
+			return "폭풍"
+		Constants.NodeType.BOSS:
+			return "보스"
+		Constants.NodeType.REST:
+			return "휴식"
+		Constants.NodeType.GATE:
+			return "게이트"
+		Constants.NodeType.RESCUE:
+			return "구조"
+		Constants.NodeType.SALVAGE:
+			return "탐색"
+		Constants.NodeType.DEPOT:
+			return "보급"
+		Constants.NodeType.BEACON:
+			return "비콘"
+		_:
+			return "알 수 없음"
 
 
 static func get_node_type_color(node_type: Constants.NodeType) -> Color:
@@ -395,5 +482,13 @@ static func get_node_type_color(node_type: Constants.NodeType) -> Color:
 			return Color.LIME_GREEN
 		Constants.NodeType.GATE:
 			return Color.CYAN
+		Constants.NodeType.RESCUE:
+			return Color.ORANGE
+		Constants.NodeType.SALVAGE:
+			return Color.SANDY_BROWN
+		Constants.NodeType.DEPOT:
+			return Color.MEDIUM_SEA_GREEN
+		Constants.NodeType.BEACON:
+			return Color.DEEP_SKY_BLUE
 		_:
 			return Color.GRAY

@@ -167,7 +167,34 @@ func _calculate_damage() -> int:
 	if _has_tech_savvy():
 		base_damage *= 1.5
 
+	# 발전소 보너스 (Power Plant: +50% 터렛 데미지)
+	var facility_bonus: float = _get_turret_damage_bonus()
+	if facility_bonus > 0:
+		base_damage *= (1.0 + facility_bonus)
+
 	return int(base_damage)
+
+
+func _get_turret_damage_bonus() -> float:
+	## FacilityBonusManager 찾아서 보너스 가져오기
+	var battle_controller := _find_battle_controller()
+	if battle_controller and "facility_bonus_manager" in battle_controller:
+		var manager = battle_controller.facility_bonus_manager
+		if manager and manager.has_method("get_turret_damage_bonus"):
+			return manager.get_turret_damage_bonus()
+	return 0.0
+
+
+func _find_battle_controller() -> Node:
+	## 부모 노드에서 BattleController 찾기
+	var current := get_parent()
+	while current != null:
+		if current is BattleController:
+			return current
+		if current.name == "BattleController":
+			return current
+		current = current.get_parent()
+	return null
 
 
 func _show_attack_effect() -> void:

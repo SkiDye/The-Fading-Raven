@@ -4,6 +4,7 @@ extends Node
 ## 적 스폰 컨트롤러
 ## 웨이브 데이터를 받아 적을 순차적으로 스폰
 
+const UtilsClass = preload("res://src/utils/Utils.gd")
 
 # ===== SIGNALS =====
 
@@ -20,7 +21,7 @@ const LANDING_DURATION: float = 1.0     # 착륙 애니메이션 시간
 
 # ===== VARIABLES =====
 
-var current_wave_data: WaveGenerator.WaveData
+var current_wave_data  # WaveGenerator.WaveData
 var spawn_queue: Array = []
 var is_spawning: bool = false
 var spawning_complete_flag: bool = true
@@ -52,7 +53,7 @@ func _try_load_enemy_scene() -> void:
 # ===== PUBLIC METHODS =====
 
 ## 웨이브 스폰 시작
-func start_spawning(wave_data: WaveGenerator.WaveData) -> void:
+func start_spawning(wave_data) -> void:
 	if is_spawning:
 		push_warning("SpawnController: Already spawning, ignoring new request")
 		return
@@ -203,7 +204,7 @@ func _get_world_position(tile_pos: Vector2i) -> Vector2:
 		return _tile_grid.tile_to_world(tile_pos)
 
 	# 폴백: Utils 사용
-	return Utils.tile_to_world(tile_pos)
+	return UtilsClass.tile_to_world(tile_pos)
 
 
 func _add_enemy_to_scene(enemy: Node) -> void:

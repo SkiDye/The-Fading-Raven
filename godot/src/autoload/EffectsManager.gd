@@ -16,6 +16,28 @@ var _projectile_scene: PackedScene
 var effects_container: Node2D
 var screen_effects: CanvasLayer
 
+# ===== PERSISTENT BATTLE EFFECTS =====
+
+## 피 스플래터들 (전투 끝까지 유지)
+var _blood_splatters: Array[Node2D] = []
+
+## 시체들 (전투 끝까지 유지)
+var _corpses: Array[Node2D] = []
+
+# ===== CONSTANTS =====
+
+## Bad North 스타일 피 색상
+const BLOOD_COLOR := Color("#C41E3A")
+
+## 피 스플래터 설정
+const BLOOD_SPLATTER_MIN_SIZE := 8.0
+const BLOOD_SPLATTER_MAX_SIZE := 24.0
+const BLOOD_SPLATTER_COUNT_ON_HIT := 2
+const BLOOD_SPLATTER_COUNT_ON_DEATH := 5
+
+## 시체 설정
+const CORPSE_FADE_ALPHA := 0.7
+
 # ===== SCREEN SHAKE =====
 
 var _shake_intensity: float = 0.0
@@ -62,6 +84,8 @@ func _connect_signals() -> void:
 		EventBus.screen_flash.connect(_on_screen_flash)
 		EventBus.damage_dealt.connect(_on_damage_dealt)
 		EventBus.entity_died.connect(_on_entity_died)
+		EventBus.battle_ended.connect(_on_battle_ended)
+		EventBus.enemy_group_landing.connect(_on_enemy_group_landing)
 
 
 ## 이펙트 컨테이너 설정 (씬 전환 시 호출 필요)
@@ -171,6 +195,10 @@ func _on_damage_dealt(_source: Node, target: Node, amount: int, damage_type: Con
 	spawn_damage_number(pos, amount)
 	spawn_hit_effect(pos, damage_type)
 
+	# 피해 시 피 스플래터 생성 (물리/폭발 데미지만)
+	if damage_type == Constants.DamageType.PHYSICAL or damage_type == Constants.DamageType.EXPLOSIVE:
+		spawn_blood_splatters(pos, BLOOD_SPLATTER_COUNT_ON_HIT)
+
 
 # ===== HIT EFFECTS =====
 
@@ -214,6 +242,12 @@ func _on_entity_died(entity: Node) -> void:
 		entity_type = "enemy"
 
 	spawn_death_effect(pos, entity_type)
+
+	# 사망 시 피 스플래터 다량 생성
+	spawn_blood_splatters(pos, BLOOD_SPLATTER_COUNT_ON_DEATH)
+
+	# 시체 생성
+	spawn_corpse(pos, entity_type, entity)
 
 
 # ===== EXPLOSIONS =====
@@ -355,3 +389,297 @@ func spawn_orbital_strike_effect(pos: Vector2, radius: float) -> void:
 	screen_shake(15.0, 0.5)
 	screen_flash(Color(1, 0.5, 0, 0.5), 0.3)
 	camera_zoom_punch(0.15, 0.4)
+
+
+# ===== BLOOD SPLATTER SYSTEM =====
+
+## 피 스플래터 생성
+## [param pos]: 월드 좌표
+## [param count]: 생성할 스플래터 수
+func spawn_blood_splatters(pos: Vector2, count: int = 1) -> void:
+	if effects_container == null:
+		return
+
+	for i in range(count):
+		var splatter := _create_blood_splatter()
+		var offset := Vector2(
+			randf_range(-20, 20),
+			randf_range(-20, 20)
+		)
+		splatter.global_position = pos + offset
+		effects_container.add_child(splatter)
+		_blood_splatters.append(splatter)
+
+
+## 피 스플래터 노드 생성
+func _create_blood_splatter() -> Node2D:
+	var splatter := Node2D.new()
+	splatter.name = "BloodSplatter"
+
+	# 랜덤 크기
+	var size := randf_range(BLOOD_SPLATTER_MIN_SIZE, BLOOD_SPLATTER_MAX_SIZE)
+
+	# ColorRect로 간단한 스플래터 표현 (원형 느낌)
+	var rect := ColorRect.new()
+	rect.size = Vector2(size, size)
+	rect.position = Vector2(-size / 2, -size / 2)
+	rect.color = BLOOD_COLOR
+
+	# 약간 투명하게 + 랜덤 알파
+	rect.color.a = randf_range(0.6, 0.9)
+
+	splatter.add_child(rect)
+
+	# 랜덤 회전으로 다양한 형태 표현
+	splatter.rotation = randf() * TAU
+
+	# z-index를 낮게 설정하여 지면에 표시
+	splatter.z_index = -1
+
+	return splatter
+
+
+# ===== CORPSE SYSTEM =====
+
+## 시체 생성
+## [param pos]: 월드 좌표
+## [param entity_type]: "crew" 또는 "enemy"
+## [param original_entity]: 원본 엔티티 (선택적)
+func spawn_corpse(pos: Vector2, entity_type: String, original_entity: Node = null) -> void:
+	if effects_container == null:
+		return
+
+	var corpse := _create_corpse(entity_type, original_entity)
+	corpse.global_position = pos
+	effects_container.add_child(corpse)
+	_corpses.append(corpse)
+
+
+## 시체 노드 생성
+func _create_corpse(entity_type: String, original_entity: Node = null) -> Node2D:
+	var corpse := Node2D.new()
+	corpse.name = "Corpse"
+
+	# 기본 시체 표현 (간단한 사각형)
+	var rect := ColorRect.new()
+	var size := Vector2(16, 8)  # 쓰러진 형태
+
+	# 엔티티 타입에 따른 색상
+	var base_color: Color
+	if entity_type == "enemy":
+		base_color = Color(0.15, 0.15, 0.15)  # 검은색 (적)
+	else:
+		base_color = Color(0.3, 0.5, 0.8)  # 파란색 (아군)
+
+	rect.size = size
+	rect.position = Vector2(-size.x / 2, -size.y / 2)
+	rect.color = base_color
+	rect.color.a = CORPSE_FADE_ALPHA
+
+	corpse.add_child(rect)
+
+	# 시체 위에 피 추가
+	var blood_overlay := ColorRect.new()
+	blood_overlay.size = Vector2(size.x * 0.6, size.y * 0.8)
+	blood_overlay.position = Vector2(
+		randf_range(-size.x / 4, size.x / 4) - blood_overlay.size.x / 2,
+		-blood_overlay.size.y / 2
+	)
+	blood_overlay.color = BLOOD_COLOR
+	blood_overlay.color.a = 0.7
+	corpse.add_child(blood_overlay)
+
+	# 랜덤 회전 (쓰러진 방향)
+	corpse.rotation = randf_range(-0.5, 0.5)
+
+	# z-index를 낮게 설정하여 살아있는 유닛 아래에 표시
+	corpse.z_index = -1
+
+	return corpse
+
+
+# ===== BATTLE END CLEANUP =====
+
+## 전투 종료 시 호출 - 피/시체 정리
+func _on_battle_ended(_victory: bool) -> void:
+	clear_battle_effects()
+
+
+## 적 그룹 착륙 시 호출
+func _on_enemy_group_landing(entry_point: Vector2i, count: int) -> void:
+	# 타일 좌표를 월드 좌표로 변환
+	var world_pos := Vector2(
+		entry_point.x * Constants.TILE_SIZE + Constants.TILE_SIZE_HALF,
+		entry_point.y * Constants.TILE_SIZE + Constants.TILE_SIZE_HALF
+	)
+
+	# 착륙 마커 효과
+	spawn_landing_effect(world_pos, count)
+
+	# 드롭쉽 트레일 (화면 위에서 착륙 지점으로)
+	var screen_top := world_pos + Vector2(0, -300)
+	spawn_dropship_trail(screen_top, world_pos)
+
+
+## 전투 중 생성된 피/시체 모두 정리
+func clear_battle_effects() -> void:
+	# 피 스플래터 정리
+	for splatter in _blood_splatters:
+		if is_instance_valid(splatter):
+			splatter.queue_free()
+	_blood_splatters.clear()
+
+	# 시체 정리
+	for corpse in _corpses:
+		if is_instance_valid(corpse):
+			corpse.queue_free()
+	_corpses.clear()
+
+
+## 특정 영역의 피/시체만 정리 (선택적)
+func clear_effects_in_area(center: Vector2, radius: float) -> void:
+	# 피 스플래터
+	var splatters_to_remove: Array[Node2D] = []
+	for splatter in _blood_splatters:
+		if is_instance_valid(splatter):
+			if splatter.global_position.distance_to(center) <= radius:
+				splatter.queue_free()
+				splatters_to_remove.append(splatter)
+
+	for s in splatters_to_remove:
+		_blood_splatters.erase(s)
+
+	# 시체
+	var corpses_to_remove: Array[Node2D] = []
+	for corpse in _corpses:
+		if is_instance_valid(corpse):
+			if corpse.global_position.distance_to(center) <= radius:
+				corpse.queue_free()
+				corpses_to_remove.append(corpse)
+
+	for c in corpses_to_remove:
+		_corpses.erase(c)
+
+
+# ===== ENEMY LANDING EFFECTS =====
+
+## 적 그룹 착륙 효과 (드롭쉽 접근)
+## [param entry_pos]: 진입점 월드 좌표
+## [param enemy_count]: 착륙할 적 수
+func spawn_landing_effect(entry_pos: Vector2, enemy_count: int) -> void:
+	if effects_container == null:
+		return
+
+	# 착륙 경고 마커 생성
+	var marker := _create_landing_marker(enemy_count)
+	marker.global_position = entry_pos
+	effects_container.add_child(marker)
+
+	# 착륙 지점 펄스 효과
+	_animate_landing_marker(marker)
+
+
+## 착륙 마커 생성
+func _create_landing_marker(enemy_count: int) -> Node2D:
+	var marker := Node2D.new()
+	marker.name = "LandingMarker"
+
+	# 외부 원 (경고 표시)
+	var outer_ring := _create_ring(40.0, Color(1.0, 0.3, 0.1, 0.5), 3.0)
+	marker.add_child(outer_ring)
+
+	# 내부 원 (착륙 지점)
+	var inner_ring := _create_ring(24.0, Color(1.0, 0.5, 0.2, 0.7), 2.0)
+	marker.add_child(inner_ring)
+
+	# 적 수 표시
+	if enemy_count > 1:
+		var count_label := Label.new()
+		count_label.text = "x%d" % enemy_count
+		count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		count_label.position = Vector2(-16, -40)
+		count_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+		marker.add_child(count_label)
+
+	marker.z_index = 10
+
+	return marker
+
+
+## 원형 링 생성 (간단한 구현)
+func _create_ring(radius: float, color: Color, width: float) -> Node2D:
+	var ring := Node2D.new()
+
+	# ColorRect를 사용한 사각형 대신 중앙 빈 사각형으로 대략적 원형 표현
+	# (실제 원형은 Polygon2D나 Line2D 필요)
+	var rect := ColorRect.new()
+	rect.size = Vector2(radius * 2, radius * 2)
+	rect.position = Vector2(-radius, -radius)
+	rect.color = color
+	rect.color.a = 0.3
+	ring.add_child(rect)
+
+	# 중앙을 비우기 위한 검은 사각형
+	var inner := ColorRect.new()
+	var inner_size := radius * 2 - width * 2
+	inner.size = Vector2(inner_size, inner_size)
+	inner.position = Vector2(-inner_size / 2, -inner_size / 2)
+	inner.color = Color(0, 0, 0, 0)  # 투명
+	ring.add_child(inner)
+
+	return ring
+
+
+## 착륙 마커 애니메이션
+func _animate_landing_marker(marker: Node2D) -> void:
+	# 펄스 효과 (크기 변화)
+	var tween := create_tween()
+	tween.set_loops(3)  # 3번 반복
+
+	tween.tween_property(marker, "scale", Vector2(1.2, 1.2), 0.3)
+	tween.tween_property(marker, "scale", Vector2(1.0, 1.0), 0.3)
+
+	# 애니메이션 완료 후 페이드아웃
+	tween.tween_property(marker, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(marker.queue_free)
+
+
+## 드롭쉽 접근 트레일 효과
+## [param start_pos]: 시작 위치 (화면 밖)
+## [param end_pos]: 착륙 위치
+func spawn_dropship_trail(start_pos: Vector2, end_pos: Vector2) -> void:
+	if effects_container == null:
+		return
+
+	# 트레일 파티클 여러 개 생성
+	var trail_count := 5
+	var duration := 0.8
+
+	for i in range(trail_count):
+		var delay := i * 0.1
+		get_tree().create_timer(delay).timeout.connect(
+			_spawn_single_trail_particle.bind(start_pos, end_pos, duration - delay)
+		)
+
+
+## 개별 트레일 파티클
+func _spawn_single_trail_particle(start_pos: Vector2, end_pos: Vector2, duration: float) -> void:
+	if effects_container == null:
+		return
+
+	var particle := ColorRect.new()
+	particle.size = Vector2(8, 8)
+	particle.position = Vector2(-4, -4)
+	particle.color = Color(1.0, 0.6, 0.2, 0.8)
+	particle.z_index = 5
+
+	var container := Node2D.new()
+	container.add_child(particle)
+	container.global_position = start_pos
+	effects_container.add_child(container)
+
+	# 이동 애니메이션
+	var tween := create_tween()
+	tween.tween_property(container, "global_position", end_pos, duration)
+	tween.parallel().tween_property(container, "modulate:a", 0.0, duration)
+	tween.tween_callback(container.queue_free)

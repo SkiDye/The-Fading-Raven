@@ -59,6 +59,12 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(16, 0)
 layout_mode = 2
 
+[node name="NextTurnBtn" type="Button" parent="TopBar"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.5, 1)
+text = "NEXT TURN >"
+
 [node name="MapContainer" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15

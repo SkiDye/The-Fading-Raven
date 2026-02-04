@@ -129,24 +129,12 @@ func _on_ability_pressed(ability: int) -> void:
 
 	# 충전량 확인
 	if charges == 0:
+		EventBus.show_toast.emit("충전량이 부족합니다", Constants.ToastType.WARNING, 2.0)
 		return
 
-	match ability:
-		Constants.RavenAbility.SCOUT:
-			# 즉시 사용
-			EventBus.raven_ability_used.emit(ability)
-
-		Constants.RavenAbility.FLARE:
-			# 즉시 사용 (현재 위치 기준) 또는 타겟 선택
-			EventBus.raven_ability_used.emit(ability)
-
-		Constants.RavenAbility.RESUPPLY:
-			# 타겟 선택 필요
-			EventBus.raven_ability_used.emit(ability)
-
-		Constants.RavenAbility.ORBITAL_STRIKE:
-			# 타겟 선택 필요
-			EventBus.orbital_strike_targeting_started.emit()
+	# 모든 능력은 raven_ability_used 이벤트로 통합
+	# BattleController에서 Scout은 즉시 실행, 나머지는 타겟팅 모드로 전환
+	EventBus.raven_ability_used.emit(ability)
 
 
 func _on_raven_charges_changed(ability: int, charges: int) -> void:

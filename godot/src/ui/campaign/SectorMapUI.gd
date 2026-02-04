@@ -8,6 +8,7 @@ extends Control
 signal node_selected(node_id: String)
 signal node_entered(node_id: String)
 signal back_pressed
+signal next_turn_pressed
 
 const NODE_LABELS: Dictionary = {
 	Constants.NodeType.START: "START",
@@ -51,6 +52,7 @@ const NODE_COLORS: Dictionary = {
 @onready var _credits_label: Label = $TopBar/CreditsLabel
 @onready var _depth_label: Label = $TopBar/DepthLabel
 @onready var _back_btn: Button = $TopBar/BackBtn
+@onready var _next_turn_btn: Button = $TopBar/NextTurnBtn
 
 var _sector_data: Dictionary = {}
 var _node_buttons: Dictionary = {}  # node_id -> Button
@@ -84,6 +86,9 @@ func _connect_signals() -> void:
 
 	if _back_btn:
 		_back_btn.pressed.connect(_on_back_pressed)
+
+	if _next_turn_btn:
+		_next_turn_btn.pressed.connect(_on_next_turn_pressed)
 
 	if EventBus:
 		EventBus.storm_front_advanced.connect(_on_storm_advanced)
@@ -125,6 +130,7 @@ func _clear_map() -> void:
 		if child.name != "StormIndicator":
 			child.queue_free()
 	_node_buttons.clear()
+	_clear_danger_indicators()
 
 
 func _deferred_build_map() -> void:
@@ -211,6 +217,7 @@ func _build_map() -> void:
 		var node_type: int = node.get("type", Constants.NodeType.BATTLE)
 		var pos: Vector2 = node_positions.get(node_id, Vector2.ZERO)
 		var node_color: Color = NODE_COLORS.get(node_type, Color.WHITE)
+		var difficulty_score: float = node.get("difficulty_score", 0.0)
 
 		# Create node button with styled appearance
 		var btn := Button.new()
@@ -218,6 +225,10 @@ func _build_map() -> void:
 		btn.text = NODE_LABELS.get(node_type, "???")
 		btn.custom_minimum_size = Vector2(70, 36)
 		btn.position = Vector2(pos.x - 35, pos.y - 18)
+
+		# 난이도 화살표 표시 (전투/폭풍/보스 노드만)
+		if node_type in [Constants.NodeType.BATTLE, Constants.NodeType.STORM, Constants.NodeType.BOSS]:
+			_add_difficulty_arrows(btn, difficulty_score)
 
 		# Style the button
 		var stylebox := StyleBoxFlat.new()
@@ -263,6 +274,95 @@ func _create_connection_line(from_pos: Vector2, to_pos: Vector2) -> Line2D:
 	return line
 
 
+var _danger_indicators: Dictionary = {}  # node_id -> Control
+
+## 위험 표시 (점선 테두리) 추가
+func _add_danger_indicator(btn: Button, node_id: String, dimmed: bool = false) -> void:
+	# 기존 인디케이터가 있으면 제거
+	if _danger_indicators.has(node_id):
+		var old_indicator = _danger_indicators[node_id]
+		if is_instance_valid(old_indicator):
+			old_indicator.queue_free()
+		_danger_indicators.erase(node_id)
+
+	# 점선 테두리 효과를 위한 컨테이너
+	var indicator := Control.new()
+	indicator.name = "DangerIndicator_" + node_id
+	indicator.set_anchors_preset(Control.PRESET_FULL_RECT)
+	indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# 점선 사각형 그리기
+	var rect := ReferenceRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.border_color = Color(1.0, 0.3, 0.1, 0.9) if not dimmed else Color(0.8, 0.2, 0.1, 0.4)
+	rect.border_width = 2.0
+	rect.editor_only = false
+	indicator.add_child(rect)
+
+	# 경고 아이콘 (느낌표) - 점멸 효과
+	var warning_label := Label.new()
+	warning_label.text = "!"
+	warning_label.add_theme_font_size_override("font_size", 14)
+	warning_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.1) if not dimmed else Color(0.8, 0.2, 0.1, 0.5))
+	warning_label.position = Vector2(-12, -5)
+	indicator.add_child(warning_label)
+
+	btn.add_child(indicator)
+	_danger_indicators[node_id] = indicator
+
+
+## 모든 위험 표시 제거
+func _clear_danger_indicators() -> void:
+	for node_id in _danger_indicators.keys():
+		var indicator = _danger_indicators[node_id]
+		if is_instance_valid(indicator):
+			indicator.queue_free()
+	_danger_indicators.clear()
+
+
+## 난이도 화살표 표시 추가
+## difficulty_score를 화살표 개수(1~5)로 변환하여 표시
+func _add_difficulty_arrows(btn: Button, difficulty_score: float) -> void:
+	# 난이도 점수를 화살표 개수로 변환 (1~5개)
+	var arrow_count: int = _calculate_arrow_count(difficulty_score)
+	if arrow_count == 0:
+		return
+
+	# 화살표 컨테이너
+	var arrow_container := HBoxContainer.new()
+	arrow_container.name = "DifficultyArrows"
+	arrow_container.position = Vector2(0, -14)
+	arrow_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	arrow_container.add_theme_constant_override("separation", -2)
+
+	# 화살표 생성
+	for i in range(arrow_count):
+		var arrow := Label.new()
+		arrow.text = "▶"
+		arrow.add_theme_font_size_override("font_size", 8)
+		arrow.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2, 0.8))
+		arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		arrow_container.add_child(arrow)
+
+	btn.add_child(arrow_container)
+
+
+## 난이도 점수를 화살표 개수로 변환
+func _calculate_arrow_count(difficulty_score: float) -> int:
+	if difficulty_score <= 0.0:
+		return 0
+	elif difficulty_score < 1.5:
+		return 1
+	elif difficulty_score < 2.5:
+		return 2
+	elif difficulty_score < 3.5:
+		return 3
+	elif difficulty_score < 5.0:
+		return 4
+	else:
+		return 5
+
+
 func _update_node_visuals() -> void:
 	# Get accessible node IDs from current position
 	var accessible_ids: Array = []
@@ -275,6 +375,10 @@ func _update_node_visuals() -> void:
 		var node_data := _get_node_data(node_id)
 		var node_type: int = node_data.get("type", Constants.NodeType.BATTLE) if not node_data.is_empty() else Constants.NodeType.BATTLE
 		var node_color: Color = NODE_COLORS.get(node_type, Color.WHITE)
+		var node_layer: int = node_data.get("layer", 0) if not node_data.is_empty() else 0
+
+		# 다음 턴에 스톰에 삼켜질 노드인지 확인
+		var will_be_consumed: bool = node_layer == _storm_depth + 1
 
 		# 현재 노드 강조
 		if node_id == _current_node_id:
@@ -296,6 +400,10 @@ func _update_node_visuals() -> void:
 			btn.add_theme_stylebox_override("normal", accessible_style)
 			btn.add_theme_color_override("font_color", Color.WHITE)
 			btn.disabled = false
+
+			# 다음 턴에 소멸 예정이면 점선 경고 추가
+			if will_be_consumed:
+				_add_danger_indicator(btn, node_id)
 		else:
 			# Inaccessible nodes - dimmed
 			var dimmed_style := StyleBoxFlat.new()
@@ -305,7 +413,10 @@ func _update_node_visuals() -> void:
 			dimmed_style.set_corner_radius_all(6)
 			btn.add_theme_stylebox_override("normal", dimmed_style)
 			btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-			# Don't disable - still allow clicking to see info
+
+			# 다음 턴에 소멸 예정이면 점선 경고 추가 (희미하게)
+			if will_be_consumed:
+				_add_danger_indicator(btn, node_id, true)
 
 
 func _update_credits() -> void:
@@ -492,3 +603,8 @@ func _on_storm_advanced(new_depth: int) -> void:
 
 func _on_back_pressed() -> void:
 	back_pressed.emit()
+
+
+func _on_next_turn_pressed() -> void:
+	print("[SectorMapUI] Next Turn button pressed")
+	next_turn_pressed.emit()

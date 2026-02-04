@@ -4,6 +4,8 @@ extends RefCounted
 ## 웨이브 구성 생성기
 ## 난이도와 깊이에 따라 적 구성을 생성
 
+const UtilsClass = preload("res://src/utils/Utils.gd")
+
 
 # ===== INNER CLASSES =====
 
@@ -228,9 +230,8 @@ func _calculate_budget(wave_index: int) -> int:
 	var base_budget: int = Constants.BALANCE.wave.base_budget
 	var budget_per_wave: float = Constants.BALANCE.wave.budget_per_wave
 
-	# 난이도별 기본 예산 조정
-	var diff_multipliers: Array[float] = [1.0, 1.3, 1.6, 2.0]
-	var diff_mult: float = diff_multipliers[difficulty]
+	# 난이도별 기본 예산 조정 (Constants에서 가져옴)
+	var diff_mult: float = Constants.get_wave_budget_multiplier(difficulty)
 
 	# 웨이브/깊이 스케일링
 	var wave_mult: float = 1.0 + wave_index * budget_per_wave
@@ -260,7 +261,7 @@ func _select_theme(wave_index: int, total_waves: int) -> String:
 	if wave_index == total_waves - 1 and rng.randf() < 0.3:
 		return "swarm"
 
-	return Utils.weighted_random_choice(themes, weights, rng)
+	return UtilsClass.weighted_random_choice(themes, weights, rng)
 
 
 func _get_theme_composition(theme: String) -> Array:

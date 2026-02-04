@@ -8,10 +8,12 @@ extends Control
 @onready var _wave_label: Label = $VBoxContainer/WaveLabel
 @onready var _progress_bar: ProgressBar = $VBoxContainer/ProgressBar
 @onready var _status_label: Label = $VBoxContainer/StatusLabel
+@onready var _preview_container: Control = $VBoxContainer/PreviewContainer
 
 var _current_wave: int = 0
 var _total_waves: int = 0
 var _tween: Tween
+var _preview_tween: Tween
 
 
 func _ready() -> void:
@@ -125,10 +127,90 @@ func _play_victory_animation() -> void:
 		_tween.tween_property(_wave_label, "modulate", Color(1.0, 0.9, 0.3), 0.3)
 
 
+# ===== SCOUT PREVIEW =====
+
+## Scout 능력으로 다음 웨이브 미리보기
+func show_scout_preview(preview: Array) -> void:
+	if preview.is_empty():
+		EventBus.show_toast.emit("다음 웨이브 정보 없음", Constants.ToastType.INFO, 2.0)
+		return
+
+	# 프리뷰 텍스트 구성
+	var preview_text := "== SCOUT: 다음 웨이브 ==\n"
+	for entry in preview:
+		var enemy_id: String = entry.get("enemy_id", "unknown")
+		var count: int = entry.get("count", 0)
+		var display_name := _get_enemy_display_name(enemy_id)
+		preview_text += "%s x%d\n" % [display_name, count]
+
+	# 상태 레이블에 표시
+	if _status_label:
+		_status_label.text = preview_text.strip_edges()
+		_status_label.modulate = Color(0.4, 0.8, 1.0)
+
+	# 웨이브 레이블에도 표시
+	if _wave_label:
+		_wave_label.text = "SCOUT PREVIEW"
+		_wave_label.modulate = Color(0.4, 0.8, 1.0)
+
+	_play_scout_animation()
+
+	# 일정 시간 후 복원
+	await get_tree().create_timer(5.0).timeout
+	_update_display()
+
+
+func _get_enemy_display_name(enemy_id: String) -> String:
+	match enemy_id:
+		"rusher":
+			return "돌격병"
+		"gunner":
+			return "사수"
+		"shield_trooper":
+			return "방패병"
+		"jumper":
+			return "점퍼"
+		"heavy_trooper":
+			return "중장병"
+		"hacker":
+			return "해커"
+		"brute":
+			return "브루트"
+		"sniper":
+			return "저격수"
+		"drone_carrier":
+			return "드론 캐리어"
+		"shield_generator":
+			return "실드 제너레이터"
+		"storm_creature":
+			return "폭풍 생명체"
+		"pirate_captain":
+			return "해적 대장"
+		_:
+			return enemy_id
+
+
+func _play_scout_animation() -> void:
+	if _preview_tween and _preview_tween.is_running():
+		_preview_tween.kill()
+
+	_preview_tween = create_tween()
+
+	# 펄스 효과
+	if _status_label:
+		_preview_tween.tween_property(_status_label, "modulate:a", 1.0, 0.2)
+		_preview_tween.tween_property(_status_label, "modulate:a", 0.8, 0.3)
+		_preview_tween.set_loops(2)
+
+
 # ===== SIGNAL HANDLERS =====
 
-func _on_wave_started(wave_num: int, total: int, _preview: Array) -> void:
-	show_wave(wave_num, total)
+func _on_wave_started(wave_num: int, total: int, preview: Array) -> void:
+	# wave_num이 -1이면 Scout 프리뷰 모드
+	if wave_num < 0:
+		show_scout_preview(preview)
+	else:
+		show_wave(wave_num, total)
 
 
 func _on_wave_ended(_wave_num: int) -> void:

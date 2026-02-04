@@ -4,6 +4,8 @@ extends Node
 ## 적 AI 관리자
 ## 행동 트리 기반으로 모든 적의 AI를 실행
 
+const UtilsClass = preload("res://src/utils/Utils.gd")
+
 
 # ===== CONSTANTS =====
 
@@ -360,8 +362,8 @@ func _has_line_of_sight(enemy: Node) -> bool:
 	if not _tile_grid.has_method("has_line_of_sight"):
 		return true
 
-	var from_tile: Vector2i = Utils.world_to_tile(enemy.global_position)
-	var to_tile: Vector2i = Utils.world_to_tile(enemy.current_target.global_position)
+	var from_tile: Vector2i = UtilsClass.world_to_tile(enemy.global_position)
+	var to_tile: Vector2i = UtilsClass.world_to_tile(enemy.current_target.global_position)
 
 	return _tile_grid.has_line_of_sight(from_tile, to_tile)
 
@@ -547,7 +549,7 @@ func _action_jump_attack(enemy: Node, _delta: float) -> int:
 	if enemy.current_target == null:
 		return BehaviorTree.Status.FAILURE
 
-	var target_tile: Vector2i = Utils.world_to_tile(enemy.current_target.global_position)
+	var target_tile: Vector2i = UtilsClass.world_to_tile(enemy.current_target.global_position)
 
 	if enemy.has_method("perform_jump"):
 		enemy.perform_jump(target_tile)
@@ -719,5 +721,5 @@ func _get_base_damage(enemy: Node) -> int:
 
 
 func _update_tile_position(enemy: Node) -> void:
-	var tile_pos: Vector2i = Utils.world_to_tile(enemy.global_position)
+	var tile_pos: Vector2i = UtilsClass.world_to_tile(enemy.global_position)
 	enemy.set("tile_position", tile_pos)

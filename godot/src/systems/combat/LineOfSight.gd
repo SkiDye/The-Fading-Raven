@@ -5,15 +5,17 @@ extends RefCounted
 ## [br][br]
 ## TileGrid와 함께 사용하여 시야선, 가시 영역 등을 계산합니다.
 
+const UtilsClass = preload("res://src/utils/Utils.gd")
+
 
 # ===== PROPERTIES =====
 
-var grid: TileGrid
+var grid  # TileGrid - type hint removed to avoid circular reference
 
 
 # ===== INITIALIZATION =====
 
-func _init(tile_grid: TileGrid) -> void:
+func _init(tile_grid) -> void:
 	grid = tile_grid
 
 
@@ -96,7 +98,7 @@ func get_visible_tiles(from: Vector2i, max_range: int) -> Array[Vector2i]:
 			if checked.has(pos):
 				continue
 
-			var dist := Utils.euclidean_distance(
+			var dist := UtilsClass.euclidean_distance(
 				Vector2(from.x, from.y),
 				Vector2(pos.x, pos.y)
 			)
@@ -144,7 +146,7 @@ func get_tiles_in_cone(from: Vector2i, direction: Vector2, angle_degrees: float,
 				continue
 
 			# 거리 체크
-			var dist := Utils.euclidean_distance(
+			var dist := UtilsClass.euclidean_distance(
 				Vector2(from.x, from.y),
 				Vector2(pos.x, pos.y)
 			)
@@ -190,7 +192,7 @@ func get_tiles_along_ray(from: Vector2i, direction: Vector2, max_range: int) -> 
 				break
 
 		# 최대 거리 체크
-		var dist := Utils.euclidean_distance(
+		var dist := UtilsClass.euclidean_distance(
 			Vector2(from.x, from.y),
 			Vector2(tile_pos.x, tile_pos.y)
 		)

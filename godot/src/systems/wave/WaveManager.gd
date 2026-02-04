@@ -18,11 +18,14 @@ signal wave_preview_ready(wave_num: int, preview: Array)
 
 const WAVE_TRANSITION_DELAY: float = 2.0  # 웨이브 간 딜레이
 
+const WaveGeneratorClass = preload("res://src/systems/wave/WaveGenerator.gd")
+const SpawnControllerClass = preload("res://src/systems/wave/SpawnController.gd")
+
 
 # ===== VARIABLES =====
 
-var wave_generator: WaveGenerator
-var spawn_controller: SpawnController
+var wave_generator  # WaveGenerator
+var spawn_controller  # SpawnController
 
 var waves: Array = []  # Array of WaveGenerator.WaveData
 var current_wave_index: int = -1
@@ -39,7 +42,7 @@ var _difficulty: Constants.Difficulty = Constants.Difficulty.NORMAL
 
 func _ready() -> void:
 	# SpawnController 생성
-	spawn_controller = SpawnController.new()
+	spawn_controller = SpawnControllerClass.new()
 	spawn_controller.name = "SpawnController"
 	add_child(spawn_controller)
 
@@ -78,7 +81,7 @@ func setup_waves(station_depth: int, entry_points: Array[Vector2i], seed_value: 
 		seed_value = GameState.current_seed
 
 	# 웨이브 생성
-	wave_generator = WaveGenerator.new(seed_value)
+	wave_generator = WaveGeneratorClass.new(seed_value)
 	waves = wave_generator.generate_waves(station_depth, _difficulty, entry_points)
 
 	# 상태 초기화
@@ -98,8 +101,8 @@ func setup_boss_wave(
 	if seed_value == 0 and GameState != null:
 		seed_value = GameState.current_seed
 
-	wave_generator = WaveGenerator.new(seed_value)
-	var boss_wave := wave_generator.generate_boss_wave(
+	wave_generator = WaveGeneratorClass.new(seed_value)
+	var boss_wave = wave_generator.generate_boss_wave(
 		station_depth, _difficulty, entry_points, boss_id
 	)
 
@@ -123,7 +126,7 @@ func get_current_wave() -> int:
 
 
 ## 현재 웨이브 데이터
-func get_current_wave_data() -> WaveGenerator.WaveData:
+func get_current_wave_data() -> Variant:
 	if current_wave_index >= 0 and current_wave_index < waves.size():
 		return waves[current_wave_index]
 	return null
@@ -156,7 +159,7 @@ func start_next_wave() -> void:
 		return
 
 	is_wave_active = true
-	var wave_data: WaveGenerator.WaveData = waves[current_wave_index]
+	var wave_data = waves[current_wave_index]
 
 	# 웨이브 미리보기 생성
 	var preview: Array = wave_generator.get_wave_preview(wave_data)

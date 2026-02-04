@@ -104,7 +104,7 @@ func _execute_shield_bash(crew: Node, target: Variant) -> bool:
 		return false
 
 	var level := _get_skill_level(crew)
-	var level_data := _get_skill_level_data(crew, "shield_bash")
+	var level_data = _get_skill_level_data(crew, "shield_bash")
 
 	# 레벨별 거리: Lv1=3, Lv2=5, Lv3=무제한
 	var max_distance: int = [3, 5, 99][clampi(level, 0, 2)]
@@ -231,7 +231,7 @@ func _execute_volley_fire(crew: Node, target: Variant) -> bool:
 		return false
 
 	var level := _get_skill_level(crew)
-	var level_data := _get_skill_level_data(crew, "volley_fire")
+	var level_data = _get_skill_level_data(crew, "volley_fire")
 
 	# 생존 인원 수에 따른 탄환 수
 	var alive_count := _get_alive_member_count(crew)
@@ -417,7 +417,7 @@ func _execute_blink(crew: Node, target: Variant) -> bool:
 		return false
 
 	var level := _get_skill_level(crew)
-	var level_data := _get_skill_level_data(crew, "blink")
+	var level_data = _get_skill_level_data(crew, "blink")
 
 	# 레벨별 거리: Lv1=2, Lv2=4, Lv3=6
 	var max_distance: int = [2, 4, 6][clampi(level, 0, 2)]
@@ -603,7 +603,7 @@ func _calculate_tile_distance(from: Vector2i, to: Vector2i) -> int:
 	return abs(to.x - from.x) + abs(to.y - from.y)  # 맨해튼 거리
 
 
-func _get_skill_level_data(crew: Node, skill_id: String) -> SkillLevelData:
+func _get_skill_level_data(crew: Node, skill_id: String) -> Variant:
 	if not "crew_data" in crew:
 		return null
 
@@ -611,7 +611,7 @@ func _get_skill_level_data(crew: Node, skill_id: String) -> SkillLevelData:
 	if crew_data == null:
 		return null
 
-	var class_data: CrewClassData = null
+	var class_data = null  # CrewClassData
 	if crew_data is Resource and crew_data.has_method("get_class_data"):
 		class_data = crew_data.get_class_data()
 
@@ -619,7 +619,7 @@ func _get_skill_level_data(crew: Node, skill_id: String) -> SkillLevelData:
 		return null
 
 	# SkillData 가져오기
-	var skill_data: SkillData = Constants.get_skill(skill_id) if Constants.has_method("get_skill") else null
+	var skill_data = Constants.get_skill(skill_id) if Constants.has_method("get_skill") else null
 
 	if skill_data and skill_data.has_method("get_level_data"):
 		var level: int = crew_data.skill_level if "skill_level" in crew_data else 0

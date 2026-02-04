@@ -313,4 +313,63 @@
 
 ---
 
-*분석 기준: Bad North 레퍼런스 10개 문서 + 스크린샷 226장 + 웹 프로토타입 29,264줄*
+## 9. GDD 교차 참조 분석
+
+> **분석일**: 2026-02-05
+> **참조 문서**: `game-design-document.md`, `combat-system.md`, `03-GDD-ENHANCEMENTS.md`, `campaign-system.md`
+
+### ✅ 의도적 변경 (구현 불필요)
+
+TFR GDD에서 Bad North와 의도적으로 다르게 설계한 항목:
+
+| Bad North | TFR 변경 | 근거 문서 |
+|-----------|----------|-----------|
+| Commander (지휘관) | Team Leader | GDD §용어 |
+| Replenish (보충) | Resupply | GDD §용어 |
+| Flee (도주) | Emergency Evac | GDD §Raven |
+| 깃발 섬 영입 | RESCUE 노드 미션 | GDD-ENHANCEMENTS |
+| 4개 클래스 | 5개 클래스 (Engineer, Bionic 추가) | GDD §클래스 |
+| 골드 | 크레딧 | GDD §용어 |
+| 바다 | 우주 공간 | GDD §세계관 |
+| 바이킹 보트 | 침투선/드롭쉽 | GDD §적 |
+
+### ⚠️ GDD 명시 but 미구현 (우선 구현 필요)
+
+GDD에 명확히 정의되었으나 웹 프로토타입에 구현되지 않은 항목:
+
+| 기능 | GDD 위치 | 상태 | 우선순위 |
+|------|----------|------|----------|
+| Tactical Mode 자동 진입 | GDD §Tactical Mode | ❌ 미구현 | P0 |
+| 시간 감속 (~0.3배) | GDD §Tactical Mode | ❌ 미구현 | P0 |
+| Raven HUD 버튼 4개 | GDD-ENHANCEMENTS §Raven | ❌ 미구현 | P0 |
+| 시설 보너스 시스템 | GDD-ENHANCEMENTS §시설 | ❌ 미구현 | P0 |
+| Q/E 카메라 회전 | 05-NEXT-STEPS | ❌ 미구현 | P1 |
+| 폭풍 스테이지 Fog of War | GDD-ENHANCEMENTS §폭풍 | ❌ 미구현 | P2 |
+| Engineer 터렛 배치 | GDD §클래스 | ❌ 미구현 | P1 |
+| Bionic Blink 스킬 | GDD §클래스 | ❌ 미구현 | P1 |
+
+### 🔴 GDD 누락 (추가 필요)
+
+Bad North 핵심 기능인데 TFR GDD에 명시되지 않은 항목:
+
+| 기능 | Bad North 문서 | 권장 조치 |
+|------|---------------|-----------|
+| 녹색 선택 아이콘 | 08-UI-UX.md | GDD UI 섹션 추가 |
+| 3버튼 명령 (Move/Skill/Resupply) | 08-UI-UX.md | GDD HUD 섹션 추가 |
+| 웨이브 방향 화살표 | 08-UI-UX.md | GDD 전투 UI 추가 |
+| Next Turn 버튼 | 07-PROGRESSION.md | GDD 월드맵 섹션 추가 |
+| 크루 선택 시 자동 슬로모션 | 09-CONTROLS.md | Tactical Mode에 통합 |
+| 점선 (사라질 섬 예고) | 07-PROGRESSION.md | GDD 캠페인 추가 |
+| 검은 화살 (적 수량 힌트) | 07-PROGRESSION.md | GDD 월드맵 추가 |
+
+### 📊 요약
+
+| 분류 | 항목 수 | 조치 |
+|------|--------|------|
+| 의도적 변경 | 8 | 구현 불필요 |
+| GDD 명시/미구현 | 8 | 우선 구현 |
+| GDD 누락 | 7 | GDD 업데이트 후 구현 |
+
+---
+
+*분석 기준: Bad North 레퍼런스 10개 문서 + 스크린샷 226장 + 웹 프로토타입 29,264줄 + TFR GDD 4개 문서*

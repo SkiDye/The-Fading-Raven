@@ -16,6 +16,11 @@ signal crew_removed(crew_id: String)
 signal credits_changed(old_amount: int, new_amount: int)
 signal difficulty_changed(difficulty: int)
 signal raven_charges_changed(ability: int, charges: int)
+signal achievement_unlocked(achievement_id: String)
+signal class_unlocked(class_id: String)
+signal equipment_unlocked(equipment_id: String)
+signal trait_unlocked(trait_id: String)
+signal difficulty_unlocked(difficulty: int)
 
 
 # ===== CURRENT STATE =====
@@ -23,6 +28,30 @@ signal raven_charges_changed(ability: int, charges: int)
 var current_seed: int = 0
 var current_difficulty: int = Constants.Difficulty.NORMAL
 var is_paused: bool = false
+
+
+# ===== META PROGRESSION =====
+## 런 간 영구 저장되는 데이터
+
+const META_SAVE_PATH: String = "user://meta.json"
+const META_VERSION: int = 1
+
+var meta_data: Dictionary = {
+	"unlocked_classes": ["guardian", "sentinel"],  # 시작 해금
+	"unlocked_equipment": [],
+	"unlocked_traits": [],
+	"unlocked_difficulties": [Constants.Difficulty.NORMAL],  # NORMAL은 기본 해금
+	"achievements": {},  # achievement_id -> timestamp
+	"lifetime_stats": {
+		"total_runs": 0,
+		"victories": 0,
+		"enemies_killed": 0,
+		"facilities_saved": 0,
+		"facilities_lost": 0,
+		"total_credits_earned": 0,
+		"highest_depth": 0
+	}
+}
 
 
 # ===== RUN DATA =====
@@ -33,7 +62,7 @@ var current_stage: Dictionary = {}
 
 
 func _ready() -> void:
-	pass
+	_load_meta_data()
 
 
 # ===== RUN MANAGEMENT =====
@@ -45,18 +74,21 @@ func start_new_run(seed_value: int = -1, difficulty: int = Constants.Difficulty.
 	current_seed = seed_value
 	current_difficulty = difficulty
 
+	# 난이도별 Raven 충전량 가져오기
+	var raven_charges := {
+		Constants.RavenAbility.SCOUT: Constants.get_raven_charges_for_difficulty(Constants.RavenAbility.SCOUT, difficulty),
+		Constants.RavenAbility.FLARE: Constants.get_raven_charges_for_difficulty(Constants.RavenAbility.FLARE, difficulty),
+		Constants.RavenAbility.RESUPPLY: Constants.get_raven_charges_for_difficulty(Constants.RavenAbility.RESUPPLY, difficulty),
+		Constants.RavenAbility.ORBITAL_STRIKE: Constants.get_raven_charges_for_difficulty(Constants.RavenAbility.ORBITAL_STRIKE, difficulty)
+	}
+
 	current_run = {
 		"seed": seed_value,
 		"difficulty": difficulty,
 		"credits": 100,
 		"crews": [],
 		"current_depth": 0,
-		"raven_charges": {
-			Constants.RavenAbility.SCOUT: -1,
-			Constants.RavenAbility.FLARE: 2,
-			Constants.RavenAbility.RESUPPLY: 1,
-			Constants.RavenAbility.ORBITAL_STRIKE: 1
-		},
+		"raven_charges": raven_charges,
 		"statistics": {
 			"enemies_killed": 0,
 			"facilities_saved": 0,
@@ -71,6 +103,9 @@ func start_new_run(seed_value: int = -1, difficulty: int = Constants.Difficulty.
 
 
 func end_run(victory: bool) -> void:
+	# 메타 데이터 업데이트 (current_run 클리어 전에 호출)
+	_update_meta_on_run_end(victory)
+
 	run_ended.emit(victory)
 	current_run = {}
 	current_stage = {}
@@ -419,3 +454,244 @@ func _deserialize_run_data(save_data: Dictionary) -> Dictionary:
 			run_data.statistics[key] = int(run_data.statistics[key])
 
 	return run_data
+
+
+# ===== META PROGRESSION =====
+
+func _load_meta_data() -> void:
+	if not FileAccess.file_exists(META_SAVE_PATH):
+		print("[GameState] No meta save found, using defaults")
+		return
+
+	var file := FileAccess.open(META_SAVE_PATH, FileAccess.READ)
+	if file == null:
+		push_warning("[GameState] Failed to open meta save")
+		return
+
+	var json := JSON.new()
+	var parse_result := json.parse(file.get_as_text())
+	file.close()
+
+	if parse_result != OK:
+		push_warning("[GameState] Meta save parse error")
+		return
+
+	var loaded: Dictionary = json.data
+	if loaded.has("unlocked_classes"):
+		meta_data.unlocked_classes = loaded.unlocked_classes
+	if loaded.has("unlocked_equipment"):
+		meta_data.unlocked_equipment = loaded.unlocked_equipment
+	if loaded.has("unlocked_traits"):
+		meta_data.unlocked_traits = loaded.unlocked_traits
+	if loaded.has("unlocked_difficulties"):
+		meta_data.unlocked_difficulties = loaded.unlocked_difficulties
+	if loaded.has("achievements"):
+		meta_data.achievements = loaded.achievements
+	if loaded.has("lifetime_stats"):
+		for key in loaded.lifetime_stats.keys():
+			meta_data.lifetime_stats[key] = loaded.lifetime_stats[key]
+
+	print("[GameState] Meta data loaded")
+
+
+func _save_meta_data() -> void:
+	var file := FileAccess.open(META_SAVE_PATH, FileAccess.WRITE)
+	if file == null:
+		push_error("[GameState] Failed to save meta data")
+		return
+
+	var save_data := {
+		"version": META_VERSION,
+		"unlocked_classes": meta_data.unlocked_classes,
+		"unlocked_equipment": meta_data.unlocked_equipment,
+		"unlocked_traits": meta_data.unlocked_traits,
+		"unlocked_difficulties": meta_data.unlocked_difficulties,
+		"achievements": meta_data.achievements,
+		"lifetime_stats": meta_data.lifetime_stats
+	}
+
+	file.store_string(JSON.stringify(save_data, "\t"))
+	file.close()
+	print("[GameState] Meta data saved")
+
+
+## 런 종료 시 메타 데이터 업데이트
+func _update_meta_on_run_end(victory: bool) -> void:
+	meta_data.lifetime_stats.total_runs += 1
+
+	if victory:
+		meta_data.lifetime_stats.victories += 1
+
+	# 런 통계 합산
+	if current_run.has("statistics"):
+		var stats: Dictionary = current_run.statistics
+		meta_data.lifetime_stats.enemies_killed += stats.get("enemies_killed", 0)
+		meta_data.lifetime_stats.facilities_saved += stats.get("facilities_saved", 0)
+		meta_data.lifetime_stats.facilities_lost += stats.get("facilities_lost", 0)
+
+	# 최대 깊이 갱신
+	var depth: int = current_run.get("current_depth", 0)
+	if depth > meta_data.lifetime_stats.highest_depth:
+		meta_data.lifetime_stats.highest_depth = depth
+
+	# 해금 조건 체크
+	_check_unlocks(victory)
+
+	# 메타 데이터 저장
+	_save_meta_data()
+
+
+## 해금 조건 체크
+func _check_unlocks(victory: bool) -> void:
+	# === 클래스 해금 ===
+	# Ranger: 첫 승리
+	if victory and not is_class_unlocked("ranger"):
+		unlock_class("ranger")
+
+	# Engineer: 5번 이상 런 완료 (승패 무관)
+	if meta_data.lifetime_stats.total_runs >= 5 and not is_class_unlocked("engineer"):
+		unlock_class("engineer")
+
+	# Bionic: 적 100마리 처치
+	if meta_data.lifetime_stats.enemies_killed >= 100 and not is_class_unlocked("bionic"):
+		unlock_class("bionic")
+
+	# === 난이도 해금 ===
+	# HARD: 첫 승리
+	if victory and not is_difficulty_unlocked(Constants.Difficulty.HARD):
+		unlock_difficulty(Constants.Difficulty.HARD)
+
+	# VERY_HARD: HARD 클리어
+	if victory and current_difficulty >= Constants.Difficulty.HARD and not is_difficulty_unlocked(Constants.Difficulty.VERY_HARD):
+		unlock_difficulty(Constants.Difficulty.VERY_HARD)
+
+	# NIGHTMARE: VERY_HARD 클리어
+	if victory and current_difficulty >= Constants.Difficulty.VERY_HARD and not is_difficulty_unlocked(Constants.Difficulty.NIGHTMARE):
+		unlock_difficulty(Constants.Difficulty.NIGHTMARE)
+
+	# === 업적 해금 ===
+	_check_achievements(victory)
+
+
+## 업적 체크
+func _check_achievements(victory: bool) -> void:
+	# 첫 승리
+	if victory and not has_achievement("first_victory"):
+		grant_achievement("first_victory")
+
+	# 10번 클리어
+	if meta_data.lifetime_stats.victories >= 10 and not has_achievement("veteran"):
+		grant_achievement("veteran")
+
+	# 적 500마리 처치
+	if meta_data.lifetime_stats.enemies_killed >= 500 and not has_achievement("exterminator"):
+		grant_achievement("exterminator")
+
+	# 무손실 (시설 0 파괴)
+	if victory and current_run.has("statistics"):
+		if current_run.statistics.get("facilities_lost", 0) == 0:
+			if not has_achievement("perfect_defense"):
+				grant_achievement("perfect_defense")
+
+
+# ===== UNLOCK METHODS =====
+
+func is_class_unlocked(class_id: String) -> bool:
+	return class_id in meta_data.unlocked_classes
+
+
+func unlock_class(class_id: String) -> void:
+	if not is_class_unlocked(class_id):
+		meta_data.unlocked_classes.append(class_id)
+		class_unlocked.emit(class_id)
+		EventBus.class_unlocked.emit(class_id)
+		EventBus.show_toast.emit("새 클래스 해금: %s" % class_id, Constants.ToastType.SUCCESS, 4.0)
+		_save_meta_data()
+
+
+func is_equipment_unlocked(equipment_id: String) -> bool:
+	return equipment_id in meta_data.unlocked_equipment
+
+
+func unlock_equipment(equipment_id: String) -> void:
+	if not is_equipment_unlocked(equipment_id):
+		meta_data.unlocked_equipment.append(equipment_id)
+		equipment_unlocked.emit(equipment_id)
+		EventBus.equipment_unlocked.emit(equipment_id)
+		EventBus.show_toast.emit("새 장비 해금: %s" % equipment_id, Constants.ToastType.SUCCESS, 4.0)
+		_save_meta_data()
+
+
+func is_trait_unlocked(trait_id: String) -> bool:
+	return trait_id in meta_data.unlocked_traits
+
+
+func unlock_trait(trait_id: String) -> void:
+	if not is_trait_unlocked(trait_id):
+		meta_data.unlocked_traits.append(trait_id)
+		trait_unlocked.emit(trait_id)
+		EventBus.trait_unlocked.emit(trait_id)
+		EventBus.show_toast.emit("새 특성 해금: %s" % trait_id, Constants.ToastType.SUCCESS, 4.0)
+		_save_meta_data()
+
+
+func is_difficulty_unlocked(difficulty: int) -> bool:
+	return difficulty in meta_data.unlocked_difficulties
+
+
+func unlock_difficulty(difficulty: int) -> void:
+	if not is_difficulty_unlocked(difficulty):
+		meta_data.unlocked_difficulties.append(difficulty)
+		difficulty_unlocked.emit(difficulty)
+		EventBus.difficulty_unlocked.emit(difficulty)
+		var diff_name := Constants.get_difficulty_name_ko(difficulty)
+		EventBus.show_toast.emit("새 난이도 해금: %s" % diff_name, Constants.ToastType.SUCCESS, 4.0)
+		_save_meta_data()
+
+
+func has_achievement(achievement_id: String) -> bool:
+	return meta_data.achievements.has(achievement_id)
+
+
+func grant_achievement(achievement_id: String) -> void:
+	if not has_achievement(achievement_id):
+		meta_data.achievements[achievement_id] = Time.get_unix_time_from_system()
+		var achievement_name := _get_achievement_name(achievement_id)
+		achievement_unlocked.emit(achievement_id)
+		EventBus.achievement_unlocked.emit(achievement_id, achievement_name)
+		EventBus.show_toast.emit("업적 달성: %s" % achievement_name, Constants.ToastType.SUCCESS, 4.0)
+		_save_meta_data()
+
+
+func _get_achievement_name(achievement_id: String) -> String:
+	match achievement_id:
+		"first_victory":
+			return "첫 탈출"
+		"veteran":
+			return "베테랑 (10회 클리어)"
+		"exterminator":
+			return "말살자 (적 500 처치)"
+		"perfect_defense":
+			return "완벽한 방어"
+		_:
+			return achievement_id
+
+
+func get_unlocked_classes() -> Array:
+	return meta_data.unlocked_classes.duplicate()
+
+
+func get_unlocked_equipment() -> Array:
+	return meta_data.unlocked_equipment.duplicate()
+
+
+func get_unlocked_traits() -> Array:
+	return meta_data.unlocked_traits.duplicate()
+
+
+func get_unlocked_difficulties() -> Array:
+	return meta_data.unlocked_difficulties.duplicate()
+
+
+func get_lifetime_stats() -> Dictionary:
+	return meta_data.lifetime_stats.duplicate()

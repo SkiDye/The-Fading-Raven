@@ -5,6 +5,11 @@ extends Node2D
 ## [br][br]
 ## 경로 탐색, 시야선 계산, 타일 관리 등 전투 맵의 핵심 기능을 제공합니다.
 
+# Preloads to avoid class_name resolution issues
+const PathfindingClass = preload("res://src/systems/combat/Pathfinding.gd")
+const LineOfSightClass = preload("res://src/systems/combat/LineOfSight.gd")
+const UtilsClass = preload("res://src/utils/Utils.gd")
+
 # Load at runtime to avoid circular reference issues
 var GridTileDataClass: GDScript
 
@@ -16,6 +21,8 @@ func _init() -> void:
 
 signal tile_changed(pos: Vector2i, old_type: Constants.TileType, new_type: Constants.TileType)
 signal occupant_changed(pos: Vector2i, old_occupant: Node, new_occupant: Node)
+signal tile_visibility_changed(pos: Vector2i, is_visible: bool)
+signal fog_of_war_toggled(enabled: bool)
 
 
 # ===== CONSTANTS =====
@@ -36,15 +43,22 @@ var tiles: Array = []  ## 2D array of GridTileData
 
 # ===== PRIVATE =====
 
-var _pathfinder: Pathfinding
-var _los_calculator: LineOfSight
+var _pathfinder  # Pathfinding
+var _los_calculator  # LineOfSight
+
+# ===== FOG OF WAR =====
+
+var fog_of_war_enabled: bool = false
+var _visible_tiles: Dictionary = {}  # Vector2i -> bool
+var _vision_sources: Array[Dictionary] = []  # [{position, radius, duration, id}]
+var _crew_vision_range: int = 5  # 크루 기본 시야 범위
 
 
 # ===== LIFECYCLE =====
 
 func _ready() -> void:
-	_pathfinder = Pathfinding.new(self)
-	_los_calculator = LineOfSight.new(self)
+	_pathfinder = PathfindingClass.new(self)
+	_los_calculator = LineOfSightClass.new(self)
 
 
 # ===== INITIALIZATION =====
@@ -67,9 +81,9 @@ func initialize(w: int, h: int) -> void:
 
 	# Pathfinder와 LOS 재초기화
 	if _pathfinder == null:
-		_pathfinder = Pathfinding.new(self)
+		_pathfinder = PathfindingClass.new(self)
 	if _los_calculator == null:
-		_los_calculator = LineOfSight.new(self)
+		_los_calculator = LineOfSightClass.new(self)
 
 
 ## StationData에서 그리드를 초기화합니다.
@@ -106,9 +120,9 @@ func initialize_from_station_data(station) -> void:
 
 	# Pathfinder와 LOS 재초기화
 	if _pathfinder == null:
-		_pathfinder = Pathfinding.new(self)
+		_pathfinder = PathfindingClass.new(self)
 	if _los_calculator == null:
-		_los_calculator = LineOfSight.new(self)
+		_los_calculator = LineOfSightClass.new(self)
 
 
 # ===== TILE ACCESS =====
@@ -260,7 +274,7 @@ func get_walkable_neighbors(pos: Vector2i, include_diagonal: bool = false) -> Ar
 ## [return]: 경로 타일 배열 (시작점 제외, 목표점 포함)
 func find_path(from: Vector2i, to: Vector2i, ignore_occupants: bool = false) -> Array[Vector2i]:
 	if _pathfinder == null:
-		_pathfinder = Pathfinding.new(self)
+		_pathfinder = PathfindingClass.new(self)
 	return _pathfinder.find_path(from, to, ignore_occupants)
 
 
@@ -271,7 +285,7 @@ func find_path(from: Vector2i, to: Vector2i, ignore_occupants: bool = false) -> 
 ## [return]: 도달 가능한 타일 좌표 배열
 func get_reachable_tiles(from: Vector2i, max_distance: int) -> Array[Vector2i]:
 	if _pathfinder == null:
-		_pathfinder = Pathfinding.new(self)
+		_pathfinder = PathfindingClass.new(self)
 	return _pathfinder.get_reachable_tiles(from, max_distance)
 
 
@@ -284,7 +298,7 @@ func get_reachable_tiles(from: Vector2i, max_distance: int) -> Array[Vector2i]:
 ## [return]: 시야선 존재 여부
 func has_line_of_sight(from: Vector2i, to: Vector2i) -> bool:
 	if _los_calculator == null:
-		_los_calculator = LineOfSight.new(self)
+		_los_calculator = LineOfSightClass.new(self)
 	return _los_calculator.has_los(from, to)
 
 
@@ -295,7 +309,7 @@ func has_line_of_sight(from: Vector2i, to: Vector2i) -> bool:
 ## [return]: 시야선 경로 타일 배열
 func get_line_of_sight(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 	if _los_calculator == null:
-		_los_calculator = LineOfSight.new(self)
+		_los_calculator = LineOfSightClass.new(self)
 	return _los_calculator.get_los_tiles(from, to)
 
 
@@ -306,7 +320,7 @@ func get_line_of_sight(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 ## [return]: 가시 타일 좌표 배열
 func get_visible_tiles(from: Vector2i, max_range: int) -> Array[Vector2i]:
 	if _los_calculator == null:
-		_los_calculator = LineOfSight.new(self)
+		_los_calculator = LineOfSightClass.new(self)
 	return _los_calculator.get_visible_tiles(from, max_range)
 
 
@@ -327,7 +341,7 @@ func get_tiles_in_range(center: Vector2i, range_val: int, shape: String = "circl
 				for x in range(-range_val, range_val + 1):
 					var pos := center + Vector2i(x, y)
 					if is_valid_position(pos):
-						var dist := Utils.euclidean_distance(
+						var dist := UtilsClass.euclidean_distance(
 							Vector2(center.x, center.y),
 							Vector2(pos.x, pos.y)
 						)
@@ -512,3 +526,138 @@ func print_grid() -> void:
 			var tile = tiles[y][x]
 			line += symbols.get(tile.type, "?")
 		print(line)
+
+
+# ===== FOG OF WAR SYSTEM =====
+
+## Fog of War 활성화/비활성화
+func set_fog_of_war(enabled: bool) -> void:
+	fog_of_war_enabled = enabled
+	fog_of_war_toggled.emit(enabled)
+
+	if enabled:
+		_recalculate_visibility()
+	else:
+		# 비활성화 시 모든 타일 가시
+		_visible_tiles.clear()
+
+
+## 타일이 현재 보이는지 확인
+func is_tile_visible(pos: Vector2i) -> bool:
+	if not fog_of_war_enabled:
+		return true
+	return _visible_tiles.get(pos, false)
+
+
+## 시야 소스 추가 (Flare 등)
+func add_vision_source(pos: Vector2i, radius: int, duration: float = -1.0) -> int:
+	var source_id: int = _vision_sources.size()
+	var source := {
+		"id": source_id,
+		"position": pos,
+		"radius": radius,
+		"duration": duration,  # -1이면 영구
+		"remaining": duration
+	}
+	_vision_sources.append(source)
+	_recalculate_visibility()
+	return source_id
+
+
+## 시야 소스 제거
+func remove_vision_source(pos_or_id: Variant) -> void:
+	if pos_or_id is int:
+		# ID로 제거
+		for i in range(_vision_sources.size() - 1, -1, -1):
+			if _vision_sources[i].id == pos_or_id:
+				_vision_sources.remove_at(i)
+				break
+	elif pos_or_id is Vector2i:
+		# 위치로 제거
+		for i in range(_vision_sources.size() - 1, -1, -1):
+			if _vision_sources[i].position == pos_or_id:
+				_vision_sources.remove_at(i)
+				break
+
+	_recalculate_visibility()
+
+
+## 시야 소스 시간 업데이트 (delta마다 호출)
+func update_vision_sources(delta: float) -> void:
+	var changed := false
+
+	for i in range(_vision_sources.size() - 1, -1, -1):
+		var source: Dictionary = _vision_sources[i]
+		if source.duration > 0:  # 시간 제한이 있는 경우
+			source.remaining -= delta
+			if source.remaining <= 0:
+				_vision_sources.remove_at(i)
+				changed = true
+
+	if changed:
+		_recalculate_visibility()
+
+
+## 크루 위치로 시야 업데이트
+func update_crew_vision(crew_positions: Array[Vector2i]) -> void:
+	if not fog_of_war_enabled:
+		return
+
+	# 크루 시야 소스 갱신 (임시 소스로 처리)
+	# 기존 크루 시야 제거
+	for i in range(_vision_sources.size() - 1, -1, -1):
+		if _vision_sources[i].get("is_crew", false):
+			_vision_sources.remove_at(i)
+
+	# 새 크루 시야 추가
+	for pos in crew_positions:
+		_vision_sources.append({
+			"id": -1,  # 크루 시야는 ID 없음
+			"position": pos,
+			"radius": _crew_vision_range,
+			"duration": -1.0,
+			"remaining": -1.0,
+			"is_crew": true
+		})
+
+	_recalculate_visibility()
+
+
+## 시야 재계산
+func _recalculate_visibility() -> void:
+	if not fog_of_war_enabled:
+		return
+
+	var old_visible := _visible_tiles.duplicate()
+	_visible_tiles.clear()
+
+	# 모든 시야 소스에서 가시 타일 계산
+	for source in _vision_sources:
+		var visible_from_source := get_visible_tiles(source.position, source.radius)
+		for tile_pos in visible_from_source:
+			_visible_tiles[tile_pos] = true
+
+	# 변경된 타일에 대해 시그널 발생
+	for pos in _visible_tiles.keys():
+		if not old_visible.get(pos, false):
+			tile_visibility_changed.emit(pos, true)
+
+	for pos in old_visible.keys():
+		if not _visible_tiles.get(pos, false):
+			tile_visibility_changed.emit(pos, false)
+
+
+## 모든 가시 타일 반환
+func get_all_visible_tiles() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for pos in _visible_tiles.keys():
+		if _visible_tiles[pos]:
+			result.append(pos)
+	return result
+
+
+## 위치가 어둠 속인지 확인 (적 숨김용)
+func is_in_fog(pos: Vector2i) -> bool:
+	if not fog_of_war_enabled:
+		return false
+	return not _visible_tiles.get(pos, false)

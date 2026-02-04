@@ -56,12 +56,16 @@ enum EquipmentType {
 enum NodeType {
 	START,
 	BATTLE,
-	COMMANDER,
+	COMMANDER,  # 기존: 팀장 영입 (RESCUE와 통합 예정)
 	EQUIPMENT,
 	STORM,
 	BOSS,
 	REST,
-	GATE
+	GATE,
+	RESCUE,     # 탈출자 보호 전투 → 새 팀장 + 크루 영입
+	SALVAGE,    # 난파선 탐색 → 장비 획득
+	DEPOT,      # 보급 정거장 → 무료 장비
+	BEACON      # 비콘 활성화 (체크포인트)
 }
 
 enum RavenAbility {
@@ -142,7 +146,7 @@ var BALANCE: Dictionary = {
 		"skill_level": [7, 10, 14]
 	},
 
-	# Raven 충전량
+	# Raven 충전량 (기본값, 난이도별 조정은 아래 difficulty 참조)
 	"raven_charges": {
 		RavenAbility.SCOUT: -1,
 		RavenAbility.FLARE: 2,
@@ -155,6 +159,58 @@ var BALANCE: Dictionary = {
 		"base_budget": 10,
 		"budget_per_wave": 0.2,
 		"spawn_interval": 5.0
+	},
+
+	# 난이도별 설정
+	"difficulty": {
+		Difficulty.NORMAL: {
+			"enemy_hp_mult": 1.0,
+			"enemy_damage_mult": 1.0,
+			"wave_budget_mult": 1.0,
+			"credit_mult": 1.0,
+			"raven_charges": {
+				RavenAbility.SCOUT: -1,
+				RavenAbility.FLARE: 3,
+				RavenAbility.RESUPPLY: 2,
+				RavenAbility.ORBITAL_STRIKE: 2
+			}
+		},
+		Difficulty.HARD: {
+			"enemy_hp_mult": 1.25,
+			"enemy_damage_mult": 1.15,
+			"wave_budget_mult": 1.3,
+			"credit_mult": 1.2,
+			"raven_charges": {
+				RavenAbility.SCOUT: -1,
+				RavenAbility.FLARE: 2,
+				RavenAbility.RESUPPLY: 1,
+				RavenAbility.ORBITAL_STRIKE: 1
+			}
+		},
+		Difficulty.VERY_HARD: {
+			"enemy_hp_mult": 1.5,
+			"enemy_damage_mult": 1.3,
+			"wave_budget_mult": 1.6,
+			"credit_mult": 1.5,
+			"raven_charges": {
+				RavenAbility.SCOUT: -1,
+				RavenAbility.FLARE: 2,
+				RavenAbility.RESUPPLY: 1,
+				RavenAbility.ORBITAL_STRIKE: 1
+			}
+		},
+		Difficulty.NIGHTMARE: {
+			"enemy_hp_mult": 2.0,
+			"enemy_damage_mult": 1.5,
+			"wave_budget_mult": 2.0,
+			"credit_mult": 2.0,
+			"raven_charges": {
+				RavenAbility.SCOUT: -1,
+				RavenAbility.FLARE: 1,
+				RavenAbility.RESUPPLY: 1,
+				RavenAbility.ORBITAL_STRIKE: 0
+			}
+		}
 	},
 
 	# 전투
@@ -369,3 +425,94 @@ func get_all_traits() -> Array:
 
 func get_all_facilities() -> Array:
 	return _facilities.values()
+
+
+# ===== DIFFICULTY HELPERS =====
+
+## 현재 난이도 설정 가져오기
+func get_difficulty_settings(difficulty: Difficulty = GameState.current_difficulty) -> Dictionary:
+	if BALANCE.difficulty.has(difficulty):
+		return BALANCE.difficulty[difficulty]
+	return BALANCE.difficulty[Difficulty.NORMAL]
+
+
+## 적 HP 배율
+func get_enemy_hp_multiplier(difficulty: Difficulty = GameState.current_difficulty) -> float:
+	var settings := get_difficulty_settings(difficulty)
+	return settings.get("enemy_hp_mult", 1.0)
+
+
+## 적 데미지 배율
+func get_enemy_damage_multiplier(difficulty: Difficulty = GameState.current_difficulty) -> float:
+	var settings := get_difficulty_settings(difficulty)
+	return settings.get("enemy_damage_mult", 1.0)
+
+
+## 웨이브 예산 배율
+func get_wave_budget_multiplier(difficulty: Difficulty = GameState.current_difficulty) -> float:
+	var settings := get_difficulty_settings(difficulty)
+	return settings.get("wave_budget_mult", 1.0)
+
+
+## 크레딧 획득 배율
+func get_credit_multiplier(difficulty: Difficulty = GameState.current_difficulty) -> float:
+	var settings := get_difficulty_settings(difficulty)
+	return settings.get("credit_mult", 1.0)
+
+
+## 난이도별 Raven 충전량
+func get_raven_charges_for_difficulty(ability: RavenAbility, difficulty: Difficulty = GameState.current_difficulty) -> int:
+	var settings := get_difficulty_settings(difficulty)
+	if settings.has("raven_charges") and settings.raven_charges.has(ability):
+		return settings.raven_charges[ability]
+	# 기본값
+	return BALANCE.raven_charges.get(ability, 0)
+
+
+## 난이도별 섹터 깊이 범위 [min, max]
+func get_sector_depth_range(difficulty: Difficulty = GameState.current_difficulty) -> Array:
+	if BALANCE.campaign.depth_range.has(difficulty):
+		return BALANCE.campaign.depth_range[difficulty]
+	return [8, 12]
+
+
+## 난이도별 레이어당 노드 수 범위 [min, max]
+func get_nodes_per_layer_range(difficulty: Difficulty = GameState.current_difficulty) -> Array:
+	if BALANCE.campaign.nodes_per_layer.has(difficulty):
+		return BALANCE.campaign.nodes_per_layer[difficulty]
+	return [2, 3]
+
+
+## 난이도별 스톰 진행 속도
+func get_storm_advance_rate(difficulty: Difficulty = GameState.current_difficulty) -> int:
+	if BALANCE.campaign.storm_advance_rate.has(difficulty):
+		return BALANCE.campaign.storm_advance_rate[difficulty]
+	return 2
+
+
+## 난이도 이름 (한글)
+func get_difficulty_name_ko(difficulty: Difficulty) -> String:
+	match difficulty:
+		Difficulty.NORMAL:
+			return "보통"
+		Difficulty.HARD:
+			return "어려움"
+		Difficulty.VERY_HARD:
+			return "매우 어려움"
+		Difficulty.NIGHTMARE:
+			return "악몽"
+	return "보통"
+
+
+## 난이도 색상
+func get_difficulty_color(difficulty: Difficulty) -> Color:
+	match difficulty:
+		Difficulty.NORMAL:
+			return Color.WHITE
+		Difficulty.HARD:
+			return Color.YELLOW
+		Difficulty.VERY_HARD:
+			return Color.ORANGE
+		Difficulty.NIGHTMARE:
+			return Color.RED
+	return Color.WHITE

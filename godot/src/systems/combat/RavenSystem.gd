@@ -35,6 +35,8 @@ var _active_flares: Array[Dictionary] = []
 # ===== REFERENCES =====
 
 var _battle_controller: Node = null
+var facility_bonus_manager = null  # FacilityBonusManager
+var storm_stage_manager = null  # StormStageManager
 
 
 func _ready() -> void:
@@ -49,7 +51,7 @@ func _process(delta: float) -> void:
 
 ## 능력 사용 가능 여부
 func can_use(ability: Constants.RavenAbility) -> bool:
-	var charges := GameState.get_raven_charges(ability)
+	var charges := get_charges(ability)
 	return charges != 0  # -1은 무제한, 0은 사용 불가
 
 
@@ -128,9 +130,20 @@ func confirm_targeting(target_pos: Vector2i) -> void:
 	execute_ability(ability, target_pos)
 
 
-## 남은 충전 수
+## 남은 충전 수 (시설 보너스 포함)
 func get_charges(ability: Constants.RavenAbility) -> int:
-	return GameState.get_raven_charges(ability)
+	var base_charges: int = GameState.get_raven_charges(ability)
+
+	# 무제한(-1)이면 그대로 반환
+	if base_charges < 0:
+		return base_charges
+
+	# 통신탑 보너스: +1 추가 충전
+	var extra: int = 0
+	if facility_bonus_manager:
+		extra = facility_bonus_manager.get_raven_extra_charges()
+
+	return base_charges + extra
 
 
 ## 타겟팅 중인지
@@ -230,6 +243,10 @@ func _execute_flare(target: Variant) -> bool:
 	# 시야 시스템에 알림 (있다면)
 	if grid.has_method("add_vision_source"):
 		grid.add_vision_source(target_pos, flare_radius, flare_duration)
+
+	# 폭풍 스테이지 매니저에도 알림
+	if storm_stage_manager and storm_stage_manager.has_method("add_flare_vision"):
+		storm_stage_manager.add_flare_vision(target_pos, flare_duration)
 
 	_spawn_effect("flare", flare_data.world_position, {"radius": flare_radius * Constants.TILE_SIZE})
 

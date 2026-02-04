@@ -3,12 +3,15 @@ extends Control
 ## 캠페인 씬 컨트롤러
 ## 섹터맵 표시, 노드 이동, 전투 씬 전환 관리
 
-@onready var sector_map_ui: SectorMapUI = $SectorMapUI
+const SectorGeneratorClass = preload("res://src/systems/campaign/SectorGenerator.gd")
+
+@onready var sector_map_ui = $SectorMapUI
 @onready var crew_panel: Control = $CrewPanel
 
-var _sector_generator: SectorGenerator
-var _sector_data: SectorGenerator.SectorData
+var _sector_generator  # SectorGenerator
+var _sector_data  # SectorGenerator.SectorData
 var _current_node_id: String = ""
+var _battles_since_storm: int = 0  # 스톰 진행 카운터
 
 
 func _ready() -> void:
@@ -23,6 +26,7 @@ func _connect_signals() -> void:
 	if sector_map_ui:
 		sector_map_ui.node_entered.connect(_on_node_entered)
 		sector_map_ui.back_pressed.connect(_on_back_pressed)
+		sector_map_ui.next_turn_pressed.connect(_on_next_turn_pressed)
 
 	# EventBus 연결
 	if EventBus:
@@ -35,14 +39,14 @@ func _start_campaign() -> void:
 		GameState.start_new_run(-1, Constants.Difficulty.NORMAL)
 
 	# 섹터 맵 생성
-	_sector_generator = SectorGenerator.new()
+	_sector_generator = SectorGeneratorClass.new()
 	var seed_value: int = GameState.current_seed if GameState else randi()
 	var difficulty: int = GameState.current_difficulty if GameState else Constants.Difficulty.NORMAL
 
 	_sector_data = _sector_generator.generate(seed_value, difficulty)
 
 	# 시작 노드 설정
-	var start_node := _sector_data.get_start_node()
+	var start_node = _sector_data.get_start_node()
 	if start_node:
 		_current_node_id = start_node.id
 
@@ -84,7 +88,8 @@ func _convert_sector_to_dict() -> Dictionary:
 				"x_position": node.x_position,
 				"type": node.node_type,
 				"connections_out": node.connections_out,
-				"visited": node.visited
+				"visited": node.visited,
+				"difficulty_score": node.difficulty_score
 			})
 
 	return {
@@ -107,7 +112,7 @@ func _update_crew_panel() -> void:
 
 
 func _on_node_entered(node_id: String) -> void:
-	var node := _sector_data.get_node(node_id)
+	var node = _sector_data.get_node(node_id)
 	if node == null:
 		push_warning("Campaign: Node not found: " + node_id)
 		return
@@ -150,19 +155,19 @@ func _on_node_entered(node_id: String) -> void:
 
 func _can_move_to_node(node_id: String) -> bool:
 	# 시작 노드에서는 어디든 갈 수 있음
-	var start_node := _sector_data.get_start_node()
+	var start_node = _sector_data.get_start_node()
 	if start_node and _current_node_id == start_node.id:
 		return true
 
 	# 현재 노드에서 연결된 노드인지 확인
-	var current_node := _sector_data.get_node(_current_node_id)
+	var current_node = _sector_data.get_node(_current_node_id)
 	if current_node == null:
 		return false
 
 	return node_id in current_node.connections_out
 
 
-func _enter_battle(node: SectorGenerator.SectorNode) -> void:
+func _enter_battle(node: Variant) -> void:
 	# GameState에 스테이지 시작 알림
 	if GameState:
 		GameState.start_stage(node.id)
@@ -194,7 +199,7 @@ func _create_test_crews() -> void:
 			GameState.add_crew(crew_data)
 
 
-func _enter_commander_event(node: SectorGenerator.SectorNode) -> void:
+func _enter_commander_event(node: Variant) -> void:
 	# TODO: 커맨더 이벤트 UI
 	print("[Campaign] Commander event at: " + node.id)
 	_show_event_popup("Commander Recruited!", "A new crew member has joined your team.")
@@ -202,7 +207,7 @@ func _enter_commander_event(node: SectorGenerator.SectorNode) -> void:
 	_update_sector_map()
 
 
-func _enter_equipment_event(node: SectorGenerator.SectorNode) -> void:
+func _enter_equipment_event(node: Variant) -> void:
 	# TODO: 장비 이벤트 UI
 	print("[Campaign] Equipment event at: " + node.id)
 	_show_event_popup("Equipment Found!", "You found a piece of equipment.")
@@ -210,7 +215,7 @@ func _enter_equipment_event(node: SectorGenerator.SectorNode) -> void:
 	_update_sector_map()
 
 
-func _enter_rest_event(node: SectorGenerator.SectorNode) -> void:
+func _enter_rest_event(node: Variant) -> void:
 	# TODO: 휴식 이벤트 - 체력 회복
 	print("[Campaign] Rest event at: " + node.id)
 	_show_event_popup("Rest Stop", "Your crew has recovered some health.")
@@ -218,7 +223,7 @@ func _enter_rest_event(node: SectorGenerator.SectorNode) -> void:
 	_update_sector_map()
 
 
-func _enter_gate(node: SectorGenerator.SectorNode) -> void:
+func _enter_gate(node: Variant) -> void:
 	# 게임 클리어!
 	print("[Campaign] VICTORY! Reached the gate!")
 	if GameState:
@@ -262,11 +267,83 @@ func _on_battle_ended(victory: bool) -> void:
 		get_tree().change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
 		return
 
-	# 승리 - 스톰 진행
-	_sector_data.advance_storm()
+	# 승리 - 스톰 진행 (난이도별 속도 적용)
+	_battles_since_storm += 1
+	var storm_rate := Constants.get_storm_advance_rate(GameState.current_difficulty)
+
+	# storm_advance_rate: 몇 턴마다 스톰이 진행하는지 (NORMAL/HARD=2, VERY_HARD/NIGHTMARE=1)
+	if _battles_since_storm >= storm_rate:
+		_sector_data.advance_storm()
+		_battles_since_storm = 0
+		EventBus.storm_front_advanced.emit(_sector_data.storm_depth)
 
 	# 맵으로 복귀
 	_update_sector_map()
+
+
+func _on_next_turn_pressed() -> void:
+	# 턴 종료 확인 다이얼로그
+	var confirm := ConfirmationDialog.new()
+	confirm.title = "End Turn?"
+	confirm.dialog_text = "The storm front will advance.\nNodes behind the front will be lost!"
+	confirm.dialog_hide_on_ok = true
+	add_child(confirm)
+	confirm.popup_centered()
+	confirm.confirmed.connect(func():
+		confirm.queue_free()
+		_advance_turn()
+	)
+	confirm.canceled.connect(func(): confirm.queue_free())
+
+
+func _advance_turn() -> void:
+	print("[Campaign] Advancing turn...")
+
+	# 스톰 전선 전진
+	if _sector_data:
+		_sector_data.advance_storm()
+		EventBus.storm_front_advanced.emit(_sector_data.storm_depth)
+
+	# 전투 카운터 리셋
+	_battles_since_storm = 0
+
+	# UI 업데이트
+	_update_sector_map()
+
+	# 스톰에 의해 현재 노드가 소멸된 경우 체크
+	_check_current_node_consumed()
+
+	print("[Campaign] Turn advanced. Storm depth: %d" % _sector_data.storm_depth)
+
+
+func _check_current_node_consumed() -> void:
+	if _sector_data == null:
+		return
+
+	var current_node = _sector_data.get_node(_current_node_id)
+	if current_node == null:
+		return
+
+	# 현재 노드가 스톰에 삼켜졌는지 확인
+	if current_node.layer <= _sector_data.storm_depth:
+		# 게임 오버 - 스톰에 의해 삼켜짐
+		print("[Campaign] Current position consumed by storm! GAME OVER")
+		_show_storm_game_over()
+
+
+func _show_storm_game_over() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "CONSUMED BY STORM"
+	dialog.dialog_text = "Your crew was caught by the advancing storm.\nYour journey ends here."
+	dialog.dialog_hide_on_ok = true
+	add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+		if GameState:
+			GameState.end_run(false)
+		get_tree().change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
+	)
 
 
 func _on_back_pressed() -> void:

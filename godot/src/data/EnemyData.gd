@@ -169,23 +169,9 @@ extends Resource
 func get_scaled_stats(difficulty: int, wave_number: int = 1) -> Dictionary:
 	var scale_factor := 1.0 + (wave_number - 1) * 0.05
 
-	# 난이도 배율
-	var hp_mult := 1.0
-	var dmg_mult := 1.0
-
-	match difficulty:
-		Constants.Difficulty.NORMAL:
-			hp_mult = 1.0
-			dmg_mult = 1.0
-		Constants.Difficulty.HARD:
-			hp_mult = 1.3
-			dmg_mult = 1.2
-		Constants.Difficulty.VERY_HARD:
-			hp_mult = 1.6
-			dmg_mult = 1.4
-		Constants.Difficulty.NIGHTMARE:
-			hp_mult = 2.0
-			dmg_mult = 1.6
+	# 난이도 배율 (Constants에서 가져옴)
+	var hp_mult := Constants.get_enemy_hp_multiplier(difficulty)
+	var dmg_mult := Constants.get_enemy_damage_multiplier(difficulty)
 
 	return {
 		"hp": int(hp * hp_mult * scale_factor),

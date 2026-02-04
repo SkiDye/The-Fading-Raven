@@ -13,6 +13,8 @@ signal pause_state_changed(is_paused: bool)
 signal slow_motion_changed(is_slow: bool)
 signal selection_changed(selected: Node)
 signal wave_progress_changed(current: int, total: int)
+signal emergency_evac_started()
+signal emergency_evac_completed()
 
 
 # ===== INNER CLASS =====
@@ -35,14 +37,28 @@ class BattleResult:
 @export var enable_auto_slow_on_select: bool = true
 
 
+# ===== PRELOADS =====
+
+const SkillSystemClass = preload("res://src/systems/combat/SkillSystem.gd")
+const EquipmentSystemClass = preload("res://src/systems/combat/EquipmentSystem.gd")
+const DamageCalculatorClass = preload("res://src/systems/combat/DamageCalculator.gd")
+const RavenSystemClass = preload("res://src/systems/combat/RavenSystem.gd")
+const FacilityBonusManagerClass = preload("res://src/systems/combat/FacilityBonusManager.gd")
+const StormStageManagerClass = preload("res://src/systems/combat/StormStageManager.gd")
+const RescueMissionManagerClass = preload("res://src/systems/combat/RescueMissionManager.gd")
+
+
 # ===== COMPONENTS =====
 
 var tile_grid: Node = null
 var wave_manager: Node = null
-var skill_system: SkillSystem = null
-var equipment_system: EquipmentSystem = null
-var damage_calculator: DamageCalculator = null
-var raven_system: RavenSystem = null
+var skill_system = null  # SkillSystem
+var equipment_system = null  # EquipmentSystem
+var damage_calculator = null  # DamageCalculator
+var raven_system = null  # RavenSystem
+var facility_bonus_manager = null  # FacilityBonusManager
+var storm_stage_manager = null  # StormStageManager
+var rescue_mission_manager = null  # RescueMissionManager
 
 
 # ===== STATE =====
@@ -50,9 +66,13 @@ var raven_system: RavenSystem = null
 var is_paused: bool = false
 var is_slow_motion: bool = false
 var is_battle_active: bool = false
+var is_evacuating: bool = false
+var evac_timer: float = 0.0
 var selected_squad: Node = null
 var targeting_mode: String = ""  # "", "skill", "equipment", "raven"
 var targeting_data: Dictionary = {}
+
+const EVAC_DELAY: float = 5.0  # Raven 셔틀 도착까지 5초
 
 
 # ===== ENTITIES =====
@@ -89,10 +109,27 @@ func _setup_components() -> void:
 	wave_manager = _find_node_recursive("WaveManager")
 
 	# 시스템 노드들 (Systems/ 하위 또는 직접 자식)
-	skill_system = _find_or_create_system("SkillSystem", SkillSystem) as SkillSystem
-	equipment_system = _find_or_create_system("EquipmentSystem", EquipmentSystem) as EquipmentSystem
-	damage_calculator = _find_or_create_system("DamageCalculator", DamageCalculator) as DamageCalculator
-	raven_system = _find_or_create_system("RavenSystem", RavenSystem) as RavenSystem
+	skill_system = _find_or_create_system("SkillSystem", SkillSystemClass)
+	equipment_system = _find_or_create_system("EquipmentSystem", EquipmentSystemClass)
+	damage_calculator = _find_or_create_system("DamageCalculator", DamageCalculatorClass)
+	raven_system = _find_or_create_system("RavenSystem", RavenSystemClass)
+	facility_bonus_manager = _find_or_create_system("FacilityBonusManager", FacilityBonusManagerClass)
+	storm_stage_manager = _find_or_create_system("StormStageManager", StormStageManagerClass)
+
+	# 시스템 간 연결
+	if damage_calculator and facility_bonus_manager:
+		damage_calculator.facility_bonus_manager = facility_bonus_manager
+	if raven_system and facility_bonus_manager:
+		raven_system.facility_bonus_manager = facility_bonus_manager
+	if storm_stage_manager and tile_grid:
+		storm_stage_manager.initialize(tile_grid, self)
+	if raven_system and storm_stage_manager:
+		raven_system.storm_stage_manager = storm_stage_manager
+
+	# RESCUE 미션 매니저
+	rescue_mission_manager = _find_or_create_system("RescueMissionManager", RescueMissionManagerClass)
+	if rescue_mission_manager:
+		rescue_mission_manager.initialize(self)
 
 
 func _find_node_recursive(node_name: String) -> Node:
@@ -148,6 +185,8 @@ func _connect_signals() -> void:
 	EventBus.turret_deployed.connect(_on_turret_deployed)
 	EventBus.turret_destroyed.connect(_on_turret_destroyed)
 	EventBus.crew_selected.connect(_on_external_crew_selected)
+	EventBus.raven_ability_used.connect(_on_raven_ability_used)
+	EventBus.orbital_strike_targeting_started.connect(_on_orbital_strike_targeting_started)
 
 
 func _exit_tree() -> void:
@@ -160,6 +199,8 @@ func _exit_tree() -> void:
 		EventBus.turret_deployed.disconnect(_on_turret_deployed)
 		EventBus.turret_destroyed.disconnect(_on_turret_destroyed)
 		EventBus.crew_selected.disconnect(_on_external_crew_selected)
+		EventBus.raven_ability_used.disconnect(_on_raven_ability_used)
+		EventBus.orbital_strike_targeting_started.disconnect(_on_orbital_strike_targeting_started)
 
 
 func _process(delta: float) -> void:
@@ -169,6 +210,11 @@ func _process(delta: float) -> void:
 	var actual_delta := delta
 	if is_slow_motion:
 		actual_delta *= slow_motion_factor
+
+	# Emergency Evac 처리
+	if is_evacuating:
+		_process_evac(actual_delta)
+		return
 
 	_process_combat(actual_delta)
 	_check_battle_end()
@@ -228,6 +274,16 @@ func start_battle(station: Variant, crew_data_list: Array) -> void:
 	battle_started.emit()
 	EventBus.battle_started.emit()
 
+	# 폭풍 스테이지 체크
+	if _is_storm_station(station):
+		if storm_stage_manager:
+			storm_stage_manager.activate_storm_mode()
+
+	# RESCUE 미션 체크
+	if _is_rescue_station(station):
+		if rescue_mission_manager:
+			rescue_mission_manager.start_rescue_mission(station)
+
 	# 첫 웨이브 시작
 	if wave_manager and wave_manager.has_method("start_next_wave"):
 		wave_manager.start_next_wave()
@@ -236,6 +292,10 @@ func start_battle(station: Variant, crew_data_list: Array) -> void:
 ## 전투 종료
 func end_battle(victory: bool) -> BattleResult:
 	is_battle_active = false
+
+	# 폭풍 모드 비활성화
+	if storm_stage_manager:
+		storm_stage_manager.deactivate_storm_mode()
 
 	var result := BattleResult.new()
 	result.victory = victory
@@ -302,6 +362,10 @@ func _spawn_facilities(station: Variant) -> void:
 		else:
 			# 씬 없으면 더미 데이터만 저장
 			facilities.append({"position": position, "data": data, "is_alive": true})
+
+	# 시설 보너스 매니저 초기화
+	if facility_bonus_manager:
+		facility_bonus_manager.set_facilities(facilities)
 
 
 func _spawn_crews(crew_data_list: Array) -> void:
@@ -594,9 +658,19 @@ func _on_all_waves_cleared() -> void:
 	end_battle(true)
 
 
-func _on_facility_destroyed(_facility: Node) -> void:
-	# 모든 시설 파괴 시에도 계속 진행 (자원 0 획득)
-	pass
+func _on_facility_destroyed(facility: Node) -> void:
+	# 시설 보너스 재계산
+	if facility_bonus_manager:
+		facility_bonus_manager.remove_facility(facility)
+
+	# 해당 시설에서 회복 중인 크루 영구 손실 처리 (Bad North 규칙)
+	for crew in crews:
+		if not _is_crew_alive(crew):
+			continue
+		if crew.has_method("get_recovery_facility"):
+			var recovery_facility = crew.get_recovery_facility()
+			if recovery_facility == facility:
+				crew.on_recovery_facility_destroyed()
 
 
 func _on_turret_deployed(turret: Node, _pos: Vector2i) -> void:
@@ -633,9 +707,84 @@ func unregister_projectile(proj: Node) -> void:
 	projectiles.erase(proj)
 
 
+# ===== EMERGENCY EVAC =====
+
+## 긴급 귀환 시작 (Raven 셔틀 호출)
+func start_emergency_evac() -> bool:
+	if is_evacuating:
+		return false
+
+	if not is_battle_active:
+		return false
+
+	# 살아있는 크루가 있어야 귀환 가능
+	var alive_crews := crews.filter(func(c): return _is_crew_alive(c))
+	if alive_crews.is_empty():
+		return false
+
+	is_evacuating = true
+	evac_timer = EVAC_DELAY
+
+	emergency_evac_started.emit()
+	EventBus.emergency_evac_started.emit()
+	EventBus.show_toast.emit("Raven: 긴급 귀환 셔틀 발진! %.0f초 후 도착" % EVAC_DELAY, Constants.ToastType.WARNING, 3.0)
+
+	return true
+
+
+func _process_evac(delta: float) -> void:
+	evac_timer -= delta
+
+	# 진행률 이벤트
+	var progress: float = 1.0 - (evac_timer / EVAC_DELAY)
+	EventBus.emergency_evac_progress.emit(progress)
+
+	if evac_timer <= 0:
+		_complete_evac()
+
+
+func _complete_evac() -> void:
+	is_evacuating = false
+
+	# 귀환 완료 - 크레딧 0, 크루 생존
+	var result := BattleResult.new()
+	result.victory = true  # 생존으로 취급
+	result.facilities_saved = 0
+	result.facilities_total = facilities.size()
+	result.enemies_killed = enemies_killed
+	result.credits_earned = 0  # 긴급 귀환 = 크레딧 없음
+	result.crew_casualties = []
+
+	is_battle_active = false
+
+	emergency_evac_completed.emit()
+	EventBus.emergency_evac_completed.emit()
+	EventBus.show_toast.emit("Raven: 귀환 완료. 크레딧 획득 없음.", Constants.ToastType.INFO, 3.0)
+
+	battle_ended.emit(result)
+	EventBus.battle_ended.emit(true)
+
+
+## 긴급 귀환 취소 (셔틀 도착 전에만 가능)
+func cancel_emergency_evac() -> bool:
+	if not is_evacuating:
+		return false
+
+	is_evacuating = false
+	evac_timer = 0.0
+
+	EventBus.show_toast.emit("긴급 귀환 취소됨", Constants.ToastType.INFO, 2.0)
+
+	return true
+
+
 # ===== BATTLE END CONDITIONS =====
 
 func _check_battle_end() -> void:
+	# 귀환 중에는 체크 안 함
+	if is_evacuating:
+		return
+
 	# 모든 크루 전멸 = 게임 오버
 	var alive_crews := crews.filter(func(c): return _is_crew_alive(c))
 	if alive_crews.is_empty():
@@ -667,6 +816,10 @@ func _calculate_credits_earned(result: BattleResult) -> int:
 		if equip_id == "salvage_core":
 			var level := _get_equipment_level(crew)
 			credits += [1, 2, 3][clampi(level, 0, 2)]
+
+	# 난이도 크레딧 배율 적용
+	var credit_mult := Constants.get_credit_multiplier(GameState.current_difficulty)
+	credits = int(float(credits) * credit_mult)
 
 	return credits
 
@@ -720,6 +873,46 @@ func _is_enemy(entity: Node) -> bool:
 func _is_in_combat(entity: Node) -> bool:
 	if "is_in_combat" in entity:
 		return entity.is_in_combat
+	return false
+
+
+func _is_storm_station(station: Variant) -> bool:
+	## 폭풍 스테이지인지 확인
+	if station == null:
+		return false
+
+	# Resource 타입 체크
+	if station is Resource:
+		if "is_storm" in station and station.is_storm:
+			return true
+		if "node_type" in station:
+			return station.node_type == Constants.NodeType.STORM
+
+	# Dictionary 타입 체크
+	if station is Dictionary:
+		if station.get("is_storm", false):
+			return true
+		if station.get("node_type", -1) == Constants.NodeType.STORM:
+			return true
+
+	return false
+
+
+func _is_rescue_station(station: Variant) -> bool:
+	## RESCUE 스테이지인지 확인
+	if station == null:
+		return false
+
+	# Resource 타입 체크
+	if station is Resource:
+		if "node_type" in station:
+			return station.node_type == Constants.NodeType.RESCUE
+
+	# Dictionary 타입 체크
+	if station is Dictionary:
+		if station.get("node_type", -1) == Constants.NodeType.RESCUE:
+			return true
+
 	return false
 
 
@@ -796,3 +989,24 @@ func _get_world_mouse_position() -> Vector2:
 ## TileGrid 접근자 (다른 시스템에서 사용)
 func get_tile_grid() -> Node:
 	return tile_grid
+
+
+# ===== RAVEN ABILITY HANDLERS =====
+
+## Raven 능력 사용 요청 (RavenPanel에서 호출)
+func _on_raven_ability_used(ability: int) -> void:
+	if raven_system == null:
+		push_warning("BattleController: RavenSystem not initialized")
+		return
+
+	# Scout은 타겟팅 없이 즉시 실행
+	if ability == Constants.RavenAbility.SCOUT:
+		raven_system.execute_ability(ability)
+	else:
+		# Flare, Resupply, Orbital Strike는 타겟팅 필요
+		start_raven_targeting(ability)
+
+
+## Orbital Strike 타겟팅 시작 (RavenPanel에서 직접 호출 시)
+func _on_orbital_strike_targeting_started() -> void:
+	start_raven_targeting(Constants.RavenAbility.ORBITAL_STRIKE)

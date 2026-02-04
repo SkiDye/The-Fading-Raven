@@ -176,6 +176,14 @@ func _die() -> void:
 	died.emit()
 
 
+## 크루원을 즉사시킵니다 (외부 호출용).
+func die() -> void:
+	if not is_alive:
+		return
+	current_hp = 0
+	_die()
+
+
 # ===== RECOVERY =====
 
 ## 크루원을 부활시킵니다.

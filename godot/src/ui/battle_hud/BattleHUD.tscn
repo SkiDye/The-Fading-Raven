@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://battlehud001"]
+[gd_scene load_steps=7 format=3 uid="uid://battlehud001"]
 
 [ext_resource type="Script" path="res://src/ui/battle_hud/BattleHUD.gd" id="1_battlehud"]
 [ext_resource type="Script" path="res://src/ui/battle_hud/CrewPanel.gd" id="2_crewpanel"]
 [ext_resource type="Script" path="res://src/ui/battle_hud/WaveIndicator.gd" id="3_waveindicator"]
 [ext_resource type="Script" path="res://src/ui/battle_hud/RavenPanel.gd" id="4_ravenpanel"]
 [ext_resource type="Script" path="res://src/ui/battle_hud/FacilityStatus.gd" id="5_facilitystatus"]
+[ext_resource type="Script" path="res://src/ui/battle_hud/WaveDirectionArrows.gd" id="6_wavearrows"]
 
 [node name="BattleHUD" type="CanvasLayer"]
 layer = 10
@@ -175,6 +176,102 @@ theme_override_font_sizes/font_size = 32
 text = "PAUSED"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="CommandPanel" type="HBoxContainer" parent="."]
+visible = false
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -120.0
+offset_right = 150.0
+offset_bottom = -70.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="MoveBtn" type="Button" parent="CommandPanel"]
+custom_minimum_size = Vector2(80, 44)
+layout_mode = 2
+tooltip_text = "Move to tile"
+text = "Move"
+
+[node name="SkillBtn" type="Button" parent="CommandPanel"]
+custom_minimum_size = Vector2(80, 44)
+layout_mode = 2
+tooltip_text = "Use squad skill"
+text = "Skill"
+
+[node name="ResupplyBtn" type="Button" parent="CommandPanel"]
+custom_minimum_size = Vector2(100, 44)
+layout_mode = 2
+tooltip_text = "Resupply at facility"
+text = "Resupply"
+
+[node name="EvacButton" type="Button" parent="BottomPanel"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+text = "Emergency Evac"
+
+[node name="EvacProgress" type="ProgressBar" parent="BottomPanel"]
+visible = false
+custom_minimum_size = Vector2(100, 20)
+layout_mode = 2
+show_percentage = false
+
+[node name="WaveDirectionArrows" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("6_wavearrows")
+
+[node name="FinalWaveLabel" type="Label" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -30.0
+offset_right = 150.0
+offset_bottom = 30.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 48
+text = "FINAL WAVE"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CameraButtons" type="HBoxContainer" parent="."]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -120.0
+offset_top = -50.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/separation = 4
+
+[node name="RotateLeftBtn" type="Button" parent="CameraButtons"]
+custom_minimum_size = Vector2(50, 40)
+layout_mode = 2
+tooltip_text = "Rotate camera left (Q)"
+text = "Q ↶"
+
+[node name="RotateRightBtn" type="Button" parent="CameraButtons"]
+custom_minimum_size = Vector2(50, 40)
+layout_mode = 2
+tooltip_text = "Rotate camera right (E)"
+text = "↷ E"
 
 [node name="SkillTargetingOverlay" type="Control" parent="."]
 visible = false

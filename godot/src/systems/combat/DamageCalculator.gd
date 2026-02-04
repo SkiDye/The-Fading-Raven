@@ -20,6 +20,7 @@ extends Node
 # ===== REFERENCES =====
 
 var _battle_controller: Node = null
+var facility_bonus_manager = null  # FacilityBonusManager
 
 
 func _ready() -> void:
@@ -58,6 +59,9 @@ func calculate_damage(
 
 	# 공격자 특성 보너스
 	damage = _apply_attacker_traits(attacker, damage, damage_type, result)
+
+	# 시설 보너스 (무기고: 크루 데미지 +20%)
+	damage = _apply_facility_bonus(attacker, damage, result)
 
 	# 방어자 특성/방어 보너스
 	damage = _apply_defender_modifiers(defender, damage, damage_type, result)
@@ -210,6 +214,28 @@ func _apply_attacker_traits(
 				var bonus := (1.0 - hp_ratio) * 0.5  # 최대 +50%
 				damage *= (1.0 + bonus)
 				result.modifiers.append("berserker_+%d%%" % int(bonus * 100))
+
+	return damage
+
+
+# ===== FACILITY BONUS =====
+
+func _apply_facility_bonus(
+	attacker: Node,
+	damage: float,
+	result: Dictionary
+) -> float:
+	# 크루만 시설 보너스 적용
+	if not attacker.is_in_group("crews"):
+		return damage
+
+	if facility_bonus_manager == null:
+		return damage
+
+	var bonus: float = facility_bonus_manager.get_crew_damage_bonus()
+	if bonus > 0:
+		damage *= (1.0 + bonus)
+		result.modifiers.append("armory_+%d%%" % int(bonus * 100))
 
 	return damage
 

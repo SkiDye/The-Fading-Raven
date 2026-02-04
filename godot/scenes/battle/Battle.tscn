@@ -176,8 +176,34 @@ offset_right = 200.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_font_sizes/font_size = 12
-text = "[LMB] Select | [RMB] Move/Attack | [Q] Skill | [Space] Pause | [ESC] Menu"
+text = "[LMB] Select | [RMB] Move/Attack | [R] Skill | [Q/E] Rotate | [ESC] Menu"
 horizontal_alignment = 1
+
+[node name="CameraButtons" type="HBoxContainer" parent="UI/BattleHUD"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -130.0
+offset_top = -50.0
+offset_right = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/separation = 4
+
+[node name="RotateLeftBtn" type="Button" parent="UI/BattleHUD/CameraButtons"]
+custom_minimum_size = Vector2(50, 40)
+layout_mode = 2
+tooltip_text = "Rotate camera left (Q)"
+text = "Q ↶"
+
+[node name="RotateRightBtn" type="Button" parent="UI/BattleHUD/CameraButtons"]
+custom_minimum_size = Vector2(50, 40)
+layout_mode = 2
+tooltip_text = "Rotate camera right (E)"
+text = "↷ E"
 
 [node name="PauseOverlay" type="ColorRect" parent="UI"]
 visible = false

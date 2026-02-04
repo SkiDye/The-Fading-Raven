@@ -12,13 +12,17 @@ one_shot = true
 
 [node name="RecoveryTimer" type="Timer" parent="."]
 
-[node name="SelectionIndicator" type="ColorRect" parent="."]
+[node name="SelectionIndicator" type="Node2D" parent="."]
 visible = false
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-color = Color(0.2, 0.8, 0.2, 0.3)
+position = Vector2(0, -40)
+
+[node name="Circle" type="Polygon2D" parent="SelectionIndicator"]
+color = Color(0.3, 0.9, 0.3, 0.9)
+polygon = PackedVector2Array(-8, 0, -7, -4, -5.6, -5.6, -4, -7, 0, -8, 4, -7, 5.6, -5.6, 7, -4, 8, 0, 7, 4, 5.6, 5.6, 4, 7, 0, 8, -4, 7, -5.6, 5.6, -7, 4)
+
+[node name="InnerCircle" type="Polygon2D" parent="SelectionIndicator"]
+color = Color(0.1, 0.4, 0.1, 0.9)
+polygon = PackedVector2Array(-5, 0, -4.4, -2.5, -3.5, -3.5, -2.5, -4.4, 0, -5, 2.5, -4.4, 3.5, -3.5, 4.4, -2.5, 5, 0, 4.4, 2.5, 3.5, 3.5, 2.5, 4.4, 0, 5, -2.5, 4.4, -3.5, 3.5, -4.4, 2.5)
 
 [node name="ClassIcon" type="Sprite2D" parent="."]
 position = Vector2(0, -24)

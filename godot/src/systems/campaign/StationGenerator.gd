@@ -10,6 +10,9 @@ extends RefCounted
 ## var station = generator.generate(12345, 2.5)  # 난이도 점수 2.5
 ## [/codeblock]
 
+const UtilsClass = preload("res://src/utils/Utils.gd")
+const SeededRNGClass = preload("res://src/systems/campaign/SeededRNG.gd")
+
 
 # ===== INNER CLASSES =====
 
@@ -115,12 +118,12 @@ class BSPNode:
 
 # ===== GENERATOR =====
 
-var _rng: SeededRNG
+var _rng  # SeededRNG - type hint removed
 
 
 func generate(seed: int, difficulty_score: float) -> StationLayout:
 	## 스테이션 레이아웃 생성
-	_rng = SeededRNG.new(seed)
+	_rng = SeededRNGClass.new(seed)
 
 	var data := StationLayout.new()
 	data.seed = seed
@@ -278,7 +281,7 @@ func _connect_rooms(data: StationLayout, rooms: Array[Rect2i]) -> void:
 
 		for from_idx in connected:
 			for to_idx in unconnected:
-				var dist := Utils.manhattan_distance(centers[from_idx], centers[to_idx])
+				var dist := UtilsClass.manhattan_distance(centers[from_idx], centers[to_idx])
 				if dist < best_dist:
 					best_dist = dist
 					best_from = from_idx

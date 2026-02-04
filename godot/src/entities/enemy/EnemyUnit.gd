@@ -5,6 +5,7 @@ extends Entity
 ## 15종 일반 적 + 2종 보스 구현
 ## 각 적의 특수 메카닉 포함
 
+const EnemyDataClass = preload("res://src/data/EnemyData.gd")
 
 # ===== SIGNALS =====
 
@@ -15,7 +16,7 @@ signal landing_completed()
 
 # ===== EXPORTS =====
 
-@export var enemy_data: EnemyData
+@export var enemy_data: Resource  # EnemyData
 
 
 # ===== PUBLIC VARIABLES =====
@@ -120,7 +121,7 @@ func _initialize_from_data() -> void:
 	entity_id = "enemy_%s_%d" % [enemy_data.id, randi()]
 
 
-func initialize(data: EnemyData, spawn_point: Vector2i, difficulty: int = Constants.Difficulty.NORMAL, wave_num: int = 1) -> void:
+func initialize(data, spawn_point: Vector2i, difficulty: int = Constants.Difficulty.NORMAL, wave_num: int = 1) -> void:
 	enemy_data = data
 	entry_point = spawn_point
 	tile_position = spawn_point
@@ -304,7 +305,7 @@ func _process_drone_carrier(delta: float) -> void:
 
 
 func _spawn_drones() -> void:
-	var drone_data: EnemyData = Constants.get_enemy("attack_drone")
+	var drone_data = Constants.get_enemy("attack_drone")
 	if drone_data == null:
 		push_warning("EnemyUnit._spawn_drones: attack_drone data not found")
 		return
@@ -317,14 +318,14 @@ func _spawn_drones() -> void:
 	special_ability_used.emit("spawn_drones")
 
 
-func _create_enemy_child(data: EnemyData) -> EnemyUnit:
+func _create_enemy_child(data) -> Node:
 	var scene_path := "res://src/entities/enemy/EnemyUnit.tscn"
 	if not ResourceLoader.exists(scene_path):
 		push_warning("EnemyUnit._create_enemy_child: scene not found")
 		return null
 
 	var scene: PackedScene = load(scene_path)
-	var enemy: EnemyUnit = scene.instantiate()
+	var enemy = scene.instantiate()
 	enemy.initialize(data, tile_position)
 	enemy.global_position = global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
 	enemy.has_landed = true
@@ -580,7 +581,7 @@ func captain_charge_attack(direction: Vector2) -> bool:
 
 
 func captain_summon_reinforcements() -> void:
-	var rusher_data: EnemyData = Constants.get_enemy("rusher")
+	var rusher_data = Constants.get_enemy("rusher")
 	if rusher_data == null:
 		return
 

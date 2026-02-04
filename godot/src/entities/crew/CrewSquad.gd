@@ -4,10 +4,11 @@ extends Entity
 ## 크루 스쿼드
 ## 여러 CrewMember를 관리하고 이동, 전투, 스킬을 처리
 
+const CrewMemberClass = preload("res://src/entities/crew/CrewMember.gd")
 
 # ===== SIGNALS =====
 
-signal member_died(member: CrewMember)
+signal member_died(member: Node)
 signal squad_wiped()
 signal skill_ready()
 signal skill_cooldown_changed(remaining: float, total: float)
@@ -34,8 +35,8 @@ const MEMBER_SCENE_PATH = "res://src/entities/crew/CrewMember.tscn"
 
 # ===== PUBLIC VARIABLES =====
 
-var members: Array[CrewMember] = []
-var leader: CrewMember
+var members: Array = []  # Array of CrewMember
+var leader  # CrewMember
 var current_target: Node
 var is_in_combat: bool = false
 var is_recovering: bool = false
@@ -57,7 +58,7 @@ var _max_recovery_ticks: int = 10
 @onready var members_container: Node2D = $Members
 @onready var skill_cooldown_timer: Timer = $SkillCooldownTimer
 @onready var recovery_timer: Timer = $RecoveryTimer
-@onready var selection_indicator: ColorRect = $SelectionIndicator
+@onready var selection_indicator: Node2D = $SelectionIndicator
 
 
 # ===== LIFECYCLE =====
@@ -200,7 +201,7 @@ func _spawn_members(count: int, stats: Dictionary) -> void:
 	members.clear()
 
 	for i in range(count):
-		var member: CrewMember = _member_scene.instantiate()
+		var member = _member_scene.instantiate()
 		member.squad = self
 		member.is_leader = (i == 0)
 		member.initialize(
@@ -314,18 +315,38 @@ func _update_member_positions() -> void:
 
 # ===== COMMANDS =====
 
+## 명령 가능 여부를 반환합니다.
+func can_receive_command() -> bool:
+	# Resupply(회복) 중에는 명령 불가 - 취소 불가
+	if is_recovering:
+		return false
+	return true
+
+
 ## 이동 명령을 내립니다.
 ## [param target_tile]: 목표 타일
 ## [param path]: 경로 (타일 배열)
-func command_move(target_tile: Vector2i, path: Array[Vector2i]) -> void:
-	stop_recovery()
+## [return]: 성공 여부
+func command_move(target_tile: Vector2i, path: Array[Vector2i]) -> bool:
+	# Resupply 중에는 명령 불가
+	if not can_receive_command():
+		EventBus.show_toast.emit("회복 중에는 이동할 수 없습니다!", Constants.ToastType.WARNING, 2.0)
+		return false
+
 	move_along_path(path)
 	EventBus.move_command_issued.emit(self, target_tile)
+	return true
 
 
 ## 공격 명령을 내립니다.
 ## [param target]: 공격 대상
-func command_attack(target: Node) -> void:
+## [return]: 성공 여부
+func command_attack(target: Node) -> bool:
+	# Resupply 중에는 명령 불가
+	if not can_receive_command():
+		EventBus.show_toast.emit("회복 중에는 공격할 수 없습니다!", Constants.ToastType.WARNING, 2.0)
+		return false
+
 	current_target = target
 	is_in_combat = true
 	target_changed.emit(target)
@@ -333,16 +354,24 @@ func command_attack(target: Node) -> void:
 	for member in members:
 		if member.is_alive:
 			member.set_target(target)
+	return true
 
 
 ## 정지 명령을 내립니다.
-func command_stop() -> void:
+## [return]: 성공 여부
+func command_stop() -> bool:
+	# Resupply 중에는 명령 불가
+	if not can_receive_command():
+		EventBus.show_toast.emit("회복 중에는 정지할 수 없습니다!", Constants.ToastType.WARNING, 2.0)
+		return false
+
 	stop_movement()
 	current_target = null
 	is_in_combat = false
 
 	for member in members:
 		member.clear_target()
+	return true
 
 
 # ===== COMBAT =====
@@ -384,6 +413,9 @@ func _on_skill_cooldown_timeout() -> void:
 
 ## 스킬 사용 가능 여부를 반환합니다.
 func can_use_skill() -> bool:
+	# Resupply 중에는 스킬 사용 불가
+	if is_recovering:
+		return false
 	return skill_cooldown_remaining <= 0 and not is_stunned and is_alive
 
 
@@ -489,35 +521,83 @@ func use_equipment() -> bool:
 
 # ===== RECOVERY =====
 
-## 회복을 시작합니다.
-func start_recovery(facility: Node = null) -> void:
+var _recovery_facility: Node = null  # 현재 회복 중인 시설
+
+
+## 회복을 시작합니다. (취소 불가 - Bad North 규칙)
+## [param facility]: 회복에 사용할 시설
+## [return]: 성공 여부
+func start_recovery(facility: Node = null) -> bool:
 	if is_recovering:
-		return
+		EventBus.show_toast.emit("이미 회복 중입니다!", Constants.ToastType.WARNING, 2.0)
+		return false
 
 	if get_alive_count() >= get_max_squad_size():
-		return
+		EventBus.show_toast.emit("이미 완전 회복 상태입니다!", Constants.ToastType.INFO, 2.0)
+		return false
+
+	# 시설이 필요 (온전한 집 필요 - Bad North)
+	if facility == null:
+		EventBus.show_toast.emit("회복하려면 시설이 필요합니다!", Constants.ToastType.WARNING, 2.0)
+		return false
+
+	# 시설이 파괴되었는지 체크
+	if facility.has_method("is_destroyed") and facility.is_destroyed():
+		EventBus.show_toast.emit("파괴된 시설에서는 회복할 수 없습니다!", Constants.ToastType.WARNING, 2.0)
+		return false
 
 	is_recovering = true
 	_recovery_tick_count = 0
+	_recovery_facility = facility
 
+	# 회복 시간: 2초 × 손실 분대원 수
 	var recovery_time = _get_total_recovery_time(facility)
 	recovery_timer.wait_time = recovery_time / _max_recovery_ticks
 	recovery_timer.start()
 
+	# 이동 중지
+	stop_movement()
+
 	EventBus.crew_recovery_started.emit(self, facility)
+	EventBus.show_toast.emit("회복 시작 (%.1f초)" % recovery_time, Constants.ToastType.INFO, 2.0)
+	return true
 
 
 func _get_total_recovery_time(facility: Node) -> float:
-	var base_time = (get_max_squad_size() - get_alive_count()) * Constants.BALANCE.recovery_time_per_unit
+	# 회복 시간 = 2초 × 손실 분대원 수 (Bad North 규칙)
+	var lost_count = get_max_squad_size() - get_alive_count()
+	var base_time = lost_count * Constants.BALANCE.recovery_time_per_unit
 
+	# Quick Recovery 특성 (33% 감소)
 	if trait_id == "quick_recovery":
 		base_time *= 0.67
 
-	if facility and facility.has_method("get_facility_id"):
-		if facility.get_facility_id() == "medical":
-			base_time *= 0.5
+	# Medical 시설 보너스 (50% 감소) - FacilityBonusManager 사용
+	var recovery_bonus: float = _get_recovery_speed_bonus()
+	if recovery_bonus > 0:
+		base_time *= (1.0 - recovery_bonus)
 
 	return base_time
+
+
+func _get_recovery_speed_bonus() -> float:
+	var battle_controller := _find_battle_controller()
+	if battle_controller and "facility_bonus_manager" in battle_controller:
+		var manager = battle_controller.facility_bonus_manager
+		if manager and manager.has_method("get_recovery_speed_bonus"):
+			return manager.get_recovery_speed_bonus()
+	return 0.0
+
+
+func _find_battle_controller() -> Node:
+	var current := get_parent()
+	while current != null:
+		if current is BattleController:
+			return current
+		if current.name == "BattleController":
+			return current
+		current = current.get_parent()
+	return null
 
 
 func _on_recovery_tick() -> void:
@@ -548,16 +628,38 @@ func _revive_one_member() -> void:
 
 func _complete_recovery() -> void:
 	is_recovering = false
+	_recovery_facility = null
 	recovery_timer.stop()
 	recovery_completed.emit()
 	EventBus.crew_recovery_completed.emit(self)
+	EventBus.show_toast.emit("회복 완료!", Constants.ToastType.SUCCESS, 2.0)
 
 
-## 회복을 중단합니다.
-func stop_recovery() -> void:
-	if is_recovering:
-		is_recovering = false
-		recovery_timer.stop()
+## 회복 중인 시설이 파괴될 때 호출됩니다.
+## 회복 중 시설 파괴 = 영구 손실 (Bad North 규칙)
+func on_recovery_facility_destroyed() -> void:
+	if not is_recovering:
+		return
+
+	is_recovering = false
+	_recovery_facility = null
+	recovery_timer.stop()
+
+	# 영구 손실: 모든 멤버 즉사
+	EventBus.show_toast.emit("시설 파괴! 회복 중인 크루 영구 손실!", Constants.ToastType.ERROR, 3.0)
+
+	for member in members:
+		if member.is_alive:
+			member.die()
+
+	current_hp = 0
+	health_changed.emit(0, max_hp)
+	_on_squad_wiped()
+
+
+## 현재 회복 중인 시설을 반환합니다.
+func get_recovery_facility() -> Node:
+	return _recovery_facility
 
 
 # ===== MEMBER MANAGEMENT =====
@@ -582,7 +684,7 @@ func get_max_squad_size() -> int:
 	return size
 
 
-func _on_member_died(member: CrewMember) -> void:
+func _on_member_died(member: Node) -> void:
 	member_died.emit(member)
 	EventBus.crew_member_died.emit(self, member)
 
@@ -590,6 +692,20 @@ func _on_member_died(member: CrewMember) -> void:
 	current_hp = get_alive_count() * stats.hp
 	health_changed.emit(current_hp, max_hp)
 
+	# 리더(지휘관) 사망 = 스쿼드 전멸 (Bad North 규칙)
+	# 지휘관이 죽으면 남은 병사도 모두 사망 처리
+	if member == leader or (member.has_method("is_leader") and member.is_leader):
+		EventBus.show_toast.emit("지휘관 전사! 분대 전멸!", Constants.ToastType.ERROR, 3.0)
+		# 남은 병사도 모두 사망 처리
+		for m in members:
+			if m != member and m.is_alive:
+				m.die()
+		current_hp = 0
+		health_changed.emit(0, max_hp)
+		_on_squad_wiped()
+		return
+
+	# 모든 멤버 사망 = 스쿼드 전멸
 	if get_alive_count() == 0:
 		_on_squad_wiped()
 
@@ -618,18 +734,30 @@ func _calculate_actual_damage(amount: int, damage_type: int, source: Node) -> in
 
 
 ## 데미지를 받고 멤버에게 분배합니다.
+## 지휘관 무적 조건: 병사 1명+ 생존 시 지휘관 무적 (Bad North 규칙)
 func take_damage(amount: int, damage_type: int, source: Node = null) -> int:
 	var actual = super.take_damage(amount, damage_type, source)
 
-	# 랜덤 멤버에게 데미지 분배
-	var alive_members: Array[CrewMember] = []
-	for member in members:
-		if member.is_alive:
-			alive_members.append(member)
+	# 살아있는 멤버 분류 (리더 vs 일반 병사)
+	var alive_soldiers: Array = []  # 리더가 아닌 일반 병사
+	var alive_leader: Node = null
 
-	if alive_members.size() > 0:
-		var target_member = alive_members[randi() % alive_members.size()]
+	for member in members:
+		if not member.is_alive:
+			continue
+		if member == leader or (member.has_method("is_leader") and member.is_leader):
+			alive_leader = member
+		else:
+			alive_soldiers.append(member)
+
+	# 지휘관 무적 조건: 병사가 1명 이상 있으면 리더 대신 병사가 피해
+	if alive_soldiers.size() > 0:
+		# 일반 병사 중 랜덤하게 데미지 분배
+		var target_member = alive_soldiers[randi() % alive_soldiers.size()]
 		target_member.take_damage(actual)
+	elif alive_leader != null:
+		# 리더만 남음 - 리더에게 데미지 (이후 스쿼드 전멸)
+		alive_leader.take_damage(actual)
 
 	return actual
 

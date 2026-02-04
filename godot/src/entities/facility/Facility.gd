@@ -4,6 +4,7 @@ extends Node2D
 ## 스테이션 시설 엔티티
 ## 적에게 공격받으면 파괴될 수 있으며, 방어 시 크레딧 획득
 
+const UtilsClass = preload("res://src/utils/Utils.gd")
 
 # ===== SIGNALS =====
 
@@ -17,7 +18,7 @@ signal crew_recovery_completed(crew: Node)
 
 # ===== EXPORTED =====
 
-@export var facility_data: FacilityData
+@export var facility_data: Resource  # FacilityData
 
 @export_group("State")
 @export var tile_position: Vector2i = Vector2i.ZERO
@@ -69,11 +70,11 @@ func _connect_signals() -> void:
 
 # ===== PUBLIC API =====
 
-func initialize(data: FacilityData, pos: Vector2i) -> void:
+func initialize(data, pos: Vector2i) -> void:
 	## 시설 초기화
 	facility_data = data
 	tile_position = pos
-	position = Utils.tile_to_world(pos)
+	position = UtilsClass.tile_to_world(pos)
 
 	_max_hp = data.max_hp
 	current_hp = _max_hp
@@ -169,6 +170,13 @@ func start_crew_recovery(crew: Node) -> bool:
 	var recovery_time := RECOVERY_TIME_PER_UNIT * 4  # 기본 4유닛 가정
 	if crew.has_method("get_lost_count"):
 		recovery_time = RECOVERY_TIME_PER_UNIT * crew.get_lost_count()
+
+	# 의료 시설 보너스 적용: recovery_speed가 0.5면 시간 50% 감소
+	var recovery_bonus: float = 0.0
+	if facility_data and "passive_bonus" in facility_data:
+		recovery_bonus = facility_data.passive_bonus.get("recovery_speed", 0.0)
+	if recovery_bonus > 0:
+		recovery_time *= (1.0 - recovery_bonus)
 
 	if recovery_timer:
 		recovery_timer.start(recovery_time)

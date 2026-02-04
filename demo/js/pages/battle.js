@@ -18,6 +18,7 @@ const BattleController = {
     timeScale: 1,
     slowMotionActive: false,
     slowMotionDuration: 0,
+    tacticalModeActive: false, // Auto slow-mo when crew selected
     SLOW_MOTION_SCALE: 0.3,
 
     // Layout
@@ -497,8 +498,7 @@ const BattleController = {
 
         // Deselect button
         document.getElementById('btn-deselect')?.addEventListener('click', () => {
-            this.selectedCrew = null;
-            this.updateCrewButtonSelection();
+            this.deselectCrew();
         });
 
         window.addEventListener('resize', Utils.debounce(() => {
@@ -807,8 +807,7 @@ const BattleController = {
             } else if (this.paused) {
                 this.togglePause();
             } else {
-                this.selectedCrew = null;
-                this.updateCrewButtonSelection();
+                this.deselectCrew();
             }
         }
 
@@ -1210,8 +1209,38 @@ const BattleController = {
     // ==========================================
 
     selectCrew(crewId) {
+        const previousSelection = this.selectedCrew;
         this.selectedCrew = this.crews.find(c => c.id === crewId) || null;
         this.updateCrewButtonSelection();
+
+        // Tactical Mode: Auto slow-motion on crew selection (Bad North style)
+        if (this.selectedCrew && !previousSelection) {
+            this.enterTacticalMode();
+        }
+    },
+
+    deselectCrew() {
+        if (this.selectedCrew) {
+            this.selectedCrew = null;
+            this.updateCrewButtonSelection();
+            this.exitTacticalMode();
+        }
+    },
+
+    enterTacticalMode() {
+        if (!this.tacticalModeActive) {
+            this.tacticalModeActive = true;
+            this.timeScale = this.SLOW_MOTION_SCALE;
+            this.elements.slowMotionIndicator?.classList.add('active');
+        }
+    },
+
+    exitTacticalMode() {
+        if (this.tacticalModeActive && !this.targetingMode) {
+            this.tacticalModeActive = false;
+            this.timeScale = 1;
+            this.elements.slowMotionIndicator?.classList.remove('active');
+        }
     },
 
     updateCrewButtonSelection() {
