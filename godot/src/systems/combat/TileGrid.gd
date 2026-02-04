@@ -5,8 +5,11 @@ extends Node2D
 ## [br][br]
 ## 경로 탐색, 시야선 계산, 타일 관리 등 전투 맵의 핵심 기능을 제공합니다.
 
-# Preload to ensure class is available
-const GridTileDataClass = preload("res://src/systems/combat/TileData.gd")
+# Load at runtime to avoid circular reference issues
+var GridTileDataClass: GDScript
+
+func _init() -> void:
+	GridTileDataClass = load("res://src/systems/combat/TileData.gd")
 
 
 # ===== SIGNALS =====
@@ -58,7 +61,7 @@ func initialize(w: int, h: int) -> void:
 	for y in range(height):
 		var row: Array = []
 		for x in range(width):
-			var tile := GridTileDataClass.new(Vector2i(x, y), Constants.TileType.FLOOR)
+			var tile = GridTileDataClass.new(Vector2i(x, y), Constants.TileType.FLOOR)
 			row.append(tile)
 		tiles.append(row)
 
@@ -85,7 +88,7 @@ func initialize_from_station_data(station) -> void:
 		var row: Array = []
 		for x in range(width):
 			var tile_type: Constants.TileType = station.tiles[y][x]
-			var tile := GridTileDataClass.new(Vector2i(x, y), tile_type)
+			var tile = GridTileDataClass.new(Vector2i(x, y), tile_type)
 
 			# 고도 설정
 			if station.get("height_map") and station.height_map.size() > y:
@@ -129,7 +132,7 @@ func set_tile_type(pos: Vector2i, new_type: Constants.TileType) -> void:
 		return
 
 	var tile = tiles[pos.y][pos.x]
-	var old_type := tile.type
+	var old_type: Constants.TileType = tile.type
 	tile.type = new_type
 	tile_changed.emit(pos, old_type, new_type)
 
@@ -147,7 +150,7 @@ func is_valid_position(pos: Vector2i) -> bool:
 ## [param pos]: 타일 좌표
 ## [return]: 이동 가능 여부
 func is_walkable(pos: Vector2i) -> bool:
-	var tile := get_tile(pos)
+	var tile = get_tile(pos)
 	if tile == null:
 		return false
 	return tile.is_walkable() and tile.occupant == null
@@ -158,7 +161,7 @@ func is_walkable(pos: Vector2i) -> bool:
 ## [param pos]: 타일 좌표
 ## [return]: 이동 가능 여부
 func is_walkable_ignore_occupant(pos: Vector2i) -> bool:
-	var tile := get_tile(pos)
+	var tile = get_tile(pos)
 	if tile == null:
 		return false
 	return tile.is_walkable()
@@ -171,11 +174,11 @@ func is_walkable_ignore_occupant(pos: Vector2i) -> bool:
 ## [param pos]: 타일 좌표
 ## [param occupant]: 점유할 엔티티
 func set_occupant(pos: Vector2i, occupant: Node) -> void:
-	var tile := get_tile(pos)
+	var tile = get_tile(pos)
 	if tile == null:
 		return
 
-	var old_occupant := tile.occupant
+	var old_occupant: Node = tile.occupant
 	tile.occupant = occupant
 	occupant_changed.emit(pos, old_occupant, occupant)
 
@@ -192,7 +195,7 @@ func clear_occupant(pos: Vector2i) -> void:
 ## [param pos]: 타일 좌표
 ## [return]: 점유 엔티티 또는 null
 func get_occupant(pos: Vector2i) -> Node:
-	var tile := get_tile(pos)
+	var tile = get_tile(pos)
 	if tile == null:
 		return null
 	return tile.occupant
@@ -371,7 +374,7 @@ func get_tiles_in_direction(from: Vector2i, direction: Vector2, max_distance: in
 			result.append(tile_pos)
 
 			# 벽에 막히면 중단
-			var tile := get_tile(tile_pos)
+			var tile = get_tile(tile_pos)
 			if tile and tile.is_blocking_los():
 				break
 
@@ -417,7 +420,7 @@ func tile_to_world_top_left(tile_pos: Vector2i) -> Vector2:
 ## [param pos]: 타일 좌표
 ## [return]: 고도 값
 func get_elevation(pos: Vector2i) -> int:
-	var tile := get_tile(pos)
+	var tile = get_tile(pos)
 	if tile == null:
 		return 0
 	return tile.elevation
@@ -470,7 +473,7 @@ func get_facility_tiles() -> Array[Vector2i]:
 ## [param pos]: 타일 좌표
 ## [param facility]: 시설 노드
 func set_facility(pos: Vector2i, facility: Node) -> void:
-	var tile := get_tile(pos)
+	var tile = get_tile(pos)
 	if tile:
 		tile.facility = facility
 		tile.type = Constants.TileType.FACILITY
@@ -481,7 +484,7 @@ func set_facility(pos: Vector2i, facility: Node) -> void:
 ## [param pos]: 타일 좌표
 ## [return]: 시설 노드 또는 null
 func get_facility_at(pos: Vector2i) -> Node:
-	var tile := get_tile(pos)
+	var tile = get_tile(pos)
 	if tile:
 		return tile.facility
 	return null
