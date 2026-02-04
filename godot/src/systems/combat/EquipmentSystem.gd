@@ -63,7 +63,7 @@ func can_use(crew: Node) -> bool:
 	if "is_stunned" in crew and crew.is_stunned:
 		return false
 
-	var equipment_data := _get_equipment_data(crew)
+	var equipment_data: Variant = _get_equipment_data(crew)
 	if equipment_data == null:
 		return false
 
@@ -89,7 +89,7 @@ func execute_equipment(crew: Node, target: Variant = null) -> bool:
 		equipment_failed.emit(crew, _get_equipment_id(crew), "equipment_not_ready")
 		return false
 
-	var equipment_data := _get_equipment_data(crew)
+	var equipment_data: Variant = _get_equipment_data(crew)
 	if equipment_data == null:
 		return false
 
@@ -128,7 +128,7 @@ func execute_equipment(crew: Node, target: Variant = null) -> bool:
 func get_stat_modifiers(crew: Node) -> Dictionary:
 	var modifiers: Dictionary = {}
 
-	var equipment_data := _get_equipment_data(crew)
+	var equipment_data: Variant = _get_equipment_data(crew)
 	if equipment_data == null:
 		return modifiers
 
@@ -161,7 +161,7 @@ func get_cooldown_percent(crew: Node) -> float:
 	if not crew_cooldowns.has(equipment_id):
 		return 0.0
 
-	var equipment_data := _get_equipment_data(crew)
+	var equipment_data: Variant = _get_equipment_data(crew)
 	if equipment_data == null:
 		return 0.0
 
@@ -185,7 +185,7 @@ func reset_charges_for_stage() -> void:
 ## 크루 등록 (스테이지 시작 시)
 func register_crew(crew: Node) -> void:
 	var crew_id := _get_crew_entity_id(crew)
-	var equipment_data := _get_equipment_data(crew)
+	var equipment_data: Variant = _get_equipment_data(crew)
 
 	if equipment_data == null:
 		return

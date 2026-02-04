@@ -51,11 +51,11 @@ func get_los_tiles(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 	var x1 := to.x
 	var y1 := to.y
 
-	var dx := abs(x1 - x0)
-	var dy := abs(y1 - y0)
-	var sx := 1 if x0 < x1 else -1
-	var sy := 1 if y0 < y1 else -1
-	var err := dx - dy
+	var dx: int = abs(x1 - x0)
+	var dy: int = abs(y1 - y0)
+	var sx: int = 1 if x0 < x1 else -1
+	var sy: int = 1 if y0 < y1 else -1
+	var err: int = dx - dy
 
 	while true:
 		result.append(Vector2i(x0, y0))
@@ -63,7 +63,7 @@ func get_los_tiles(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 		if x0 == x1 and y0 == y1:
 			break
 
-		var e2 := 2 * err
+		var e2: int = 2 * err
 
 		if e2 > -dy:
 			err -= dy
@@ -222,7 +222,7 @@ func check_cover(from: Vector2i, to: Vector2i) -> Dictionary:
 		# 부분 엄폐 체크
 		if tile.is_partial_cover():
 			has_cover = true
-			var reduction := tile.get_cover_reduction()
+			var reduction: float = tile.get_cover_reduction()
 			if reduction > max_reduction:
 				max_reduction = reduction
 
@@ -230,7 +230,7 @@ func check_cover(from: Vector2i, to: Vector2i) -> Dictionary:
 	var target_tile := grid.get_tile(to)
 	if target_tile and target_tile.is_partial_cover():
 		has_cover = true
-		var reduction := target_tile.get_cover_reduction()
+		var reduction: float = target_tile.get_cover_reduction()
 		if reduction > max_reduction:
 			max_reduction = reduction
 

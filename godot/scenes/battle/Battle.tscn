@@ -25,6 +25,7 @@ width = 20
 height = 15
 
 [node name="TileVisuals" type="TileMap" parent="TileGridContainer"]
+format = 2
 
 [node name="EntityContainer" type="Node2D" parent="."]
 
@@ -54,14 +55,6 @@ script = ExtResource("4_equip")
 
 [node name="RavenSystem" type="Node" parent="Systems"]
 script = ExtResource("5_raven")
-scout_preview_duration = 10.0
-flare_duration = 10.0
-flare_radius = 5
-resupply_radius = 3
-resupply_heal_percent = 0.5
-orbital_strike_radius = 2
-orbital_strike_damage = 50
-orbital_strike_delay = 1.5
 
 [node name="WaveManager" type="Node" parent="Systems"]
 script = ExtResource("7_wave")

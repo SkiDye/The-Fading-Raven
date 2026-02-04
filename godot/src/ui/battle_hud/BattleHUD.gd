@@ -50,9 +50,9 @@ func _exit_tree() -> void:
 func _input(event: InputEvent) -> void:
 	# 크루 선택 단축키 (1-5)
 	if event is InputEventKey and event.pressed:
-		var key := event.keycode
+		var key: int = event.keycode
 		if key >= KEY_1 and key <= KEY_5:
-			var index := key - KEY_1
+			var index: int = key - KEY_1
 			if _crew_panel:
 				_crew_panel.select_by_index(index)
 

@@ -128,7 +128,7 @@ func _setup_behavior_trees() -> void:
 
 # ===== BEHAVIOR TREES =====
 
-func _create_melee_rush_bt() -> BehaviorTree.BTNode:
+func _create_melee_rush_bt() -> BehaviorTree.BTSelector:
 	## 근접 돌격 AI: 타겟 찾기 -> 접근 -> 공격
 	return BehaviorTree.selector([
 		# 1. 타겟이 있고 근접하면 공격
@@ -147,7 +147,7 @@ func _create_melee_rush_bt() -> BehaviorTree.BTNode:
 	])
 
 
-func _create_ranged_bt() -> BehaviorTree.BTNode:
+func _create_ranged_bt() -> BehaviorTree.BTSelector:
 	## 원거리 AI: 적정 거리 유지하며 공격
 	return BehaviorTree.selector([
 		# 1. 너무 가까우면 후퇴
@@ -173,7 +173,7 @@ func _create_ranged_bt() -> BehaviorTree.BTNode:
 	])
 
 
-func _create_jumper_bt() -> BehaviorTree.BTNode:
+func _create_jumper_bt() -> BehaviorTree.BTSelector:
 	## 점프 공격 AI
 	return BehaviorTree.selector([
 		# 1. 점프 가능하면 점프 공격
@@ -188,7 +188,7 @@ func _create_jumper_bt() -> BehaviorTree.BTNode:
 	])
 
 
-func _create_brute_bt() -> BehaviorTree.BTNode:
+func _create_brute_bt() -> BehaviorTree.BTSelector:
 	## 브루트 AI: 느리지만 강력한 근접 공격
 	return BehaviorTree.selector([
 		# 1. 근접하면 강력 공격
@@ -207,7 +207,7 @@ func _create_brute_bt() -> BehaviorTree.BTNode:
 	])
 
 
-func _create_sniper_bt() -> BehaviorTree.BTNode:
+func _create_sniper_bt() -> BehaviorTree.BTSelector:
 	## 스나이퍼 AI: 조준 후 고데미지 공격
 	return BehaviorTree.selector([
 		# 1. 조준 중이면 계속 조준
@@ -227,7 +227,7 @@ func _create_sniper_bt() -> BehaviorTree.BTNode:
 	])
 
 
-func _create_hacker_bt() -> BehaviorTree.BTNode:
+func _create_hacker_bt() -> BehaviorTree.BTSelector:
 	## 해커 AI: 터렛 해킹 우선
 	return BehaviorTree.selector([
 		# 1. 해킹 중이면 계속
@@ -250,7 +250,7 @@ func _create_hacker_bt() -> BehaviorTree.BTNode:
 	])
 
 
-func _create_shield_trooper_bt() -> BehaviorTree.BTNode:
+func _create_shield_trooper_bt() -> BehaviorTree.BTSelector:
 	## 쉴드 트루퍼 AI: 방패로 아군 보호하며 전진
 	return BehaviorTree.selector([
 		# 1. 근접하면 방패 공격
@@ -269,12 +269,12 @@ func _create_shield_trooper_bt() -> BehaviorTree.BTNode:
 	])
 
 
-func _create_heavy_trooper_bt() -> BehaviorTree.BTNode:
+func _create_heavy_trooper_bt() -> BehaviorTree.BTSelector:
 	## 헤비 트루퍼 AI: 중화기 사용
 	return _create_ranged_bt()  # 기본 원거리 로직 사용
 
 
-func _create_drone_carrier_bt() -> BehaviorTree.BTNode:
+func _create_drone_carrier_bt() -> BehaviorTree.BTSelector:
 	## 드론 캐리어 AI: 드론 생성 및 관리
 	return BehaviorTree.selector([
 		# 1. 드론 생성 가능하면 생성
@@ -293,7 +293,7 @@ func _create_drone_carrier_bt() -> BehaviorTree.BTNode:
 	])
 
 
-func _create_shield_generator_bt() -> BehaviorTree.BTNode:
+func _create_shield_generator_bt() -> BehaviorTree.BTSelector:
 	## 쉴드 제너레이터 AI: 제자리에서 보호막 유지
 	return BehaviorTree.selector([
 		# 1. 보호막 유지

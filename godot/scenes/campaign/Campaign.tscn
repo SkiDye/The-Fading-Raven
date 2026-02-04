@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://campaign001"]
 
 [ext_resource type="Script" path="res://scenes/campaign/Campaign.gd" id="1_campaign"]
-[ext_resource type="PackedScene" uid="uid://sectormapui001" path="res://src/ui/campaign/SectorMapUI.tscn" id="2_sectormap"]
+[ext_resource type="PackedScene" uid="uid://bsybym4n2dujg" path="res://src/ui/campaign/SectorMapUI.tscn" id="2_sectormap"]
 
 [node name="Campaign" type="Control"]
 layout_mode = 3

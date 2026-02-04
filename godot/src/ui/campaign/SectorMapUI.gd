@@ -60,6 +60,8 @@ var _storm_depth: int = 0
 
 
 func _ready() -> void:
+	print("[SectorMapUI] _ready() called")
+	print("[SectorMapUI] _map_container: %s" % _map_container)
 	_connect_signals()
 
 	if _info_panel:
@@ -67,8 +69,18 @@ func _ready() -> void:
 
 
 func _connect_signals() -> void:
+	print("[SectorMapUI] _connect_signals called")
+	print("[SectorMapUI] _enter_btn: %s" % _enter_btn)
 	if _enter_btn:
+		# 기존 연결 제거 후 재연결
+		if _enter_btn.pressed.is_connected(_on_enter_pressed):
+			_enter_btn.pressed.disconnect(_on_enter_pressed)
 		_enter_btn.pressed.connect(_on_enter_pressed)
+		# 마우스 필터 확인
+		_enter_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		print("[SectorMapUI] ENTER button signal connected! mouse_filter=%d" % _enter_btn.mouse_filter)
+	else:
+		print("[SectorMapUI] ERROR: _enter_btn is NULL!")
 
 	if _back_btn:
 		_back_btn.pressed.connect(_on_back_pressed)
@@ -87,10 +99,10 @@ func _exit_tree() -> void:
 func setup(data: Dictionary) -> void:
 	_sector_data = data
 	print("[SectorMapUI] setup called with %d nodes" % data.get("nodes", []).size())
-	_clear_map()
-	_build_map()
 	_update_credits()
 	_update_storm_indicator()
+	# 레이아웃 완료 후 빌드하도록 지연 호출
+	call_deferred("_deferred_build_map")
 
 
 ## 현재 노드 설정
@@ -106,11 +118,20 @@ func set_storm_depth(depth: int) -> void:
 
 
 func _clear_map() -> void:
+	if _map_container == null:
+		return
 	for child in _map_container.get_children():
 		# Don't delete the StormIndicator which is part of the scene
 		if child.name != "StormIndicator":
 			child.queue_free()
 	_node_buttons.clear()
+
+
+func _deferred_build_map() -> void:
+	print("[SectorMapUI] _deferred_build_map called, container size: %s" % _map_container.size)
+	_clear_map()
+	_build_map()
+	_update_node_visuals()
 
 
 func _build_map() -> void:
@@ -326,11 +347,14 @@ func _get_node_data(node_id: String) -> Dictionary:
 
 
 func _show_node_info(node_id: String) -> void:
+	print("[SectorMapUI] _show_node_info: %s" % node_id)
 	if _info_panel == null:
+		print("[SectorMapUI] -> _info_panel is NULL!")
 		return
 
 	var node_data := _get_node_data(node_id)
 	if node_data.is_empty():
+		print("[SectorMapUI] -> node_data is empty!")
 		_info_panel.visible = false
 		return
 
@@ -344,10 +368,15 @@ func _show_node_info(node_id: String) -> void:
 
 	# 접근 가능 여부 체크
 	var can_enter := _can_enter_node(node_id)
+	print("[SectorMapUI] -> can_enter: %s, _enter_btn: %s" % [can_enter, _enter_btn])
 	if _enter_btn:
 		_enter_btn.disabled = not can_enter
+		print("[SectorMapUI] -> ENTER button disabled=%s, visible=%s" % [_enter_btn.disabled, _enter_btn.visible])
 
 	_info_panel.visible = true
+	# InfoPanel과 그 자식들이 마우스 이벤트를 받도록 설정
+	_info_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	print("[SectorMapUI] -> InfoPanel visible=%s, position=%s, size=%s" % [_info_panel.visible, _info_panel.global_position, _info_panel.size])
 
 
 func _get_node_type_name(node_type: int) -> String:
@@ -386,17 +415,23 @@ func _get_node_description(node_type: int) -> String:
 
 
 func _can_enter_node(node_id: String) -> bool:
+	print("[SectorMapUI] _can_enter_node: checking %s, current=%s" % [node_id, _current_node_id])
+
 	# Already at this node
 	if node_id == _current_node_id:
+		print("[SectorMapUI] -> FALSE: same as current node")
 		return false
 
 	# Check if connected from current node
 	var current_data := _get_node_data(_current_node_id)
 	if current_data.is_empty():
+		print("[SectorMapUI] -> TRUE: no current node data")
 		return true  # No current node, allow any
 
 	var connections: Array = current_data.get("connections_out", [])
+	print("[SectorMapUI] -> connections_out: %s" % [connections])
 	if not (node_id in connections):
+		print("[SectorMapUI] -> FALSE: not in connections")
 		return false
 
 	# Check if node is consumed by storm
@@ -404,23 +439,47 @@ func _can_enter_node(node_id: String) -> bool:
 	if not node_data.is_empty():
 		var layer: int = node_data.get("layer", 0)
 		if layer <= _storm_depth:
+			print("[SectorMapUI] -> FALSE: consumed by storm")
 			return false
 
+	print("[SectorMapUI] -> TRUE: can enter")
 	return true
 
 
 # ===== SIGNAL HANDLERS =====
 
+var _last_click_time: int = 0
+var _last_click_node: String = ""
+const DOUBLE_CLICK_TIME: int = 400  # 밀리초
+
 func _on_node_pressed(node_id: String) -> void:
+	print("[SectorMapUI] Node pressed: %s" % node_id)
+
+	# 더블클릭 체크
+	var current_time: int = Time.get_ticks_msec()
+	if node_id == _last_click_node and (current_time - _last_click_time) < DOUBLE_CLICK_TIME:
+		# 더블클릭 → 바로 진입
+		print("[SectorMapUI] Double-click detected! Entering node...")
+		if _can_enter_node(node_id):
+			_selected_node_id = node_id
+			_on_enter_pressed()
+			return
+
+	_last_click_time = current_time
+	_last_click_node = node_id
+
 	_selected_node_id = node_id
 	_show_node_info(node_id)
 	node_selected.emit(node_id)
 
 
 func _on_enter_pressed() -> void:
+	print("[SectorMapUI] ENTER pressed, selected: %s" % _selected_node_id)
 	if _selected_node_id.is_empty():
+		print("[SectorMapUI] -> No node selected!")
 		return
 
+	print("[SectorMapUI] -> Emitting node_entered signal")
 	node_entered.emit(_selected_node_id)
 
 	if EventBus:

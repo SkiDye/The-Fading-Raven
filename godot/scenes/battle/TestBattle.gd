@@ -224,7 +224,7 @@ func _update_enemies(delta: float) -> void:
 
 		var target: Node2D = _find_nearest_crew(enemy.position)
 		if target:
-			var dir := (target.position - enemy.position).normalized()
+			var dir: Vector2 = (target.position - enemy.position).normalized()
 			enemy.position += dir * 50.0 * delta
 
 			# 충돌 체크 (간단)
@@ -387,7 +387,7 @@ func _use_skill() -> void:
 				if not is_instance_valid(enemy):
 					continue
 				if enemy.position.distance_to(_selected_crew.position) < 100:
-					var dir := (enemy.position - _selected_crew.position).normalized()
+					var dir: Vector2 = (enemy.position - _selected_crew.position).normalized()
 					enemy.position += dir * 100
 					_deal_damage_to_enemy(enemy, 15)
 			print("[TestBattle] Shield Bash!")

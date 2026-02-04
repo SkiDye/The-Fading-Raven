@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://sectormapui001"]
+[gd_scene load_steps=2 format=3 uid="uid://bsybym4n2dujg"]
 
 [ext_resource type="Script" path="res://src/ui/campaign/SectorMapUI.gd" id="1_sectormapui"]
 

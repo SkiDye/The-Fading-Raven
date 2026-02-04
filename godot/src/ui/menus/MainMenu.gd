@@ -77,11 +77,11 @@ func _on_new_game_pressed() -> void:
 func _on_continue_pressed() -> void:
 	if GameState and GameState.has_method("load_game"):
 		if GameState.load_game():
-			var sector_scene := "res://scenes/campaign/SectorMap.tscn"
-			if ResourceLoader.exists(sector_scene):
-				get_tree().change_scene_to_file(sector_scene)
+			var campaign_scene := "res://scenes/campaign/Campaign.tscn"
+			if ResourceLoader.exists(campaign_scene):
+				get_tree().change_scene_to_file(campaign_scene)
 			else:
-				push_warning("MainMenu: SectorMap scene not found")
+				push_warning("MainMenu: Campaign scene not found")
 
 
 func _on_settings_pressed() -> void:
@@ -113,8 +113,8 @@ func _on_quit_pressed() -> void:
 
 func _start_new_game(difficulty: int) -> void:
 	if GameState and GameState.has_method("start_new_run"):
-		GameState.start_new_run(-1)  # -1 = 랜덤 시드
+		GameState.start_new_run(-1, difficulty)
 
-	var sector_scene := "res://scenes/campaign/SectorMap.tscn"
-	if ResourceLoader.exists(sector_scene):
-		get_tree().change_scene_to_file(sector_scene)
+	var campaign_scene := "res://scenes/campaign/Campaign.tscn"
+	if ResourceLoader.exists(campaign_scene):
+		get_tree().change_scene_to_file(campaign_scene)

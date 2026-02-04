@@ -27,7 +27,7 @@ class FacilityPlacement:
 		max_hp = 100
 
 
-class StationData:
+class StationLayout:
 	## 스테이션 레이아웃 데이터
 	var seed: int
 	var width: int
@@ -118,11 +118,11 @@ class BSPNode:
 var _rng: SeededRNG
 
 
-func generate(seed: int, difficulty_score: float) -> StationData:
+func generate(seed: int, difficulty_score: float) -> StationLayout:
 	## 스테이션 레이아웃 생성
 	_rng = SeededRNG.new(seed)
 
-	var data := StationData.new()
+	var data := StationLayout.new()
 	data.seed = seed
 
 	# 1. 크기 결정
@@ -246,14 +246,14 @@ func _collect_rooms(node: BSPNode, rooms: Array[Rect2i]) -> void:
 		_collect_rooms(node.right, rooms)
 
 
-func _apply_rooms_to_grid(data: StationData, rooms: Array[Rect2i]) -> void:
+func _apply_rooms_to_grid(data: StationLayout, rooms: Array[Rect2i]) -> void:
 	for room in rooms:
 		for y in range(room.position.y, room.position.y + room.size.y):
 			for x in range(room.position.x, room.position.x + room.size.x):
 				data.set_tile(Vector2i(x, y), Constants.TileType.FLOOR)
 
 
-func _connect_rooms(data: StationData, rooms: Array[Rect2i]) -> void:
+func _connect_rooms(data: StationLayout, rooms: Array[Rect2i]) -> void:
 	if rooms.size() < 2:
 		return
 
@@ -290,7 +290,7 @@ func _connect_rooms(data: StationData, rooms: Array[Rect2i]) -> void:
 			unconnected.erase(best_to)
 
 
-func _create_corridor(data: StationData, from: Vector2i, to: Vector2i) -> void:
+func _create_corridor(data: StationLayout, from: Vector2i, to: Vector2i) -> void:
 	var current := from
 
 	# L자형 복도 (수평 -> 수직)
@@ -305,7 +305,7 @@ func _create_corridor(data: StationData, from: Vector2i, to: Vector2i) -> void:
 	data.set_tile(to, Constants.TileType.FLOOR)
 
 
-func _generate_walls(data: StationData) -> void:
+func _generate_walls(data: StationLayout) -> void:
 	## 바닥 주변에 벽 생성
 	for y in range(data.height):
 		for x in range(data.width):
@@ -332,7 +332,7 @@ func _generate_walls(data: StationData) -> void:
 				data.tiles[y][x] = Constants.TileType.WALL
 
 
-func _place_facilities(data: StationData, rooms: Array[Rect2i], count: int) -> void:
+func _place_facilities(data: StationLayout, rooms: Array[Rect2i], count: int) -> void:
 	var facility_types := ["housing", "housing", "medical", "armory", "comm_tower", "power_plant"]
 	var shuffled: Array = _rng.shuffle(facility_types)
 
@@ -351,17 +351,17 @@ func _place_facilities(data: StationData, rooms: Array[Rect2i], count: int) -> v
 		data.facilities.append(placement)
 
 
-func _place_entry_points(data: StationData) -> Array[Vector2i]:
+func _place_entry_points(data: StationLayout) -> Array[Vector2i]:
 	var count := _rng.range_int(2, 4)
 	var edges := ["top", "bottom", "left", "right"]
 	var used_edges: Array[String] = []
 
 	for i in range(count):
-		var edge := edges[i % edges.size()]
+		var edge: String = edges[i % edges.size()]
 		if edge in used_edges and _rng.chance(0.7):
 			continue
 
-		var pos := _find_entry_point_on_edge(data, edge)
+		var pos: Vector2i = _find_entry_point_on_edge(data, edge)
 		if pos != Vector2i(-1, -1):
 			data.entry_points.append(pos)
 			data.set_tile(pos, Constants.TileType.AIRLOCK)
@@ -370,7 +370,7 @@ func _place_entry_points(data: StationData) -> Array[Vector2i]:
 	return data.entry_points
 
 
-func _find_entry_point_on_edge(data: StationData, edge: String) -> Vector2i:
+func _find_entry_point_on_edge(data: StationLayout, edge: String) -> Vector2i:
 	var candidates: Array[Vector2i] = []
 
 	match edge:
@@ -397,21 +397,21 @@ func _find_entry_point_on_edge(data: StationData, edge: String) -> Vector2i:
 	return _rng.choice(candidates)
 
 
-func _setup_deploy_zones(data: StationData) -> void:
+func _setup_deploy_zones(data: StationLayout) -> void:
 	## 배치 영역 설정 (시설 근처 바닥)
 	for facility in data.facilities:
-		var pos := facility.position
+		var pos: Vector2i = facility.position
 		for dy in range(-2, 3):
 			for dx in range(-2, 3):
-				var check_pos := Vector2i(pos.x + dx, pos.y + dy)
+				var check_pos: Vector2i = Vector2i(pos.x + dx, pos.y + dy)
 				if data.is_valid_position(check_pos):
-					var tile := data.get_tile(check_pos)
+					var tile: Constants.TileType = data.get_tile(check_pos)
 					if tile == Constants.TileType.FLOOR:
 						if check_pos not in data.deploy_zones:
 							data.deploy_zones.append(check_pos)
 
 
-func _generate_height_map(data: StationData) -> void:
+func _generate_height_map(data: StationLayout) -> void:
 	## 고도 맵 생성 (중앙 고지대, 외곽 저지대)
 	var center := Vector2(data.width / 2.0, data.height / 2.0)
 	var max_dist := center.length()
@@ -422,8 +422,8 @@ func _generate_height_map(data: StationData) -> void:
 			if tile != Constants.TileType.FLOOR:
 				continue
 
-			var dist := Vector2(x, y).distance_to(center)
-			var ratio := dist / max_dist
+			var dist: float = Vector2(x, y).distance_to(center)
+			var ratio: float = dist / max_dist
 
 			if ratio < 0.3 and _rng.chance(0.25):
 				data.height_map[y][x] = 1
@@ -433,7 +433,7 @@ func _generate_height_map(data: StationData) -> void:
 				data.tiles[y][x] = Constants.TileType.LOWERED
 
 
-func _place_cover(data: StationData) -> void:
+func _place_cover(data: StationLayout) -> void:
 	## 엄폐물 배치 (복도와 방 경계에)
 	for y in range(1, data.height - 1):
 		for x in range(1, data.width - 1):
@@ -442,9 +442,9 @@ func _place_cover(data: StationData) -> void:
 				continue
 
 			# 벽에 인접하고, 진입점이 보이는 위치에 엄폐물
-			var adjacent_wall := false
+			var adjacent_wall: bool = false
 			for dir in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
-				var neighbor := Vector2i(x, y) + dir
+				var neighbor: Vector2i = Vector2i(x, y) + dir
 				if data.is_valid_position(neighbor):
 					if data.tiles[neighbor.y][neighbor.x] == Constants.TileType.WALL:
 						adjacent_wall = true

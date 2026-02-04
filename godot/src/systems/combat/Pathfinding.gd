@@ -64,7 +64,7 @@ func find_path(from: Vector2i, to: Vector2i, ignore_occupants: bool = false) -> 
 					continue
 
 			var tile := grid.get_tile(neighbor)
-			var movement_cost := tile.get_movement_cost() if tile else 1.0
+			var movement_cost: float = tile.get_movement_cost() if tile else 1.0
 			var tentative_g: float = g_score.get(current, INF) + movement_cost
 
 			if tentative_g < g_score.get(neighbor, INF):

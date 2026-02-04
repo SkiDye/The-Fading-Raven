@@ -150,7 +150,7 @@ func _process_movement(delta: float) -> void:
 
 		# 다음 경로 확인
 		if _move_path.size() > 0:
-			var next_tile := _move_path.pop_front()
+			var next_tile: Variant = _move_path.pop_front()
 			_move_target = _tile_to_world(next_tile)
 		else:
 			_is_moving = false
@@ -231,7 +231,7 @@ func move_along_path(path: Array[Vector2i]) -> void:
 		return
 
 	_move_path = path.duplicate()
-	var first_tile := _move_path.pop_front()
+	var first_tile: Variant = _move_path.pop_front()
 	_move_target = _tile_to_world(first_tile)
 	_is_moving = true
 	_set_state(Constants.EntityState.MOVING)

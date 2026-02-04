@@ -16,7 +16,7 @@ static func _find_nearest_crew(entity: Node) -> Node:
 	for crew in crews:
 		if not crew.is_alive:
 			continue
-		var dist := entity.global_position.distance_to(crew.global_position)
+		var dist: float = entity.global_position.distance_to(crew.global_position)
 		if dist < nearest_dist:
 			nearest_dist = dist
 			nearest = crew
@@ -33,7 +33,7 @@ static func _find_nearest_facility(entity: Node) -> Node:
 	for facility in facilities:
 		if facility.has_method("is_destroyed") and facility.is_destroyed():
 			continue
-		var dist := entity.global_position.distance_to(facility.global_position)
+		var dist: float = entity.global_position.distance_to(facility.global_position)
 		if dist < nearest_dist:
 			nearest_dist = dist
 			nearest = facility
@@ -50,7 +50,7 @@ static func _find_nearest_turret(entity: Node) -> Node:
 	for turret in turrets:
 		if turret.has_method("is_hacked") and turret.is_hacked():
 			continue
-		var dist := entity.global_position.distance_to(turret.global_position)
+		var dist: float = entity.global_position.distance_to(turret.global_position)
 		if dist < nearest_dist:
 			nearest_dist = dist
 			nearest = turret
@@ -65,7 +65,7 @@ static func _is_in_attack_range(entity: Node, target: Node) -> bool:
 	var range_val: float = entity.attack_range if entity.has_method("get") else 1.0
 	if entity.enemy_data:
 		range_val = entity.enemy_data.attack_range
-	var dist := entity.global_position.distance_to(target.global_position) / Constants.TILE_SIZE
+	var dist: float = entity.global_position.distance_to(target.global_position) / Constants.TILE_SIZE
 	return dist <= range_val
 
 
@@ -74,7 +74,7 @@ static func _is_in_attack_range(entity: Node, target: Node) -> bool:
 # 가장 단순한 근접 공격 패턴
 # =====================================================
 
-static func melee_basic() -> BehaviorTree.BTNode:
+static func melee_basic() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 타겟이 있고 범위 내면 공격
 		BehaviorTree.sequence([
@@ -102,7 +102,7 @@ static func melee_basic() -> BehaviorTree.BTNode:
 # 전방 실드로 원거리 방어하며 접근
 # =====================================================
 
-static func melee_shielded() -> BehaviorTree.BTNode:
+static func melee_shielded() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 공격 범위 내면 공격
 		BehaviorTree.sequence([
@@ -128,7 +128,7 @@ static func melee_shielded() -> BehaviorTree.BTNode:
 # 거리 유지하며 원거리 공격
 # =====================================================
 
-static func ranged_basic() -> BehaviorTree.BTNode:
+static func ranged_basic() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 너무 가까우면 후퇴
 		BehaviorTree.sequence([
@@ -161,7 +161,7 @@ static func _is_too_close(entity: Node) -> bool:
 	var keep_dist: float = 2.0  # 기본 유지 거리
 	if entity.enemy_data and entity.enemy_data.keep_distance > 0:
 		keep_dist = entity.enemy_data.keep_distance
-	var dist := entity.global_position.distance_to(entity.current_target.global_position) / Constants.TILE_SIZE
+	var dist: float = entity.global_position.distance_to(entity.current_target.global_position) / Constants.TILE_SIZE
 	return dist < keep_dist
 
 
@@ -170,7 +170,7 @@ static func _is_too_close(entity: Node) -> bool:
 # 방어선 우회 점프 공격
 # =====================================================
 
-static func melee_jumper() -> BehaviorTree.BTNode:
+static func melee_jumper() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 공격 범위 내면 공격
 		BehaviorTree.sequence([
@@ -201,7 +201,7 @@ static func melee_jumper() -> BehaviorTree.BTNode:
 static func _should_jump(entity: Node) -> bool:
 	if not entity.has_valid_target():
 		return false
-	var dist := entity.global_position.distance_to(entity.current_target.global_position) / Constants.TILE_SIZE
+	var dist: float = entity.global_position.distance_to(entity.current_target.global_position) / Constants.TILE_SIZE
 	var jump_range: float = entity.enemy_data.jump_range if entity.enemy_data else 3.0
 	return dist > 2.0 and dist <= jump_range
 
@@ -211,7 +211,7 @@ static func _should_jump(entity: Node) -> bool:
 # 느리지만 강력, 수류탄 투척
 # =====================================================
 
-static func melee_heavy() -> BehaviorTree.BTNode:
+static func melee_heavy() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 수류탄 쿨다운 OK + 타겟 그룹 → 수류탄
 		BehaviorTree.sequence([
@@ -246,7 +246,7 @@ static func _has_grouped_targets(entity: Node) -> bool:
 	for crew in crews:
 		if not crew.is_alive:
 			continue
-		var dist := entity.global_position.distance_to(crew.global_position)
+		var dist: float = entity.global_position.distance_to(crew.global_position)
 		if dist <= grenade_range:
 			count += 1
 
@@ -258,7 +258,7 @@ static func _has_grouped_targets(entity: Node) -> bool:
 # 고체력, 클리브 공격, 강력한 넉백
 # =====================================================
 
-static func melee_brute() -> BehaviorTree.BTNode:
+static func melee_brute() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 클리브 공격
 		BehaviorTree.sequence([
@@ -282,7 +282,7 @@ static func melee_brute() -> BehaviorTree.BTNode:
 # 터렛 해킹 우선, 전투 회피
 # =====================================================
 
-static func support_hacker() -> BehaviorTree.BTNode:
+static func support_hacker() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 해킹 중이면 계속
 		BehaviorTree.sequence([
@@ -323,7 +323,7 @@ static func _has_nearby_turret(entity: Node) -> bool:
 # 정지 후 조준, 고데미지 단발
 # =====================================================
 
-static func ranged_sniper() -> BehaviorTree.BTNode:
+static func ranged_sniper() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 조준 중이면 계속
 		BehaviorTree.sequence([
@@ -347,7 +347,7 @@ static func ranged_sniper() -> BehaviorTree.BTNode:
 # 후방 유지, 드론 생성
 # =====================================================
 
-static func support_carrier() -> BehaviorTree.BTNode:
+static func support_carrier() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 드론 스폰은 EnemyUnit._process_drone_carrier에서 처리
 
@@ -367,7 +367,7 @@ static func _is_too_close_to_front(entity: Node) -> bool:
 	for crew in crews:
 		if not crew.is_alive:
 			continue
-		var dist := entity.global_position.distance_to(crew.global_position) / Constants.TILE_SIZE
+		var dist: float = entity.global_position.distance_to(crew.global_position) / Constants.TILE_SIZE
 		if dist < 4.0:
 			return true
 	return false
@@ -378,7 +378,7 @@ static func _is_too_close_to_front(entity: Node) -> bool:
 # 아군 중심에 위치, 실드 제공
 # =====================================================
 
-static func support_shield() -> BehaviorTree.BTNode:
+static func support_shield() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. 실드 제공은 EnemyUnit._process_shield_generator에서 처리
 
@@ -392,7 +392,7 @@ static func support_shield() -> BehaviorTree.BTNode:
 # 돌진 후 자폭
 # =====================================================
 
-static func kamikaze() -> BehaviorTree.BTNode:
+static func kamikaze() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 자폭은 EnemyUnit._process_storm_creature에서 처리
 
@@ -409,7 +409,7 @@ static func kamikaze() -> BehaviorTree.BTNode:
 # 복합 패턴: 버프 + 돌진 + 소환
 # =====================================================
 
-static func boss_captain() -> BehaviorTree.BTNode:
+static func boss_captain() -> BehaviorTree.BTSelector:
 	return BehaviorTree.selector([
 		# 1. HP 낮으면 소환
 		BehaviorTree.sequence([
@@ -446,7 +446,7 @@ static func boss_captain() -> BehaviorTree.BTNode:
 # 무적, 펄스 공격, 소환
 # =====================================================
 
-static func boss_storm() -> BehaviorTree.BTNode:
+static func boss_storm() -> BehaviorTree.BTSelector:
 	# 대부분의 메카닉이 EnemyUnit._process_boss에서 처리됨
 	return BehaviorTree.selector([
 		# 중앙에 고정
@@ -477,7 +477,7 @@ static func _action_move_to_target(entity: Node, _delta: float) -> int:
 	if not entity.has_valid_target():
 		return BehaviorTree.Status.FAILURE
 
-	var target_pos := entity.current_target.global_position
+	var target_pos: Vector2 = entity.current_target.global_position
 	entity.move_to_position(target_pos)
 	return BehaviorTree.Status.RUNNING
 
@@ -538,8 +538,8 @@ static func _action_retreat_from_target(entity: Node, _delta: float) -> int:
 	if not entity.has_valid_target():
 		return BehaviorTree.Status.FAILURE
 
-	var away_dir := (entity.global_position - entity.current_target.global_position).normalized()
-	var retreat_pos := entity.global_position + away_dir * Constants.TILE_SIZE * 2
+	var away_dir: Vector2 = (entity.global_position - entity.current_target.global_position).normalized()
+	var retreat_pos: Vector2 = entity.global_position + away_dir * Constants.TILE_SIZE * 2
 	entity.move_to_position(retreat_pos)
 	return BehaviorTree.Status.RUNNING
 
@@ -548,10 +548,10 @@ static func _action_move_to_optimal_range(entity: Node, _delta: float) -> int:
 	if not entity.has_valid_target():
 		return BehaviorTree.Status.FAILURE
 
-	var target_pos := entity.current_target.global_position
-	var dir := (target_pos - entity.global_position).normalized()
+	var target_pos: Vector2 = entity.current_target.global_position
+	var dir: Vector2 = (target_pos - entity.global_position).normalized()
 	var optimal_range: float = (entity.enemy_data.attack_range - 0.5) * Constants.TILE_SIZE if entity.enemy_data else 64.0
-	var optimal_pos := target_pos - dir * optimal_range
+	var optimal_pos: Vector2 = target_pos - dir * optimal_range
 
 	entity.move_to_position(optimal_pos)
 	return BehaviorTree.Status.RUNNING
@@ -611,8 +611,8 @@ static func _action_continue_aiming(_entity: Node, _delta: float) -> int:
 static func _action_retreat_to_safe_distance(entity: Node, _delta: float) -> int:
 	var nearest_crew := _find_nearest_crew(entity)
 	if nearest_crew:
-		var away_dir := (entity.global_position - nearest_crew.global_position).normalized()
-		var safe_pos := entity.global_position + away_dir * Constants.TILE_SIZE * 2
+		var away_dir: Vector2 = (entity.global_position - nearest_crew.global_position).normalized()
+		var safe_pos: Vector2 = entity.global_position + away_dir * Constants.TILE_SIZE * 2
 		entity.move_to_position(safe_pos)
 		return BehaviorTree.Status.RUNNING
 	return BehaviorTree.Status.SUCCESS
@@ -665,7 +665,7 @@ static func _action_captain_charge(entity: Node, _delta: float) -> int:
 	if not entity.has_valid_target():
 		return BehaviorTree.Status.FAILURE
 
-	var dir := (entity.current_target.global_position - entity.global_position).normalized()
+	var dir: Vector2 = (entity.current_target.global_position - entity.global_position).normalized()
 	if entity.has_method("captain_charge_attack"):
 		entity.captain_charge_attack(dir)
 		return BehaviorTree.Status.SUCCESS
@@ -682,7 +682,7 @@ static func _action_stay_in_center(_entity: Node, _delta: float) -> int:
 # =====================================================
 
 ## 적 데이터의 behavior_id에 따라 적절한 BT 반환
-static func create_behavior(behavior_id: String) -> BehaviorTree.BTNode:
+static func create_behavior(behavior_id: String) -> BehaviorTree.BTSelector:
 	match behavior_id:
 		"melee_basic":
 			return melee_basic()

@@ -851,10 +851,6 @@ func attack(target: Node) -> void:
 	special_ability_used.emit("attack")
 
 
-## 바라보는 방향
-var facing_direction: Vector2 = Vector2.RIGHT
-
-
 # ===== UTILITY =====
 
 func get_display_name() -> String:

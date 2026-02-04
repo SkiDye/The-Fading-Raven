@@ -79,12 +79,12 @@ class SectorData:
 		var queue: Array[String] = [current_node_id]
 
 		while not queue.is_empty():
-			var current := queue.pop_front()
+			var current: String = queue.pop_front() as String
 			if visited_set.has(current):
 				continue
 			visited_set[current] = true
 
-			var node := get_node(current)
+			var node: SectorNode = get_node(current)
 			if node == null:
 				continue
 
@@ -92,7 +92,7 @@ class SectorData:
 				return true
 
 			for out_id in node.connections_out:
-				var out_node := get_node(out_id)
+				var out_node: SectorNode = get_node(out_id)
 				if out_node and out_node.layer > storm_depth:
 					queue.append(out_id)
 
@@ -313,7 +313,7 @@ func _place_events(data: SectorData) -> void:
 
 			# 보스 노드 (깊이 5+, 5의 배수에서 확률 증가)
 			if layer_idx >= 5 and layer_idx - last_event_layer.boss >= intervals.boss:
-				var boss_chance := chances.boss
+				var boss_chance: float = chances.boss
 				if layer_idx % 5 == 0:
 					boss_chance = 0.7
 				if _rng.chance(boss_chance):

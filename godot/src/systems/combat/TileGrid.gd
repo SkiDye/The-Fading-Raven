@@ -5,6 +5,9 @@ extends Node2D
 ## [br][br]
 ## 경로 탐색, 시야선 계산, 타일 관리 등 전투 맵의 핵심 기능을 제공합니다.
 
+# Preload to ensure class is available
+const GridTileDataClass = preload("res://src/systems/combat/TileData.gd")
+
 
 # ===== SIGNALS =====
 
@@ -25,7 +28,7 @@ const TILE_SIZE: int = Constants.TILE_SIZE
 
 # ===== PROPERTIES =====
 
-var tiles: Array = []  ## 2D array of TileData
+var tiles: Array = []  ## 2D array of GridTileData
 
 
 # ===== PRIVATE =====
@@ -55,7 +58,7 @@ func initialize(w: int, h: int) -> void:
 	for y in range(height):
 		var row: Array = []
 		for x in range(width):
-			var tile := TileData.new(Vector2i(x, y), Constants.TileType.FLOOR)
+			var tile := GridTileDataClass.new(Vector2i(x, y), Constants.TileType.FLOOR)
 			row.append(tile)
 		tiles.append(row)
 
@@ -82,7 +85,7 @@ func initialize_from_station_data(station) -> void:
 		var row: Array = []
 		for x in range(width):
 			var tile_type: Constants.TileType = station.tiles[y][x]
-			var tile := TileData.new(Vector2i(x, y), tile_type)
+			var tile := GridTileDataClass.new(Vector2i(x, y), tile_type)
 
 			# 고도 설정
 			if station.get("height_map") and station.height_map.size() > y:
@@ -110,8 +113,8 @@ func initialize_from_station_data(station) -> void:
 ## 주어진 위치의 타일을 반환합니다.
 ## [br][br]
 ## [param pos]: 타일 좌표
-## [return]: TileData 또는 null
-func get_tile(pos: Vector2i) -> TileData:
+## [return]: GridTileData 또는 null
+func get_tile(pos: Vector2i):
 	if not is_valid_position(pos):
 		return null
 	return tiles[pos.y][pos.x]
@@ -125,7 +128,7 @@ func set_tile_type(pos: Vector2i, new_type: Constants.TileType) -> void:
 	if not is_valid_position(pos):
 		return
 
-	var tile: TileData = tiles[pos.y][pos.x]
+	var tile = tiles[pos.y][pos.x]
 	var old_type := tile.type
 	tile.type = new_type
 	tile_changed.emit(pos, old_type, new_type)
@@ -503,6 +506,6 @@ func print_grid() -> void:
 	for y in range(height):
 		var line := ""
 		for x in range(width):
-			var tile: TileData = tiles[y][x]
+			var tile = tiles[y][x]
 			line += symbols.get(tile.type, "?")
 		print(line)

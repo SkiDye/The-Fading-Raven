@@ -1,4 +1,4 @@
-class_name TileData
+class_name GridTileData
 extends RefCounted
 
 ## 개별 타일의 데이터를 저장하는 클래스

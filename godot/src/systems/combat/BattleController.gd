@@ -396,7 +396,7 @@ func _find_nearest_enemy(crew: Node) -> Node:
 
 	for enemy in enemies:
 		if _is_entity_alive(enemy):
-			var dist := crew.global_position.distance_to(enemy.global_position)
+			var dist: float = crew.global_position.distance_to(enemy.global_position)
 			if dist < nearest_dist:
 				nearest_dist = dist
 				nearest = enemy
@@ -447,7 +447,7 @@ func _handle_command(tile_pos: Vector2i) -> void:
 		return
 
 	# 시설이 있으면 회복 명령
-	var facility := _get_facility_at(tile_pos)
+	var facility: Variant = _get_facility_at(tile_pos)
 	if facility and _is_facility_alive(facility):
 		if selected_squad.has_method("start_recovery"):
 			selected_squad.start_recovery(facility)

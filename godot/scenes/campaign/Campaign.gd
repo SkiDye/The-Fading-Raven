@@ -12,6 +12,8 @@ var _current_node_id: String = ""
 
 
 func _ready() -> void:
+	print("[Campaign] _ready() called")
+	print("[Campaign] sector_map_ui reference: %s" % sector_map_ui)
 	_connect_signals()
 	# UI 레이아웃이 완료된 후 초기화
 	call_deferred("_start_campaign")
@@ -52,11 +54,20 @@ func _start_campaign() -> void:
 
 
 func _update_sector_map() -> void:
-	if sector_map_ui == null or _sector_data == null:
+	print("[Campaign] _update_sector_map called")
+	print("[Campaign] sector_map_ui: %s" % sector_map_ui)
+	print("[Campaign] _sector_data: %s" % _sector_data)
+
+	if sector_map_ui == null:
+		push_error("[Campaign] sector_map_ui is NULL!")
+		return
+	if _sector_data == null:
+		push_error("[Campaign] _sector_data is NULL!")
 		return
 
 	# SectorData를 Dictionary로 변환
 	var map_data := _convert_sector_to_dict()
+	print("[Campaign] map_data nodes: %d" % map_data.get("nodes", []).size())
 	sector_map_ui.setup(map_data)
 	sector_map_ui.set_current_node(_current_node_id)
 	sector_map_ui.set_storm_depth(_sector_data.storm_depth)

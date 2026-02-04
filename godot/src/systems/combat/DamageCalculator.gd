@@ -190,7 +190,7 @@ func _apply_attacker_traits(
 	_damage_type: Constants.DamageType,
 	result: Dictionary
 ) -> float:
-	var trait_data := _get_trait_data(attacker)
+	var trait_data: Variant = _get_trait_data(attacker)
 	if trait_data == null:
 		return damage
 
@@ -223,7 +223,7 @@ func _apply_defender_modifiers(
 	result: Dictionary
 ) -> float:
 	# 방어 특성
-	var trait_data := _get_trait_data(defender)
+	var trait_data: Variant = _get_trait_data(defender)
 	if trait_data != null:
 		var trait_id: String = trait_data.get("id", "") if trait_data is Dictionary else trait_data.id
 
@@ -354,14 +354,14 @@ func calculate_knockback(
 	var knockback := base_knockback
 
 	# 공격자 특성: Heavy Impact
-	var attacker_trait := _get_trait_data(attacker)
+	var attacker_trait: Variant = _get_trait_data(attacker)
 	if attacker_trait:
 		var trait_id: String = attacker_trait.get("id", "") if attacker_trait is Dictionary else attacker_trait.id
 		if trait_id == "heavy_impact":
 			knockback *= 1.5
 
 	# 방어자 특성: Steady Stance (넉백 면역)
-	var defender_trait := _get_trait_data(defender)
+	var defender_trait: Variant = _get_trait_data(defender)
 	if defender_trait:
 		var trait_id: String = defender_trait.get("id", "") if defender_trait is Dictionary else defender_trait.id
 		if trait_id == "steady_stance":
