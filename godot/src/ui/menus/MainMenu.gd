@@ -62,6 +62,12 @@ func _on_new_game_pressed() -> void:
 	if GameState:
 		GameState.start_new_run(-1, Constants.Difficulty.NORMAL)
 
+	# 3D 전투 씬 우선 시도
+	var battle_3d := "res://scenes/battle/Battle3D.tscn"
+	if ResourceLoader.exists(battle_3d):
+		get_tree().change_scene_to_file(battle_3d)
+		return
+
 	var campaign_scene := "res://scenes/campaign/Campaign.tscn"
 	if ResourceLoader.exists(campaign_scene):
 		get_tree().change_scene_to_file(campaign_scene)

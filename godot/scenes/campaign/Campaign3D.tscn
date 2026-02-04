@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://campaign3d001"]
+
+[ext_resource type="Script" path="res://scenes/campaign/Campaign3D.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://sectormap3d001" path="res://scenes/campaign/SectorMap3D.tscn" id="2_sectormap"]
+
+[node name="Campaign3D" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="SectorMap3D" parent="." instance=ExtResource("2_sectormap")]

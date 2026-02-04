@@ -1,0 +1,31 @@
+[gd_scene load_steps=5 format=3 uid="uid://facility3d001"]
+
+[ext_resource type="Script" path="res://src/entities/facility/Facility3D.gd" id="1_script"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_health"]
+size = Vector3(1.0, 0.1, 0.12)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bg"]
+albedo_color = Color(0.15, 0.15, 0.15, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fill"]
+albedo_color = Color(0.2, 0.7, 0.9, 1)
+
+[node name="Facility3D" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="ModelContainer" type="Node3D" parent="."]
+
+[node name="HealthBar3D" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.0, 0)
+
+[node name="Background" type="MeshInstance3D" parent="HealthBar3D"]
+mesh = SubResource("BoxMesh_health")
+surface_material_override/0 = SubResource("StandardMaterial3D_bg")
+
+[node name="Fill" type="MeshInstance3D" parent="HealthBar3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0)
+mesh = SubResource("BoxMesh_health")
+surface_material_override/0 = SubResource("StandardMaterial3D_fill")
+
+[node name="EffectContainer" type="Node3D" parent="."]

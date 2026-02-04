@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://droppod3d001"]
+
+[ext_resource type="Script" path="res://src/entities/vehicle/DropPod3D.gd" id="1_script"]
+
+[node name="DropPod3D" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="ModelContainer" type="Node3D" parent="."]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]

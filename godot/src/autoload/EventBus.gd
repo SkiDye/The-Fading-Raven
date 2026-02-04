@@ -39,6 +39,7 @@ signal crew_recovery_completed(crew: Node)
 
 # ===== TURRET SIGNALS =====
 
+signal turret_deploy_requested(crew: Node, position: Vector2i)
 signal turret_deployed(turret: Node, position: Vector2i)
 signal turret_destroyed(turret: Node)
 signal turret_hacked(turret: Node, hacker: Node)

@@ -1,0 +1,31 @@
+[gd_scene load_steps=5 format=3 uid="uid://enemy3d001"]
+
+[ext_resource type="Script" path="res://src/entities/enemy/EnemyUnit3D.gd" id="1_script"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_health"]
+size = Vector3(0.6, 0.06, 0.08)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bg"]
+albedo_color = Color(0.2, 0.2, 0.2, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fill"]
+albedo_color = Color(0.8, 0.2, 0.2, 1)
+
+[node name="EnemyUnit3D" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="ModelContainer" type="Node3D" parent="."]
+
+[node name="HealthBar3D" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
+
+[node name="Background" type="MeshInstance3D" parent="HealthBar3D"]
+mesh = SubResource("BoxMesh_health")
+surface_material_override/0 = SubResource("StandardMaterial3D_bg")
+
+[node name="Fill" type="MeshInstance3D" parent="HealthBar3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0)
+mesh = SubResource("BoxMesh_health")
+surface_material_override/0 = SubResource("StandardMaterial3D_fill")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
