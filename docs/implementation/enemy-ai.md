@@ -4,129 +4,197 @@
 
 Session 3 구현 문서. 15종 적 유형, AI 행동 트리, 웨이브 생성 시스템, 특수 메카닉을 다룹니다.
 
+**Status**: ✅ Complete (Godot 4.x)
+**Updated**: 2026-02-04
+
 ---
 
 ## File Structure
 
 ```
-demo/js/
+godot/src/
+├── data/
+│   └── EnemyData.gd          # 적 데이터 Resource 클래스
 ├── entities/
-│   └── enemy.js          # 적 엔티티 클래스
-├── ai/
-│   ├── behavior-tree.js  # AI 행동 트리 시스템
-│   └── enemy-mechanics.js # 특수 메카닉 관리
-└── core/
-    └── wave-generator.js # 웨이브 생성 시스템
+│   ├── Entity.gd             # 베이스 엔티티 클래스
+│   └── enemy/
+│       ├── EnemyUnit.gd      # 적 유닛 클래스
+│       └── EnemyUnit.tscn    # 적 유닛 씬
+└── systems/
+    ├── ai/
+    │   ├── BTNode.gd         # 행동 트리 기본 노드
+    │   ├── BTComposite.gd    # 복합 노드 (Selector, Sequence, Parallel)
+    │   ├── BTDecorator.gd    # 데코레이터 노드
+    │   ├── BTLeaf.gd         # 리프 노드 (Condition, Action, Wait)
+    │   ├── BehaviorTree.gd   # BT 빌더 헬퍼 + TreeRunner
+    │   ├── EnemyBehaviors.gd # 적 유형별 행동 패턴
+    │   └── AIManager.gd      # 적 AI 중앙 관리자
+    └── wave/
+        ├── WaveGenerator.gd  # 웨이브 구성 생성기
+        ├── WaveManager.gd    # 웨이브 상태 관리자
+        └── SpawnController.gd # 적 스폰 컨트롤러
 ```
 
 ---
 
 ## Exposed Interfaces
 
-### EnemyFactory
+### EnemyData (Resource)
 
-```javascript
-const EnemyFactory = {
-    create(enemyId, x, y, difficulty),  // 적 인스턴스 생성
-    createBatch(enemyId, positions, difficulty),  // 다중 적 생성
-};
+```gdscript
+class_name EnemyData
+extends Resource
+
+# 기본 속성
+@export var id: String
+@export var display_name: String
+@export var tier: Constants.EnemyTier
+@export var hp: int
+@export var base_damage: int
+@export var attack_range: float
+@export var move_speed: float
+@export var armor: int
+@export var wave_cost: int
+@export var behavior_id: String
+
+# 특수 메카닉 플래그
+@export var is_sniper: bool
+@export var can_hack: bool
+@export var spawns_drones: bool
+@export var self_destructs: bool
+@export var provides_shield: bool
+@export var throws_grenade: bool
+@export var is_boss: bool
+
+# Methods
+func get_scaled_stats(difficulty: int, wave_number: int) -> Dictionary
 ```
 
-### Enemy Class
+### EnemyUnit (Node)
 
-```javascript
-class Enemy {
-    // Properties
-    id              // 고유 ID
-    enemyId         // 적 유형 ID
-    x, y            // 위치
-    health          // 현재 체력
-    maxHealth       // 최대 체력
-    damage          // 공격력
-    speed           // 이동 속도
-    state           // 현재 상태 (EnemyState)
-    target          // 현재 타겟
+```gdscript
+class_name EnemyUnit
+extends Entity
 
-    // Methods
-    update(deltaTime, context)
-    moveTowards(targetX, targetY, deltaTime)
-    isInAttackRange(target)
-    attack(target)
-    useSpecialAbility(context)
-    takeDamage(amount, source, damageType)
-    applyStun(duration)
-    applySlow(multiplier, duration)
-    getRenderData()
+# Signals
+signal target_changed(new_target: Node)
+signal special_ability_used(ability_id: String)
+signal landing_completed()
+signal hazard_zone_created(position: Vector2, radius: float, duration: float)
+signal storm_pulse_fired(damage: int)
 
-    // Events
-    on(event, callback)
-    emit(event, data)
-}
+# Properties
+var enemy_data: EnemyData
+var current_target: Node
+var entry_point: Vector2i
+var has_landed: bool
+var special_state: Dictionary
+
+# Methods
+func initialize(data: EnemyData, spawn_point: Vector2i, difficulty: int, wave_num: int)
+func set_target(target: Node)
+func is_boss() -> bool
+func is_shielded() -> bool
+
+# Jumper
+func can_jump() -> bool
+func perform_jump(target_pos: Vector2i)
+
+# Grenade
+func can_throw_grenade() -> bool
+func throw_grenade(target_pos: Vector2)
+
+# Captain
+func captain_charge_attack(direction: Vector2) -> bool
+func captain_summon_reinforcements()
+
+# Storm Core
+func get_active_hazard_zones() -> Array[Dictionary]
+func is_storm_core() -> bool
 ```
 
-### AIManager
+### AIManager (Node/Autoload)
 
-```javascript
-const AIManager = {
-    updateEnemy(enemy, context),   // 단일 적 AI 업데이트
-    updateAll(enemies, context),   // 모든 적 AI 업데이트
-    removeEnemy(enemyId),          // 적 AI 제거
-    clear(),                       // 전체 초기화
-};
+```gdscript
+class_name AIManager
+extends Node
+
+# 10개의 행동 트리 내장
+var behavior_trees: Dictionary
+
+# Methods
+func initialize(tile_grid: Node, battle_controller: Node)
+func activate()
+func deactivate()
+
+# 자동 처리 (_process에서)
+# - 모든 적 AI 업데이트
+# - 행동 트리 틱 실행
 ```
 
-### WaveGenerator
+### WaveGenerator (RefCounted)
 
-```javascript
-class WaveGenerator {
-    generateWaves(config)          // 스테이지용 웨이브 생성
-    generateWave(config)           // 단일 웨이브 생성
-    generateBossWave(depth, isStorm, spawnPoints)
-    getWavePreview(config)         // 웨이브 미리보기
-}
+```gdscript
+class_name WaveGenerator
+extends RefCounted
+
+class WaveData:
+    var wave_index: int
+    var enemies: Array  # [{enemy_id, count, entry_point}]
+    var spawn_delays: Array[float]
+    var theme: String
+    var budget: int
+    var is_boss_wave: bool
+
+# Methods
+func generate_waves(station_depth: int, diff: Constants.Difficulty, entry_points: Array[Vector2i]) -> Array[WaveData]
+func generate_boss_wave(station_depth: int, diff: Constants.Difficulty, entry_points: Array[Vector2i], boss_id: String) -> WaveData
+func get_wave_preview(wave_data: WaveData) -> Array
 ```
 
-### WaveManager
+### WaveManager (Node)
 
-```javascript
-class WaveManager {
-    initialize(waves)              // 웨이브 초기화
-    startNextWave(difficulty)      // 다음 웨이브 시작
-    update(deltaTime, difficulty)  // 스폰 업데이트
-    isWaveCleared(activeEnemies)   // 웨이브 클리어 확인
-    getProgress()                  // 진행 상황
+```gdscript
+class_name WaveManager
+extends Node
 
-    // Events: waveStart, enemySpawned, waveSpawnComplete, allWavesComplete
-}
+# Signals
+signal wave_started(wave_num: int)
+signal wave_ended(wave_num: int)
+signal all_waves_cleared()
+signal enemy_spawned(enemy: Node)
+signal wave_preview_ready(wave_num: int, preview: Array)
+
+# Methods
+func initialize(tile_grid: Node, battle_controller: Node, difficulty: Constants.Difficulty)
+func setup_waves(station_depth: int, entry_points: Array[Vector2i], seed_value: int)
+func setup_boss_wave(station_depth: int, entry_points: Array[Vector2i], boss_id: String, seed_value: int)
+func start_next_wave()
+func force_end_wave()
+func end_battle()
+func get_total_waves() -> int
+func get_current_wave() -> int
+func get_remaining_enemies() -> int
+func get_next_wave_preview() -> Array
 ```
 
-### EnemyMechanicsManager
+### SpawnController (Node)
 
-```javascript
-class EnemyMechanicsManager {
-    update(deltaTime, context)     // 메카닉 업데이트
+```gdscript
+class_name SpawnController
+extends Node
 
-    // Hacking
-    startHacking(hacker, turret)
-    cancelHacking(hackerId)
-    isHacking(hackerId)
+# Signals
+signal enemy_spawned(enemy: Node)
+signal group_spawned(enemy_id: String, count: int, entry_point: Vector2i)
+signal spawning_complete()
 
-    // Sniper
-    startSniperAiming(sniper, target)
-    getSniperLasers()
-
-    // Shields
-    isEnemyShielded(enemyId)
-    getShieldEffect(enemyId)
-
-    // Drones
-    spawnDrones(carrier, context)
-    getAllDrones()
-    damageDrone(droneId, damage)
-
-    // Explosions
-    queueExplosion(data)
-}
+# Methods
+func initialize(tile_grid: Node, battle_controller: Node)
+func start_spawning(wave_data: WaveGenerator.WaveData)
+func stop_spawning()
+func is_spawning_complete() -> bool
+func get_spawn_progress() -> float
 ```
 
 ---
@@ -135,36 +203,36 @@ class EnemyMechanicsManager {
 
 ### Tier 1 (기본)
 
-| ID | 이름 | 행동 | 특수 |
-|---|---|---|---|
-| `rusher` | 러셔 | melee_basic | - |
-| `gunner` | 건너 | ranged_basic | keepDistance |
-| `shieldTrooper` | 실드 트루퍼 | melee_shielded | frontalShield |
+| ID | 이름 | 행동 | 특수 | Wave Cost |
+|---|---|---|---|---|
+| `rusher` | 러셔 | melee_basic | - | 1 |
+| `gunner` | 건너 | ranged_basic | keepDistance | 2 |
+| `shield_trooper` | 실드 트루퍼 | melee_shielded | frontalShield | 3 |
 
 ### Tier 2 (중급)
 
-| ID | 이름 | 행동 | 특수 |
-|---|---|---|---|
-| `jumper` | 점퍼 | melee_jumper | jumpAttack |
-| `heavyTrooper` | 헤비 트루퍼 | melee_heavy | grenadeThrow |
-| `hacker` | 해커 | support_hacker | hackTurret |
-| `stormCreature` | 폭풍 생명체 | kamikaze | selfDestruct |
+| ID | 이름 | 행동 | 특수 | Wave Cost |
+|---|---|---|---|---|
+| `jumper` | 점퍼 | melee_jumper | jumpAttack | 4 |
+| `heavy_trooper` | 헤비 트루퍼 | melee_heavy | grenadeThrow | 5 |
+| `hacker` | 해커 | support_hacker | hackTurret | 3 |
+| `storm_creature` | 폭풍 생명체 | kamikaze | selfDestruct | 3 |
 
 ### Tier 3 (고급)
 
-| ID | 이름 | 행동 | 특수 |
-|---|---|---|---|
-| `brute` | 브루트 | melee_brute | heavySwing (cleave) |
-| `sniper` | 스나이퍼 | ranged_sniper | sniperShot (laser) |
-| `droneCarrier` | 드론 캐리어 | support_carrier | spawnDrones |
-| `shieldGenerator` | 실드 제너레이터 | support_shield | aoeShield |
+| ID | 이름 | 행동 | 특수 | Wave Cost |
+|---|---|---|---|---|
+| `brute` | 브루트 | melee_brute | heavySwing (cleave) | 8 |
+| `sniper` | 스나이퍼 | ranged_sniper | sniperShot (laser) | 6 |
+| `drone_carrier` | 드론 캐리어 | support_carrier | spawnDrones | 7 |
+| `shield_generator` | 실드 제너레이터 | support_shield | aoeShield | 5 |
 
 ### Boss
 
-| ID | 이름 | 행동 | 특수 |
-|---|---|---|---|
-| `pirateCaptain` | 해적 대장 | boss_captain | 다중 능력 (버프, 돌진, 소환) |
-| `stormCore` | 폭풍 핵 | boss_storm | 무적, 주기적 펄스, 폭풍 생명체 소환 |
+| ID | 이름 | 행동 | 특수 | Wave Cost |
+|---|---|---|---|---|
+| `pirate_captain` | 해적 대장 | boss_captain | 버프, 돌진, 소환 | 20 |
+| `storm_core` | 폭풍 핵 | boss_storm | 무적, 펄스, 위험 지역, 소환 | - |
 
 ---
 
@@ -172,33 +240,42 @@ class EnemyMechanicsManager {
 
 ### Node Types
 
-#### Composite Nodes
-- `SequenceNode` - 순차 실행 (모두 성공해야 성공)
-- `SelectorNode` - 선택 실행 (하나 성공하면 성공)
-- `ParallelNode` - 병렬 실행
-- `RandomSelectorNode` - 랜덤 선택
+#### Composite Nodes (BTComposite.gd)
+- `Selector` - 자식 중 하나가 SUCCESS하면 SUCCESS
+- `Sequence` - 모든 자식이 SUCCESS해야 SUCCESS
+- `Parallel` - 모든 자식 동시 실행, policy에 따라 결과
+- `RandomSelector` - 랜덤 순서로 선택 실행
 
-#### Decorator Nodes
-- `InverterNode` - 결과 반전
-- `RepeaterNode` - 반복 실행
-- `CooldownNode` - 쿨다운 적용
+#### Decorator Nodes (BTDecorator.gd)
+- `Inverter` - 결과 반전 (SUCCESS ↔ FAILURE)
+- `Succeeder` - 항상 SUCCESS
+- `Failer` - 항상 FAILURE
+- `Repeater` - N번 반복 실행
+- `RepeatUntilFail` - FAILURE할 때까지 반복
+- `Cooldown` - 쿨다운 적용
+- `Timeout` - 시간 제한
+- `ConditionGuard` - 조건 충족 시에만 실행
 
-#### Leaf Nodes
-- `ConditionNode` - 조건 검사
-- `ActionNode` - 행동 실행
+#### Leaf Nodes (BTLeaf.gd)
+- `Condition` - 조건 검사
+- `Action` - 행동 실행
+- `Wait` - 시간 대기
+- `RandomWait` - 랜덤 시간 대기
+- `Log` - 디버그 로그
+- `AlwaysSuccess` / `AlwaysFailure`
 
-### Behavior Patterns
+### Behavior Patterns (EnemyBehaviors.gd)
 
-```javascript
-// 사용 예시
-const tree = BehaviorPatterns.melee_basic();
-tree.tick(enemy, context);
+```gdscript
+# 사용 예시
+var tree := EnemyBehaviors.create_behavior("melee_basic")
+tree.tick(enemy, {"delta": delta})
 ```
 
 **Available Patterns:**
-- `melee_basic` - 기본 근접
-- `melee_shielded` - 실드 근접
-- `ranged_basic` - 기본 원거리
+- `melee_basic` - 기본 근접 (Rusher)
+- `melee_shielded` - 실드 근접 (Shield Trooper)
+- `ranged_basic` - 기본 원거리 (Gunner)
 - `melee_jumper` - 점퍼 전용
 - `melee_heavy` - 헤비 트루퍼 전용
 - `melee_brute` - 브루트 전용
@@ -216,276 +293,258 @@ tree.tick(enemy, context);
 
 ### Configuration
 
-```javascript
-const config = {
-    depth: 5,                    // 현재 깊이
-    difficulty: 'normal',        // 난이도
-    isStormStage: false,         // 폭풍 스테이지 여부
-    spawnPoints: [{x, y}, ...],  // 스폰 포인트
-    isBossStage: false,          // 보스 스테이지 여부
-};
-
-const generator = new WaveGenerator(rng);
-const waves = generator.generateWaves(config);
+```gdscript
+var generator := WaveGenerator.new(seed_value)
+var waves := generator.generate_waves(
+    station_depth,  # 현재 깊이 (1-20)
+    Constants.Difficulty.NORMAL,
+    entry_points  # Array[Vector2i]
+)
 ```
 
-### Wave Templates
+### Theme Compositions
 
-- **basic_rush** - 러셔 위주 돌격
-- **basic_ranged** - 원거리 위주
-- **basic_mixed** - 혼합 구성
-- **assault** - 점퍼 포함 공격
-- **heavy_push** - 헤비 유닛 전진
-- **hacker_support** - 해커 지원
-- **elite_assault** - 엘리트 공격
-- **sniper_cover** - 스나이퍼 엄호
-- **drone_swarm** - 드론 스웜
-- **storm_basic/mixed** - 폭풍 전용
+| Theme | 구성 |
+|---|---|
+| `rush` | 80% rusher, 20% gunner |
+| `ranged` | 60% gunner, 30% rusher, 10% shield |
+| `shield` | 50% shield, 30% rusher, 20% gunner |
+| `assault` | 30% jumper, 30% heavy, 40% rusher |
+| `hacking` | 20% hacker, 40% shield, 40% rusher |
+| `sniper` | 20% sniper, 50% shield, 30% rusher |
+| `mixed` | 40% rusher, 30% gunner, 30% shield |
+| `elite` | 30% brute, 20% sniper, 20% shield_gen, 30% heavy |
+| `swarm` | 90% rusher, 10% gunner |
 
-### Spawn Patterns
+### Enemy Unlock by Depth
 
-- `swarm` - 한 포인트에서 몰려 나옴
-- `spread` - 모든 포인트에 분산
-- `mixed` - 랜덤 분산
-- `assault` - 전선/후방 분리
-- `push` - 라인 진형
-- `support` - 지원 유닛 후방
-- `cover` - 실드 앞, 원거리 뒤
-- `boss` - 보스 단독
+| Depth | Unlocked Enemies |
+|---|---|
+| 1 | rusher, gunner, shield_trooper |
+| 3 | jumper |
+| 4 | heavy_trooper, hacker |
+| 5 | brute |
+| 6 | sniper, shield_generator |
+| 7 | drone_carrier |
+| 8 | storm_creature |
 
 ---
 
 ## Special Mechanics Detail
 
-### 1. Hacker - Turret Hacking
+### 1. Sniper - Laser Aiming
 
-```javascript
-// Flow
-1. Hacker finds nearest turret
-2. Moves into hack range (2 tiles)
-3. Starts 5-second hack process
-4. If interrupted (hacker damaged/moved), hack cancels
-5. On completion, turret turns hostile or disables
+```gdscript
+# EnemyUnit._process_sniper()
+# Flow:
+# 1. 가장 가까운 크루 타겟팅
+# 2. 정지 후 3초 조준 (sniper_aim_time)
+# 3. 조준 중 이동하면 리셋
+# 4. 완료 시 즉사 데미지 (9999)
+
+func get_sniper_aim_progress() -> float
+func get_sniper_target() -> Node
 ```
 
-**Events:**
-- `hackingStarted` - 해킹 시작
-- `hackingProgress` - 진행률 업데이트
-- `hackingComplete` - 해킹 완료
-- `hackingCanceled` - 해킹 취소
+### 2. Hacker - Turret Hacking
 
-### 2. Sniper - Laser Aiming
+```gdscript
+# EnemyUnit._process_hacker()
+# Flow:
+# 1. 해킹 가능한 터렛 탐색 (3타일 범위)
+# 2. 해킹 범위 내 이동 (2타일)
+# 3. 5초간 해킹 진행
+# 4. 완료 시 터렛 무력화
 
-```javascript
-// Flow
-1. Sniper finds highest threat target
-2. Stops moving, starts 3-second aim
-3. Red laser visible, tracks target
-4. If interrupted, aim cancels
-5. Fires one-shot-kill damage
+func get_hack_progress() -> float
+func get_hack_target() -> Node
 ```
-
-**Visual:**
-- 조준 시 빨간 레이저 표시
-- 프로그레스에 따라 레이저 강도 증가
 
 ### 3. Drone Carrier - Drone Spawning
 
-```javascript
-// Flow
-1. Carrier stays back from front line
-2. Every 10 seconds, spawns 2 drones
-3. Max 6 drones active per carrier
-4. Drones auto-attack nearest crew
-5. If carrier dies, all drones destroyed
+```gdscript
+# EnemyUnit._process_drone_carrier()
+# - 10초마다 드론 2기 생성
+# - 최대 6기 유지
+# - 캐리어 사망 시 모든 드론 파괴
 ```
-
-**Drone Stats:**
-- Health: 1
-- Damage: 4
-- Speed: 90
-- Range: 80
 
 ### 4. Shield Generator - AoE Shield
 
-```javascript
-// Flow
-1. Generator moves to center of allies
-2. Provides ranged immunity in 2-tile radius
-3. Shield effect shown visually
-4. If generator dies, shields removed
-```
+```gdscript
+# EnemyUnit._process_shield_generator()
+# - 2타일 범위 내 아군에게 실드 버프
+# - 에너지 데미지 완전 면역
+# - 제너레이터 사망 시 버프 해제
 
-**Effect:** `rangedImmunity` - 원거리 공격 완전 차단
+func apply_shield_buff()
+func remove_shield_buff()
+func is_shielded() -> bool
+```
 
 ### 5. Storm Creature - Self Destruct
 
-```javascript
-// Flow
-1. Rushes towards nearest target
-2. When within 30px of target, triggers
-3. Explodes with 2-tile radius
-4. Deals 20 damage to all in radius
+```gdscript
+# EnemyUnit._process_storm_creature()
+# - 0.5타일 내 접근 시 자폭
+# - 2타일 범위 폭발 데미지
+# - 아군 적 모두 피해
+
+func _self_destruct()
 ```
 
-### 6. Brute - Cleave Attack
+### 6. Grenade - Heavy Trooper
 
-```javascript
-// Properties
-- cleaveAngle: 120 degrees
-- knockbackForce: 3 tiles
-- oneHitKill: true (vs normal units)
+```gdscript
+# EnemyUnit._process_grenade()
+# - 쿨다운 8초
+# - 범위 1.5타일
+# - 데미지 15
+
+func can_throw_grenade() -> bool
+func throw_grenade(target_pos: Vector2)
 ```
 
-### 7. Heavy Trooper - Grenade
+### 7. Storm Core - Environmental Hazard Boss
 
-```javascript
-// Properties
-- grenadeRange: 3 tiles
-- grenadeDamage: 15
-- grenadeRadius: 1.5 tiles
-- cooldown: 8 seconds
+```gdscript
+# EnemyUnit._process_storm_core()
+# - 무적 (모든 데미지 0)
+# - 8초마다 위험 지역 생성 (4초 지속, 틱당 5 데미지)
+# - 5초마다 전역 펄스 (3 데미지)
+
+func get_active_hazard_zones() -> Array[Dictionary]
+func is_storm_core() -> bool
 ```
 
 ---
 
 ## Integration with Other Sessions
 
-### Session 2 (Combat System) Integration
+### Session 1 (Core Systems)
+```gdscript
+# EventBus 시그널 사용
+EventBus.enemy_spawned.emit(enemy, entry_point)
+EventBus.entity_died.connect(_on_entity_died)
+EventBus.wave_started.emit(wave_num, total_waves, preview)
+EventBus.wave_ended.emit(wave_num)
+EventBus.all_waves_cleared.emit()
+EventBus.turret_hacked.emit(turret, hacker)
 
-```javascript
-// Combat system should call:
-enemy.takeDamage(amount, source, damageType);
-enemy.applyStun(duration);
-enemy.applySlow(multiplier, duration);
-
-// And listen to:
-enemy.on('attack', handleEnemyAttack);
-enemy.on('death', handleEnemyDeath);
-enemy.on('specialAbility', handleSpecialAbility);
+# GameState 참조
+var seed := GameState.current_seed
 ```
 
-### Session 4 (Campaign) Integration
-
-```javascript
-// Campaign should use:
-const generator = new WaveGenerator(rng);
-const waves = generator.generateWaves({
-    depth: currentDepth,
-    difficulty: selectedDifficulty,
-    isStormStage: isStorm,
-    spawnPoints: stationSpawnPoints,
-    isBossStage: depth % 5 === 0,
-});
-
-const waveManager = new WaveManager();
-waveManager.initialize(waves);
+### Session 2 (Combat System)
+```gdscript
+# 데미지 처리
+enemy.take_damage(amount, Constants.DamageType.PHYSICAL, source)
+enemy.apply_stun(duration)
+enemy.apply_slow(multiplier, duration)
+enemy.apply_knockback(direction, force)
 ```
 
-### Session 5 (UI) Integration
-
-**Enemy Render Data:**
-```javascript
-const renderData = enemy.getRenderData();
-// Returns: { x, y, angle, color, size, icon, health, maxHealth, state, ... }
+### Session 4 (Campaign)
+```gdscript
+var wave_manager := WaveManager.new()
+wave_manager.initialize(tile_grid, battle_controller, difficulty)
+wave_manager.setup_waves(station_depth, entry_points, GameState.current_seed)
+wave_manager.start_next_wave()
 ```
 
-**Sniper Lasers:**
-```javascript
-const lasers = mechanicsManager.getSniperLasers();
-// Returns: [{ from, to, progress }, ...]
-```
+### Session 5 (UI)
+```gdscript
+# 웨이브 미리보기
+var preview := wave_manager.get_next_wave_preview()
 
-**Shield Visuals:**
-```javascript
-const shields = mechanicsManager.getShieldVisuals();
-// Returns: [{ generatorId, shieldedCount, shieldedIds }, ...]
+# 스나이퍼 레이저 표시
+var target := enemy.get_sniper_target()
+var progress := enemy.get_sniper_aim_progress()
+
+# 위험 지역 표시 (Storm Core)
+var zones := enemy.get_active_hazard_zones()
 ```
 
 ---
 
 ## Usage Example
 
-```javascript
-// Initialize
-const aiManager = new AIManager();
-const waveGenerator = new WaveGenerator(gameState.rng.get('enemyWaves'));
-const waveManager = new WaveManager();
-const mechanicsManager = new EnemyMechanicsManager();
+```gdscript
+# BattleController.gd
 
-// Generate and start waves
-const waves = waveGenerator.generateWaves({
-    depth: 5,
-    difficulty: 'normal',
-    spawnPoints: [{ x: 100, y: 200 }, { x: 300, y: 200 }],
-});
+var ai_manager: AIManager
+var wave_manager: WaveManager
 
-waveManager.initialize(waves);
-waveManager.startNextWave('normal');
+func _ready() -> void:
+    ai_manager = AIManager.new()
+    add_child(ai_manager)
 
-// Game loop
-function update(deltaTime) {
-    const context = {
-        deltaTime,
-        crews: activeCrew,
-        enemies: activeEnemies,
-        turrets: activeTurrets,
-        station: currentStation,
-    };
+    wave_manager = WaveManager.new()
+    add_child(wave_manager)
 
-    // Spawn enemies
-    const spawned = waveManager.update(deltaTime, 'normal');
-    activeEnemies.push(...spawned);
+    wave_manager.enemy_spawned.connect(_on_enemy_spawned)
+    wave_manager.all_waves_cleared.connect(_on_battle_won)
 
-    // Update enemy AI
-    aiManager.updateAll(activeEnemies, context);
+func start_battle(station_depth: int, entry_points: Array[Vector2i]) -> void:
+    ai_manager.initialize(tile_grid, self)
+    wave_manager.initialize(tile_grid, self, GameState.difficulty)
+    wave_manager.setup_waves(station_depth, entry_points, GameState.current_seed)
+    wave_manager.start_next_wave()
 
-    // Update special mechanics
-    mechanicsManager.update(deltaTime, context);
+func _on_enemy_spawned(enemy: Node) -> void:
+    enemies.append(enemy)
 
-    // Update each enemy
-    for (const enemy of activeEnemies) {
-        enemy.update(deltaTime, context);
-    }
+func _on_battle_won() -> void:
+    EventBus.battle_victory.emit()
+```
 
-    // Check wave clear
-    if (waveManager.isWaveCleared(activeEnemies)) {
-        if (!waveManager.isAllWavesComplete()) {
-            waveManager.startNextWave('normal');
-        } else {
-            // Stage complete
-        }
-    }
+---
+
+## Constants Reference (Constants.gd)
+
+### ENEMY_COSTS
+```gdscript
+const ENEMY_COSTS: Dictionary = {
+    "rusher": 1,
+    "gunner": 2,
+    "shield_trooper": 3,
+    "jumper": 4,
+    "heavy_trooper": 5,
+    "hacker": 3,
+    "storm_creature": 3,
+    "brute": 8,
+    "sniper": 6,
+    "drone_carrier": 7,
+    "shield_generator": 5,
+    "pirate_captain": 20,
+    "storm_core": 0
 }
 ```
 
----
-
-## Constants Reference
-
-### EnemyState
-```javascript
-SPAWNING, IDLE, MOVING, ATTACKING, USING_ABILITY, STUNNED, DYING, DEAD
+### EntityState
+```gdscript
+enum EntityState { IDLE, MOVING, ATTACKING, USING_SKILL, STUNNED, DEAD }
 ```
 
-### NodeState (Behavior Tree)
-```javascript
-SUCCESS, FAILURE, RUNNING
+### BehaviorTree.Status
+```gdscript
+enum Status { SUCCESS, FAILURE, RUNNING }
 ```
 
 ---
 
-## Performance Notes
+## Implementation Notes
 
-1. **Behavior Trees** - 캐시됨, 적당 하나의 트리 인스턴스
-2. **Shield Updates** - 매 프레임이 아닌 변경 시에만
-3. **Drone Updates** - 캐리어별 드론 그룹화로 효율적 관리
-4. **Targeting** - O(n) 검색, 큰 적 수에서 최적화 필요시 공간 분할 고려
+1. **모듈화**: BT 시스템이 BTNode, BTComposite, BTDecorator, BTLeaf로 분리되어 유지보수 용이
+2. **데이터 주도**: EnemyData Resource로 모든 적 속성 관리, 에디터에서 조정 가능
+3. **플래그 기반 메카닉**: ability_id 대신 is_sniper, can_hack 등 불리언 플래그로 다중 능력 지원
+4. **Storm Core**: 파괴 불가 환경 위험 보스로 위험 지역 + 전역 펄스 메카닉 구현
 
 ---
 
 ## Version
 
-- Session 3 Implementation
-- Date: 2026-02-03
-- Status: Complete
+- Session: S03
+- Platform: Godot 4.x
+- Date: 2026-02-04
+- Status: ✅ Complete

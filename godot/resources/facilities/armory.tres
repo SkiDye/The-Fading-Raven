@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="FacilityData" load_steps=2 format=3 uid="uid://d9p1r4w6v3s7"]
+
+[ext_resource type="Script" path="res://src/data/FacilityData.gd" id="1_armory"]
+
+[resource]
+script = ExtResource("1_armory")
+id = "armory"
+display_name = "Armory"
+display_name_ko = "무기고"
+description = "무기와 탄약을 보관하는 시설입니다. 크루 공격력이 증가합니다."
+facility_type = 2
+size = Vector2i(2, 2)
+priority = 4
+max_hp = 150
+defense = 0.1
+passive_bonus = {"crew_damage": 0.15}
+active_effect_id = ""
+effect_radius = 0.0
+save_credits = 70
+loss_penalty = "crew_damage"
+color = Color(1.0, 0.5, 0.2, 1.0)

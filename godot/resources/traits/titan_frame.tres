@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "titan_frame"
+display_name = "Titan Frame"
+display_name_ko = "거인의 체격"
+description = "거대한 체격으로 최대 체력이 크게 증가합니다."
+is_positive = true
+rarity = 2
+required_class = ""
+incompatible_traits = ["fragile"]
+stat_modifiers = {"hp": 0.25, "speed": -0.05}
+special_effects = ["intimidate"]
+color = Color(0.6, 0.4, 0.2, 1.0)

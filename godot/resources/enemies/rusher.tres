@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/EnemyData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "rusher"
+display_name = "Rusher"
+display_name_ko = "러셔"
+description = "Fast melee attacker that rushes toward the nearest target."
+tier = 1
+wave_cost = 1
+is_boss = false
+hp = 10
+damage = 2
+attack_speed = 1.5
+move_speed = 2.0
+attack_range = 1.0
+damage_type = 0
+armor = 0.0
+evasion = 0.0
+knockback_resistance = 0.0
+color = Color(1, 0.3, 0.3, 1)
+scale = 1.0
+aggression = 1.5
+preferred_target = ""
+ability_id = "melee_rush"

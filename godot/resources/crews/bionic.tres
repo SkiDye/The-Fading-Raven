@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CrewClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/CrewClassData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "bionic"
+display_name = "Bionic"
+display_name_ko = "바이오닉"
+description = "High-mobility assassin class. Teleports to eliminate priority targets."
+base_squad_size = 5
+base_hp = 6
+base_damage = 6
+attack_speed = 1.5
+move_speed = 2.0
+attack_range = 1.0
+color = Color(0.8, 0.2, 0.8, 1.0)
+skill_id = "blink"
+skill_name = "Blink"
+skill_description = "Teleport to target location, briefly becoming invulnerable."
+skill_cooldown = 15.0
+strengths = ["high_mobility", "assassination", "flanking", "invulnerable_blink"]
+weaknesses = ["small_squad", "fragile", "cooldown_dependent", "aoe_vulnerable"]
+armor = 0.0
+evasion = 0.2

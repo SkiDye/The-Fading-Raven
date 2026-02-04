@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3 uid="uid://equip_shield_generator"]
+
+[ext_resource type="Script" path="res://src/data/EquipmentData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "shield_generator_equip"
+display_name = "Shield Generator"
+display_name_ko = "보호막 생성기"
+description = "분대 전체의 방어력이 25% 증가합니다."
+equipment_type = 0
+rarity = 2
+required_class = ""
+unlock_id = ""
+stat_modifiers = {
+	"defense": 0.25
+}
+special_effects = []
+cooldown = 0.0
+charges = -1
+active_effect_id = ""
+color = Color(0.3, 0.7, 1.0, 1.0)

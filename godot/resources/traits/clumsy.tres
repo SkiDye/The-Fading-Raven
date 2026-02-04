@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "clumsy"
+display_name = "Clumsy"
+display_name_ko = "서투른"
+description = "서투른 동작으로 회피율이 감소하고 넘어질 확률이 있습니다."
+is_positive = false
+rarity = 1
+required_class = ""
+incompatible_traits = ["steady_stance"]
+stat_modifiers = {"evasion": -0.20, "accuracy": -0.10}
+special_effects = ["trip_chance", "fumble_chance"]
+color = Color(0.6, 0.5, 0.4, 1.0)

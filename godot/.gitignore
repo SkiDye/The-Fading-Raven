@@ -1,0 +1,19 @@
+# Godot
+.godot/
+*.translation
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+*.code-workspace
+
+# Build
+export/
+*.pck
+*.zip
+
+# Logs
+*.log

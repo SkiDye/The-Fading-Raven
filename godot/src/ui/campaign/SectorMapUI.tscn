@@ -1,0 +1,140 @@
+[gd_scene load_steps=2 format=3 uid="uid://bsybym4n2dujg"]
+
+[ext_resource type="Script" path="res://src/ui/campaign/SectorMapUI.gd" id="1_sectormapui"]
+
+[node name="SectorMapUI" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_sectormapui")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.08, 0.12, 1)
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 50.0
+grow_horizontal = 2
+theme_override_constants/separation = 20
+
+[node name="BackBtn" type="Button" parent="TopBar"]
+custom_minimum_size = Vector2(100, 40)
+layout_mode = 2
+text = "< MENU"
+
+[node name="TitleLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "THE FADING RAVEN"
+vertical_alignment = 1
+
+[node name="Spacer" type="Control" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CreditsLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Credits: 0"
+vertical_alignment = 1
+
+[node name="DepthLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Depth: 0 / Storm: 0"
+vertical_alignment = 1
+
+[node name="Spacer2" type="Control" parent="TopBar"]
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+
+[node name="MapContainer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 60.0
+offset_right = -260.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="StormIndicator" type="ColorRect" parent="MapContainer"]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 50.0
+grow_vertical = 2
+color = Color(0.5, 0.1, 0.1, 0.3)
+
+[node name="InfoPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -250.0
+offset_top = 60.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="InfoPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="InfoPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="NodeNameLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Battle"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="InfoPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="NodeDescLabel" type="RichTextLabel" parent="InfoPanel/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+text = "Defend the station from enemy waves."
+fit_content = true
+scroll_active = false
+
+[node name="DifficultyLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Difficulty: ●●○○○"
+horizontal_alignment = 1
+
+[node name="RewardsLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.5, 1)
+text = "Rewards: ~50 credits"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="InfoPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EnterBtn" type="Button" parent="InfoPanel/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+text = "ENTER"

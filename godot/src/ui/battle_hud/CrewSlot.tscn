@@ -1,0 +1,64 @@
+[gd_scene load_steps=2 format=3 uid="uid://crewslot001"]
+
+[ext_resource type="Script" path="res://src/ui/battle_hud/CrewSlot.gd" id="1_crewslot"]
+
+[node name="CrewSlot" type="PanelContainer"]
+custom_minimum_size = Vector2(180, 60)
+offset_right = 180.0
+offset_bottom = 60.0
+script = ExtResource("1_crewslot")
+
+[node name="SelectionIndicator" type="ColorRect" parent="."]
+layout_mode = 2
+color = Color(0.3, 0.6, 1, 0.3)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ClassIcon" type="TextureRect" parent="MarginContainer/HBoxContainer"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+stretch_mode = 5
+
+[node name="InfoContainer" type="VBoxContainer" parent="MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="NameLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoContainer"]
+layout_mode = 2
+text = "Crew Name"
+text_overrun_behavior = 3
+
+[node name="HealthBar" type="ProgressBar" parent="MarginContainer/HBoxContainer/InfoContainer"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+
+[node name="SkillCooldown" type="ProgressBar" parent="MarginContainer/HBoxContainer/InfoContainer"]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+
+[node name="HotkeyLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = -18.0
+offset_right = 20.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 0.8)
+theme_override_font_sizes/font_size = 12
+text = "1"

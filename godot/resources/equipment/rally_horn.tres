@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3 uid="uid://equip_rally_horn"]
+
+[ext_resource type="Script" path="res://src/data/EquipmentData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "rally_horn"
+display_name = "Rally Horn"
+display_name_ko = "집결 나팔"
+description = "아군 전체에게 공격력과 방어력 버프를 부여합니다."
+equipment_type = 1
+rarity = 3
+required_class = ""
+unlock_id = ""
+stat_modifiers = {}
+special_effects = []
+cooldown = 45.0
+charges = -1
+active_effect_id = "rally_horn_buff"
+color = Color(0.9, 0.7, 0.2, 1.0)

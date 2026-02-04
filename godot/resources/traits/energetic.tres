@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "energetic"
+display_name = "Energetic"
+display_name_ko = "활력 넘치는"
+description = "넘치는 활력으로 스태미나가 증가하고 피로에 강합니다."
+is_positive = true
+rarity = 1
+required_class = ""
+incompatible_traits = []
+stat_modifiers = {"stamina": 0.25, "stamina_regen": 0.15}
+special_effects = ["fatigue_resist"]
+color = Color(0.2, 0.9, 0.3, 1.0)

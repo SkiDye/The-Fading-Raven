@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "reinforced_armor"
+display_name = "Reinforced Armor"
+display_name_ko = "강화된 갑옷"
+description = "튼튼한 갑옷으로 방어력이 증가합니다."
+is_positive = true
+rarity = 1
+required_class = ""
+incompatible_traits = []
+stat_modifiers = {"defense": 0.20}
+special_effects = ["reduce_critical_damage"]
+color = Color(0.5, 0.5, 0.6, 1.0)

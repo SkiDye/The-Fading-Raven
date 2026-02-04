@@ -1,0 +1,203 @@
+[gd_scene load_steps=6 format=3 uid="uid://battlehud001"]
+
+[ext_resource type="Script" path="res://src/ui/battle_hud/BattleHUD.gd" id="1_battlehud"]
+[ext_resource type="Script" path="res://src/ui/battle_hud/CrewPanel.gd" id="2_crewpanel"]
+[ext_resource type="Script" path="res://src/ui/battle_hud/WaveIndicator.gd" id="3_waveindicator"]
+[ext_resource type="Script" path="res://src/ui/battle_hud/RavenPanel.gd" id="4_ravenpanel"]
+[ext_resource type="Script" path="res://src/ui/battle_hud/FacilityStatus.gd" id="5_facilitystatus"]
+
+[node name="BattleHUD" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_battlehud")
+
+[node name="LeftPanel" type="PanelContainer" parent="."]
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 200.0
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="LeftPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="CrewPanel" type="VBoxContainer" parent="LeftPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+script = ExtResource("2_crewpanel")
+
+[node name="TopPanel" type="HBoxContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 50.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="CreditsLabel" type="Label" parent="TopPanel"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Credits: 0"
+vertical_alignment = 1
+
+[node name="Spacer" type="Control" parent="TopPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="WaveIndicator" type="Control" parent="TopPanel"]
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 2
+script = ExtResource("3_waveindicator")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TopPanel/WaveIndicator"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="WaveLabel" type="Label" parent="TopPanel/WaveIndicator/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Wave 1 / 3"
+horizontal_alignment = 1
+
+[node name="ProgressBar" type="ProgressBar" parent="TopPanel/WaveIndicator/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+show_percentage = false
+
+[node name="StatusLabel" type="Label" parent="TopPanel/WaveIndicator/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "In Progress..."
+horizontal_alignment = 1
+
+[node name="Spacer2" type="Control" parent="TopPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RightPanel" type="PanelContainer" parent="."]
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -180.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="RightPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 60
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="RightPanel/MarginContainer"]
+layout_mode = 2
+
+[node name="FacilitiesLabel" type="Label" parent="RightPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Facilities"
+horizontal_alignment = 1
+
+[node name="FacilityStatus" type="VBoxContainer" parent="RightPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+script = ExtResource("5_facilitystatus")
+
+[node name="BottomPanel" type="HBoxContainer" parent="."]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -60.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+alignment = 1
+
+[node name="RavenPanel" type="HBoxContainer" parent="BottomPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+script = ExtResource("4_ravenpanel")
+
+[node name="ScoutBtn" type="Button" parent="BottomPanel/RavenPanel"]
+custom_minimum_size = Vector2(80, 40)
+layout_mode = 2
+text = "Scout (∞)"
+
+[node name="FlareBtn" type="Button" parent="BottomPanel/RavenPanel"]
+custom_minimum_size = Vector2(80, 40)
+layout_mode = 2
+text = "Flare (2)"
+
+[node name="ResupplyBtn" type="Button" parent="BottomPanel/RavenPanel"]
+custom_minimum_size = Vector2(100, 40)
+layout_mode = 2
+text = "Resupply (1)"
+
+[node name="OrbitalBtn" type="Button" parent="BottomPanel/RavenPanel"]
+custom_minimum_size = Vector2(90, 40)
+layout_mode = 2
+text = "Orbital (1)"
+
+[node name="PauseOverlay" type="ColorRect" parent="."]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="PauseLabel" type="Label" parent="PauseOverlay"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -30.0
+offset_right = 100.0
+offset_bottom = 30.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 32
+text = "PAUSED"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SkillTargetingOverlay" type="Control" parent="."]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TargetingLabel" type="Label" parent="SkillTargetingOverlay"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -80.0
+offset_right = 150.0
+offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 16
+text = "Click to select target. Press ESC to cancel."
+horizontal_alignment = 1

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "heavy_load"
+display_name = "Heavy Load"
+display_name_ko = "무거운 짐"
+description = "무거운 장비로 인해 이동 속도가 감소합니다."
+is_positive = false
+rarity = 1
+required_class = ""
+incompatible_traits = ["swift_movement"]
+stat_modifiers = {"speed": -0.20, "evasion": -0.15}
+special_effects = ["stamina_drain"]
+color = Color(0.5, 0.4, 0.3, 1.0)

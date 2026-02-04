@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3 uid="uid://equip_hacking_device"]
+
+[ext_resource type="Script" path="res://src/data/EquipmentData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "hacking_device"
+display_name = "Hacking Device"
+display_name_ko = "해킹 장치"
+description = "적 터렛을 해킹하여 아군으로 전환시킵니다."
+equipment_type = 1
+rarity = 3
+required_class = ""
+unlock_id = ""
+stat_modifiers = {}
+special_effects = []
+cooldown = 60.0
+charges = -1
+active_effect_id = "hacking_device_convert"
+color = Color(0.6, 0.2, 0.8, 1.0)

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3 uid="uid://equip_shock_wave"]
+
+[ext_resource type="Script" path="res://src/data/EquipmentData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "shock_wave"
+display_name = "Shock Wave"
+display_name_ko = "충격파"
+description = "주변의 모든 적에게 충격파를 발사하여 스턴시킵니다."
+equipment_type = 1
+rarity = 2
+required_class = ""
+unlock_id = ""
+stat_modifiers = {}
+special_effects = []
+cooldown = 25.0
+charges = -1
+active_effect_id = "shock_wave_stun"
+color = Color(1.0, 0.8, 0.2, 1.0)

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "fearless"
+display_name = "Fearless"
+display_name_ko = "두려움 없는"
+description = "두려움을 모르는 용감한 성격으로 공포 효과에 면역입니다."
+is_positive = true
+rarity = 2
+required_class = ""
+incompatible_traits = ["timid"]
+stat_modifiers = {"morale": 0.20, "damage": 0.05}
+special_effects = ["fear_immune", "morale_boost_aura"]
+color = Color(1.0, 0.8, 0.2, 1.0)

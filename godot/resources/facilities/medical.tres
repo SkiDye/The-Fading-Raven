@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="FacilityData" load_steps=2 format=3 uid="uid://b4m7n2j5x8k1"]
+
+[ext_resource type="Script" path="res://src/data/FacilityData.gd" id="1_medical"]
+
+[resource]
+script = ExtResource("1_medical")
+id = "medical"
+display_name = "Medical Bay"
+display_name_ko = "의료시설"
+description = "부상당한 크루들을 치료하는 시설입니다. 회복 속도가 크게 증가합니다."
+facility_type = 1
+size = Vector2i(2, 2)
+priority = 3
+max_hp = 100
+defense = 0.0
+passive_bonus = {"recovery_speed": 0.5}
+active_effect_id = ""
+effect_radius = 0.0
+save_credits = 60
+loss_penalty = "recovery_disabled"
+color = Color(0.2, 0.9, 0.4, 1.0)

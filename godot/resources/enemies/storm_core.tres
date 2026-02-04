@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/EnemyData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "storm_core"
+display_name = "Storm Core"
+display_name_ko = "스톰 코어"
+description = "Heart of the cosmic storm. Cannot be destroyed directly - survive until it passes. Creates environmental hazards."
+tier = 4
+wave_cost = 0
+is_boss = true
+hp = 999
+damage = 5
+attack_speed = 0.5
+move_speed = 0.0
+attack_range = 10.0
+damage_type = 2
+armor = 1.0
+evasion = 0.0
+knockback_resistance = 1.0
+color = Color(0.5, 0.1, 0.8, 1)
+scale = 3.0
+aggression = 0.0
+preferred_target = "facilities"
+ability_id = "boss_storm"

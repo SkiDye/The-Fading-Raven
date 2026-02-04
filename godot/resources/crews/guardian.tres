@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CrewClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/CrewClassData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "guardian"
+display_name = "Guardian"
+display_name_ko = "가디언"
+description = "All-rounder class with energy shields. Excels against ranged enemies."
+base_squad_size = 8
+base_hp = 10
+base_damage = 3
+attack_speed = 1.0
+move_speed = 1.5
+attack_range = 1.0
+color = Color(0.29, 0.56, 1.0, 1.0)
+skill_id = "shield_bash"
+skill_name = "Shield Bash"
+skill_description = "Charge forward with shields raised, knocking back enemies."
+skill_cooldown = 20.0
+strengths = ["ranged_defense", "mobility", "versatile"]
+weaknesses = ["short_reach", "weak_vs_brute", "shield_disabled_in_melee"]
+armor = 0.0
+evasion = 0.0

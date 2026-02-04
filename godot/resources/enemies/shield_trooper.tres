@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/EnemyData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "shield_trooper"
+display_name = "Shield Trooper"
+display_name_ko = "실드 트루퍼"
+description = "Frontal energy shield blocks ranged attacks. Vulnerable from sides and rear."
+tier = 1
+wave_cost = 3
+is_boss = false
+hp = 20
+damage = 2
+attack_speed = 1.0
+move_speed = 1.5
+attack_range = 1.0
+damage_type = 0
+armor = 0.0
+evasion = 0.0
+knockback_resistance = 0.3
+color = Color(0.3, 0.5, 0.8, 1)
+scale = 1.1
+aggression = 1.0
+preferred_target = ""
+ability_id = "shield_melee"

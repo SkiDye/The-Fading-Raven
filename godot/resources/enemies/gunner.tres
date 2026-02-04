@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/EnemyData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "gunner"
+display_name = "Gunner"
+display_name_ko = "거너"
+description = "Ranged attacker that maintains distance while firing."
+tier = 1
+wave_cost = 2
+is_boss = false
+hp = 10
+damage = 3
+attack_speed = 1.0
+move_speed = 1.5
+attack_range = 4.0
+damage_type = 1
+armor = 0.0
+evasion = 0.0
+knockback_resistance = 0.0
+color = Color(0.8, 0.4, 0.2, 1)
+scale = 1.0
+aggression = 1.0
+preferred_target = ""
+ability_id = "ranged"

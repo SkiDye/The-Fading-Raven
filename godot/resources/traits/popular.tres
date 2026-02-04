@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "popular"
+display_name = "Popular"
+display_name_ko = "인기인"
+description = "동료들에게 인기가 많아 주변 아군의 사기가 오릅니다."
+is_positive = true
+rarity = 2
+required_class = ""
+incompatible_traits = []
+stat_modifiers = {"morale": 0.15, "leadership": 0.20}
+special_effects = ["morale_aura", "recruitment_bonus"]
+color = Color(1.0, 0.6, 0.8, 1.0)

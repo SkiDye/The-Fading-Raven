@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TraitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/TraitData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "swift_movement"
+display_name = "Swift Movement"
+display_name_ko = "민첩한 움직임"
+description = "빠른 움직임으로 이동 속도와 회피율이 증가합니다."
+is_positive = true
+rarity = 1
+required_class = ""
+incompatible_traits = ["heavy_load", "heavy_impact"]
+stat_modifiers = {"speed": 0.20, "evasion": 0.10}
+special_effects = ["dodge_bonus"]
+color = Color(0.4, 0.8, 1.0, 1.0)

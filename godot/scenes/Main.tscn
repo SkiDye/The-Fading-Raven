@@ -1,0 +1,55 @@
+[gd_scene load_steps=2 format=3 uid="uid://bxj8tqk1h5qvd"]
+
+[ext_resource type="Script" path="res://scenes/Main.gd" id="1_main"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="GameManager" type="Node" parent="."]
+
+[node name="SceneContainer" type="Node" parent="."]
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="TooltipContainer" type="Control" parent="UILayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ToastContainer" type="VBoxContainer" parent="UILayer"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -300.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 400.0
+grow_horizontal = 0
+mouse_filter = 2
+alignment = 2
+
+[node name="ModalContainer" type="Control" parent="UILayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="DebugLayer" type="CanvasLayer" parent="."]
+layer = 100
+
+[node name="DebugInfo" type="Label" parent="DebugLayer"]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 350.0
+offset_bottom = 150.0
+text = "The Fading Raven v0.1.0
+Loading..."

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/EnemyData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "drone_carrier"
+display_name = "Drone Carrier"
+display_name_ko = "드론 캐리어"
+description = "Spawns attack drones every 10 seconds. Destroying the carrier deactivates all its drones."
+tier = 3
+wave_cost = 7
+is_boss = false
+hp = 30
+damage = 2
+attack_speed = 0.8
+move_speed = 1.0
+attack_range = 3.0
+damage_type = 1
+armor = 0.1
+evasion = 0.0
+knockback_resistance = 0.3
+color = Color(0.5, 0.5, 0.7, 1)
+scale = 1.4
+aggression = 0.8
+preferred_target = ""
+ability_id = "drone_carrier"

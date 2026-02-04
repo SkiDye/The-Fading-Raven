@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3 uid="uid://equip_revive_kit"]
+
+[ext_resource type="Script" path="res://src/data/EquipmentData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "revive_kit"
+display_name = "Revive Kit"
+display_name_ko = "부활 키트"
+description = "전투 중 사망한 분대원 1명을 부활시킵니다."
+equipment_type = 2
+rarity = 3
+required_class = ""
+unlock_id = ""
+stat_modifiers = {}
+special_effects = []
+cooldown = 0.0
+charges = 1
+active_effect_id = "revive_kit_resurrect"
+color = Color(0.2, 1.0, 0.4, 1.0)
