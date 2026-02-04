@@ -1,6 +1,6 @@
 # The Fading Raven - 코딩 표준 및 세션 호환성 가이드
 
-> **버전**: 1.0.0
+> **버전**: 1.1.0
 > **최종 업데이트**: 2026-02-04
 > **목적**: 12개 병렬 세션의 코드 호환성 보장
 
@@ -591,7 +591,243 @@ main           # 안정 버전
 
 ---
 
-## 12. 참고 자료
+## 12. GDScript 4.x 오류 방지 가이드
+
+> **2026-02-04 추가**: 실제 개발 중 발생한 오류와 해결책 정리
+
+### 12.1 Godot 네이티브 클래스명 충돌
+
+**문제**: `class_name`이 Godot 내장 클래스와 충돌
+
+```gdscript
+# ❌ 오류: "Class 'TileData' hides a native class"
+class_name TileData
+extends RefCounted
+
+# ✅ 해결: 접두사 추가
+class_name GridTileData
+extends RefCounted
+```
+
+**주의할 네이티브 클래스**: `TileData`, `Animation`, `Image`, `Texture`, `Font`, `Theme` 등
+
+---
+
+### 12.2 Variant 타입 추론 오류
+
+**문제**: `:=` 연산자가 Variant에서 타입을 추론하려 할 때 발생
+
+```gdscript
+# ❌ 오류: "Cannot infer the type of X variable because the value doesn't have a set type"
+var current := queue.pop_front()    # pop_front()는 Variant 반환
+var tile := some_dict[key]          # Dictionary 값은 Variant
+var data := some_array[0]           # untyped Array 값은 Variant
+
+# ✅ 해결 방법 1: 명시적 캐스트
+var current: String = queue.pop_front() as String
+
+# ✅ 해결 방법 2: 타입 어노테이션
+var current: String = queue.pop_front()
+
+# ✅ 해결 방법 3: 타입 추론 안 쓰기
+var tile = tiles[pos.y][pos.x]  # := 대신 = 사용
+```
+
+**Variant를 반환하는 메서드들**:
+- `Array.pop_front()`, `Array.pop_back()`, `Array.front()`, `Array.back()`
+- `Dictionary.get()`, `Dictionary[]` 인덱싱
+- 타입이 지정되지 않은 `Array[]` 인덱싱
+
+---
+
+### 12.3 preload vs load
+
+**문제**: `preload`는 파싱 시점에 파일을 로드하므로 순환 참조 발생 가능
+
+```gdscript
+# ❌ 오류: "Could not resolve script" (순환 참조 또는 로드 순서 문제)
+const MyClass = preload("res://path/to/Script.gd")
+
+# ✅ 해결: 런타임 load() 사용
+var MyClass: GDScript
+
+func _init() -> void:
+    MyClass = load("res://path/to/Script.gd")
+
+# ✅ 또는 _ready()에서 로드
+func _ready() -> void:
+    MyClass = load("res://path/to/Script.gd")
+```
+
+**규칙**:
+- `preload`: 항상 존재하고 순환 참조 없는 리소스만
+- `load`: 동적 로드, 순환 참조 가능성 있는 스크립트
+
+---
+
+### 12.4 preload된 스크립트를 타입으로 사용 불가
+
+**문제**: `const`로 preload한 스크립트는 타입 어노테이션으로 사용 불가
+
+```gdscript
+const MyScript = preload("res://MyScript.gd")
+
+# ❌ 오류: preload된 const는 타입으로 사용 불가
+func get_data() -> MyScript:
+    pass
+var data: MyScript = MyScript.new()
+
+# ✅ 해결: 타입 어노테이션 제거
+func get_data():
+    return MyScript.new()
+var data = MyScript.new()
+
+# ✅ 또는: class_name이 있으면 그것 사용
+# MyScript.gd에 class_name MyClass가 있다면:
+func get_data() -> MyClass:
+    pass
+```
+
+---
+
+### 12.5 씬 파일 UID 불일치
+
+**문제**: `.tscn` 파일 간 UID 참조 불일치로 씬 로드 실패
+
+```
+# Campaign.tscn
+[ext_resource uid="uid://abc123" path="res://SectorMapUI.tscn"]
+
+# SectorMapUI.tscn (UID가 다름)
+[gd_scene uid="uid://xyz789" ...]  # ❌ 불일치!
+```
+
+**해결**:
+1. 참조하는 쪽의 UID에 맞춰 수정
+2. 또는 `.godot/uid_cache.bin` 삭제 후 Godot 재시작
+
+```bash
+# 캐시 삭제 (Godot 닫은 상태에서)
+rm godot/.godot/uid_cache.bin
+rm godot/.godot/global_script_class_cache.cfg
+```
+
+---
+
+### 12.6 BehaviorTree/상속 리턴 타입 오류
+
+**문제**: 자식 클래스 반환 시 부모 클래스 타입으로 선언된 경우
+
+```gdscript
+# BTNode.gd
+class_name BTNode
+func evaluate() -> BTNode:
+    pass
+
+# BTSelector.gd
+class_name BTSelector
+extends BTNode
+
+# ❌ 오류: "Cannot return value of type 'BTSelector' because the function return type is 'BTNode'"
+func create_tree() -> BTNode:
+    var selector = BTSelector.new()
+    return selector  # BTSelector는 BTNode의 자식인데도 오류
+
+# ✅ 해결: 완전한 클래스 경로 사용 또는 리턴 타입 변경
+func create_tree() -> BehaviorTree.BTSelector:
+    var selector = BTSelector.new()
+    return selector
+```
+
+---
+
+### 12.7 class_name 등록 실패
+
+**문제**: `class_name`이 전역에 등록되지 않아 다른 스크립트에서 인식 불가
+
+**원인**:
+1. 스크립트에 파싱 오류가 있음
+2. 캐시가 오래됨
+3. Godot 재시작 필요
+
+**해결**:
+```bash
+# 1. 캐시 삭제
+rm godot/.godot/global_script_class_cache.cfg
+
+# 2. Godot 완전히 종료 후 재시작
+
+# 3. 스크립트 오류 확인 (에디터에서 빨간 X 표시)
+```
+
+---
+
+### 12.8 타입 추론 경고를 에러로 처리
+
+**문제**: project.godot 설정으로 경고가 에러로 처리됨
+
+```ini
+# project.godot
+[debug]
+gdscript/warnings/untyped_declaration=1        # 경고
+gdscript/warnings/inferred_declaration=1       # 경고
+gdscript/warnings/treat_warnings_as_errors=true # ❌ 경고→에러
+```
+
+**해결**: 개발 중에는 `false`로 설정
+
+```ini
+[debug]
+gdscript/warnings/treat_warnings_as_errors=false
+```
+
+---
+
+### 12.9 typed Array 메서드 반환값
+
+**문제**: `Array[Type]`이어도 `pop_front()` 등은 여전히 `Variant` 반환
+
+```gdscript
+var queue: Array[String] = ["a", "b", "c"]
+
+# ❌ 오류: pop_front()는 Variant 반환
+var item := queue.pop_front()
+
+# ✅ 해결
+var item: String = queue.pop_front() as String
+# 또는
+var item = queue.pop_front()  # 타입 추론 안 씀
+```
+
+---
+
+### 12.10 요약: 안전한 코딩 패턴
+
+```gdscript
+# 1. 타입 추론 대신 명시적 타입 사용
+var tile: MyTileData = tiles[y][x]        # ✅
+var tile := tiles[y][x]                    # ❌ Variant 추론 오류
+
+# 2. class_name 네이티브 충돌 방지
+class_name GridTileData                    # ✅ 접두사
+class_name TileData                        # ❌ 네이티브 충돌
+
+# 3. preload 대신 load (순환 참조 시)
+var Script = load("res://script.gd")       # ✅
+const Script = preload("res://script.gd")  # ❌ 순환 참조 위험
+
+# 4. Array 메서드 캐스팅
+var s: String = arr.pop_front() as String  # ✅
+var s := arr.pop_front()                   # ❌ Variant 추론 오류
+
+# 5. 캐시 문제 시 삭제
+# rm .godot/uid_cache.bin
+# rm .godot/global_script_class_cache.cfg
+```
+
+---
+
+## 13. 참고 자료
 
 ### Godot 공식 문서
 - [GDScript Style Guide](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_styleguide.html)
@@ -609,3 +845,4 @@ main           # 안정 버전
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
 | 1.0.0 | 2026-02-04 | 초기 버전 작성 |
+| 1.1.0 | 2026-02-04 | GDScript 4.x 오류 방지 가이드 추가 (섹션 12) |
