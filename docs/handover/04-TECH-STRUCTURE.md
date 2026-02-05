@@ -1,6 +1,6 @@
 # 기술 스택 및 구조
 
-> **최종 업데이트**: 2026-02-05
+> **최종 업데이트**: 2026-02-06
 
 ## 현재 상태: Godot 4.x 3D
 
@@ -53,11 +53,14 @@ godot/
 │   │   └── wave/          # WaveGenerator, WaveManager
 │   └── ui/                # 2D UI 컴포넌트
 └── assets/
-    └── models/
-        ├── crews/         # guardian.glb
-        ├── enemies/       # rusher.glb
-        ├── facilities/    # residential_sml.glb
-        └── vehicles/      # boarding_pod.glb
+    └── models/            # 총 31개 GLB (2000 폴리곤 최적화 완료)
+        ├── crews/         # 5종: bionic, engineer, guardian, ranger, sentinel
+        ├── enemies/       # 3종: rusher, gunner, shield_trooper
+        ├── facilities/    # 6종: residential_sml/med/lrg, medical, armory, comm_tower, power_plant
+        ├── drones/        # 3종: raven_drone, turret, attack_drone
+        ├── vehicles/      # 3종: boarding_pod, raven_mothership, pirate_carrier
+        └── tiles/         # 10종: floor_basic/corridor/facility, wall_basic/window/corner,
+                           #       door_airlock/basic, railing, crate
 ```
 
 ---
@@ -177,7 +180,18 @@ damage = attack_damage
 | 크기 | 1 유닛 = 1 타일 |
 | 원점 | 모델 바닥 중앙 |
 | 방향 | -Z가 전방 |
+| 폴리곤 | ~2000 삼각형 (Sharp edge 보존 최적화) |
 | 애니메이션 | Idle, Walk, Attack, Death |
+
+### 모델 생성 파이프라인
+```
+1. SDXL (JuggernautXL) → 1024x1024 이미지 생성
+2. Hunyuan3D-2.1 → GLB 변환 (고폴리)
+3. Blender → 2000 폴리곤 최적화
+   - Sharp edge 마킹 (30°)
+   - Decimate COLLAPSE with delimit={'SHARP'}
+   - shade_smooth_by_angle()
+```
 
 ---
 
@@ -233,4 +247,4 @@ demo/
 
 ---
 
-*최종 업데이트: 2026-02-05*
+*최종 업데이트: 2026-02-06*

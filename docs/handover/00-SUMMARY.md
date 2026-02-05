@@ -1,7 +1,7 @@
 # The Fading Raven - 인수인계 총정리
 
-> **최종 업데이트**: 2026-02-05
-> **현재 상태**: Godot 4.x 3D 구현 Phase 1-4 완료 + 레거시 정리 완료
+> **최종 업데이트**: 2026-02-06
+> **현재 상태**: Godot 4.x 3D 구현 Phase 1-4 완료 + 3D 에셋 생성 완료
 
 ---
 
@@ -112,11 +112,14 @@ godot/
 │   │   └── wave/               # WaveGenerator, WaveManager
 │   └── ui/                     # 2D UI 컴포넌트
 └── assets/
-    └── models/
-        ├── crews/              # guardian.glb + 텍스처
-        ├── enemies/            # rusher.glb + 텍스처
-        ├── facilities/         # residential_sml.glb + 텍스처
-        └── vehicles/           # boarding_pod.glb + 텍스처
+    └── models/                 # 총 31개 GLB (2000 폴리곤 최적화)
+        ├── crews/              # 5종: bionic, engineer, guardian, ranger, sentinel
+        ├── enemies/            # 3종: rusher, gunner, shield_trooper
+        ├── facilities/         # 6종: residential_sml/med/lrg, medical, armory, comm_tower, power_plant
+        ├── drones/             # 3종: raven_drone, turret, attack_drone
+        ├── vehicles/           # 3종: boarding_pod, raven_mothership, pirate_carrier
+        └── tiles/              # 10종: floor_basic/corridor/facility, wall_basic/window/corner,
+                                #       door_airlock/basic, railing, crate
 ```
 
 ---
@@ -211,6 +214,18 @@ godot/
 | Facility3D | 5개 시설 타입별 프로시저럴 메시 | ✅ 완료 |
 | DropPod3D | 침투정 프로시저럴 메시 | ✅ 완료 |
 
+### 3D 에셋 생성 ✅ 완료 (2026-02-06)
+| 카테고리 | 수량 | 설명 |
+|----------|------|------|
+| 크루 | 5종 | bionic, engineer, guardian, ranger, sentinel |
+| 적 | 3종 | rusher, gunner, shield_trooper |
+| 시설 | 6종 | residential_sml/med/lrg, medical, armory, comm_tower, power_plant |
+| 드론 | 3종 | raven_drone, turret, attack_drone |
+| 함선 | 3종 | boarding_pod, raven_mothership, pirate_carrier |
+| 타일 | 10종 | floor_basic/corridor/facility, wall_basic/window/corner, door_airlock/basic, railing, crate |
+
+**생성 파이프라인**: SDXL (JuggernautXL) → Hunyuan3D-2.1 → Blender 2000폴리 최적화
+
 ### 통합 테스트 / 버그 수정 (2026-02-05)
 | 항목 | 상태 |
 |------|------|
@@ -295,4 +310,4 @@ godot/project.godot
 
 ---
 
-*인수인계 문서 v3.0 - Phase 1-4 + 2.5 완료*
+*인수인계 문서 v3.1 - Phase 1-4 + 2.5 완료 + 3D 에셋 생성 완료*
