@@ -42,10 +42,10 @@ func _process(delta: float) -> void:
 	position.y = _initial_y + _elapsed * rise_speed
 
 	# 페이드 아웃
-	var progress := _elapsed / lifetime
-	if progress > fade_start:
-		var fade_progress := (progress - fade_start) / (1.0 - fade_start)
-		modulate.a = 1.0 - fade_progress
+	var progress: float = _elapsed / lifetime
+	if progress > fade_start and label:
+		var fade_progress: float = (progress - fade_start) / (1.0 - fade_start)
+		label.modulate.a = 1.0 - fade_progress
 
 	# 자동 제거
 	if auto_destroy and _elapsed >= lifetime:
