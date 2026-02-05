@@ -43,8 +43,8 @@ func find_path(from: Vector2i, to: Vector2i, ignore_occupants: bool = false) -> 
 	var g_score: Dictionary = {from: 0.0}
 	var f_score: Dictionary = {from: _heuristic(from, to)}
 
-	var iterations := 0
-	var max_iterations := grid.width * grid.height * 2  # 무한 루프 방지
+	var iterations: int = 0
+	var max_iterations: int = grid.width * grid.height * 2  # 무한 루프 방지
 
 	while not open_set.is_empty() and iterations < max_iterations:
 		iterations += 1
@@ -63,7 +63,7 @@ func find_path(from: Vector2i, to: Vector2i, ignore_occupants: bool = false) -> 
 				if neighbor != to:
 					continue
 
-			var tile := grid.get_tile(neighbor)
+			var tile: Variant = grid.get_tile(neighbor)
 			var movement_cost: float = tile.get_movement_cost() if tile else 1.0
 			var tentative_g: float = g_score.get(current, INF) + movement_cost
 
@@ -104,9 +104,9 @@ func get_reachable_tiles(from: Vector2i, max_distance: int) -> Array[Vector2i]:
 			if not grid.is_walkable(neighbor):
 				continue
 
-			var tile := grid.get_tile(neighbor)
-			var cost := int(tile.get_movement_cost()) if tile else 1
-			var new_dist := dist + cost
+			var tile: Variant = grid.get_tile(neighbor)
+			var cost: int = int(tile.get_movement_cost()) if tile else 1
+			var new_dist: int = dist + cost
 
 			if new_dist <= max_distance:
 				if not visited.has(neighbor) or visited[neighbor] > new_dist:
@@ -164,8 +164,8 @@ func _find_nearest_walkable(pos: Vector2i, ignore_occupants: bool) -> Vector2i:
 	var checked: Dictionary = {}
 	var queue: Array[Vector2i] = [pos]
 
-	var iterations := 0
-	var max_iterations := grid.width * grid.height
+	var iterations: int = 0
+	var max_iterations: int = grid.width * grid.height
 
 	while not queue.is_empty() and iterations < max_iterations:
 		iterations += 1

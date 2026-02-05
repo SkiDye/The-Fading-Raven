@@ -430,27 +430,28 @@ func get_all_facilities() -> Array:
 # ===== DIFFICULTY HELPERS =====
 
 ## 현재 난이도 설정 가져오기
-func get_difficulty_settings(difficulty: Difficulty = GameState.current_difficulty) -> Dictionary:
+func get_difficulty_settings(difficulty: Difficulty = Difficulty.NORMAL) -> Dictionary:
+	# If caller wants current difficulty, they should pass GameState.current_difficulty explicitly
 	if BALANCE.difficulty.has(difficulty):
 		return BALANCE.difficulty[difficulty]
 	return BALANCE.difficulty[Difficulty.NORMAL]
 
 
 ## 적 HP 배율
-func get_enemy_hp_multiplier(difficulty: Difficulty = GameState.current_difficulty) -> float:
-	var settings := get_difficulty_settings(difficulty)
+func get_enemy_hp_multiplier(difficulty: Difficulty = Difficulty.NORMAL) -> float:
+	var settings: Dictionary = get_difficulty_settings(difficulty)
 	return settings.get("enemy_hp_mult", 1.0)
 
 
 ## 적 데미지 배율
-func get_enemy_damage_multiplier(difficulty: Difficulty = GameState.current_difficulty) -> float:
-	var settings := get_difficulty_settings(difficulty)
+func get_enemy_damage_multiplier(difficulty: Difficulty = Difficulty.NORMAL) -> float:
+	var settings: Dictionary = get_difficulty_settings(difficulty)
 	return settings.get("enemy_damage_mult", 1.0)
 
 
 ## 웨이브 예산 배율
-func get_wave_budget_multiplier(difficulty: Difficulty = GameState.current_difficulty) -> float:
-	var settings := get_difficulty_settings(difficulty)
+func get_wave_budget_multiplier(difficulty: Difficulty = Difficulty.NORMAL) -> float:
+	var settings: Dictionary = get_difficulty_settings(difficulty)
 	return settings.get("wave_budget_mult", 1.0)
 
 

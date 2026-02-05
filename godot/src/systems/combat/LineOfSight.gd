@@ -27,13 +27,13 @@ func _init(tile_grid) -> void:
 ## [param to]: 목표 타일 좌표
 ## [return]: 시야선 존재 여부
 func has_los(from: Vector2i, to: Vector2i) -> bool:
-	var tiles := get_los_tiles(from, to)
+	var tiles: Array[Vector2i] = get_los_tiles(from, to)
 
 	for tile_pos in tiles:
 		if tile_pos == from or tile_pos == to:
 			continue
 
-		var tile := grid.get_tile(tile_pos)
+		var tile: Variant = grid.get_tile(tile_pos)
 		if tile and tile.is_blocking_los():
 			return false
 
@@ -187,7 +187,7 @@ func get_tiles_along_ray(from: Vector2i, direction: Vector2, max_range: int) -> 
 			result.append(tile_pos)
 
 			# 벽에 막히면 중단
-			var tile := grid.get_tile(tile_pos)
+			var tile: Variant = grid.get_tile(tile_pos)
 			if tile and tile.is_blocking_los():
 				break
 
@@ -217,7 +217,7 @@ func check_cover(from: Vector2i, to: Vector2i) -> Dictionary:
 		if tile_pos == from or tile_pos == to:
 			continue
 
-		var tile := grid.get_tile(tile_pos)
+		var tile: Variant = grid.get_tile(tile_pos)
 		if tile == null:
 			continue
 
@@ -229,7 +229,7 @@ func check_cover(from: Vector2i, to: Vector2i) -> Dictionary:
 				max_reduction = reduction
 
 	# 타겟 위치의 엄폐물도 체크
-	var target_tile := grid.get_tile(to)
+	var target_tile: Variant = grid.get_tile(to)
 	if target_tile and target_tile.is_partial_cover():
 		has_cover = true
 		var reduction: float = target_tile.get_cover_reduction()
