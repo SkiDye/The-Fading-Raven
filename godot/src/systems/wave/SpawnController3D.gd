@@ -300,10 +300,10 @@ func _on_pod_enemies_deployed(deployed: Array, pod: Node3D, tile_pos: Vector2i) 
 		var enemy_data: Dictionary = deployed[i]
 		var enemy_id: String = enemy_data.get("enemy_id", "rusher")
 
-		# 약간의 오프셋으로 스폰
+		# 약간의 오프셋으로 스폰 (Y=0.1로 바닥 위에 배치)
 		var offset := Vector3(
 			randf_range(-0.5, 0.5),
-			0,
+			0.1,
 			randf_range(-0.5, 0.5)
 		)
 		var spawn_pos := _tile_to_world(tile_pos) + offset

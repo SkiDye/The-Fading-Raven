@@ -65,16 +65,22 @@ func _process(delta: float) -> void:
 func initialize(data: Dictionary) -> void:
 	if data.has("target_tile"):
 		target_tile = data.target_tile
-		target_position = Vector3(target_tile.x + 0.5, 0, target_tile.y + 0.5)
+		target_position = Vector3(target_tile.x + 0.5, 0.2, target_tile.y + 0.5)
 
 	if data.has("enemies"):
 		enemy_payload = data.enemies
 
+	# Bad North 스타일: 맵 외곽 바깥에서 수평 접근
+	var dir: Vector3 = Vector3.BACK
 	if data.has("approach_direction"):
-		var dir: Vector3 = data.approach_direction
-		_approach_start = target_position - dir.normalized() * 20.0
-		_approach_start.y = 5.0
-		global_position = _approach_start
+		var input_dir: Vector3 = data.approach_direction
+		if input_dir.length_squared() > 0.01:
+			dir = input_dir.normalized()
+
+	# dir은 맵 중앙 → 가장자리 방향, +dir 하면 맵 바깥에서 시작
+	_approach_start = target_position + dir * 15.0
+	_approach_start.y = 0.3  # 지면 근처에서 수평 접근
+	global_position = _approach_start
 
 	_load_model()
 
@@ -372,8 +378,15 @@ func _restart_engine_for_depart() -> void:
 
 
 func _process_depart(delta: float) -> void:
-	# 위로 상승
-	global_position.y += approach_speed * 1.5 * delta
+	# Bad North 스타일: 왔던 방향으로 수평 퇴각
+	var diff := _approach_start - target_position
+	var depart_dir: Vector3
+	if diff.length_squared() > 0.01:
+		depart_dir = diff.normalized()
+	else:
+		depart_dir = Vector3.BACK  # 폴백: 뒤로 퇴각
+
+	global_position += depart_dir * approach_speed * 1.5 * delta
 
 	# 트레일 생성
 	_trail_timer += delta
@@ -381,7 +394,8 @@ func _process_depart(delta: float) -> void:
 		_trail_timer = 0.0
 		_spawn_engine_trail()
 
-	if global_position.y > 15.0:
+	# 맵 밖으로 나가면 제거
+	if global_position.distance_to(target_position) > 20.0:
 		queue_free()
 
 

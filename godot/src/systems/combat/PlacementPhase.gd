@@ -58,11 +58,7 @@ func initialize(battle_map: Node, tile_grid: Node, battle_controller: Node = nul
 	_battle_map = battle_map
 	_tile_grid = tile_grid
 	_battle_controller = battle_controller
-
-	# 맵 클릭 이벤트 연결
-	if _battle_map and _battle_map.has_signal("tile_clicked"):
-		if not _battle_map.tile_clicked.is_connected(_on_tile_clicked):
-			_battle_map.tile_clicked.connect(_on_tile_clicked)
+	# Battle3DScene에서 클릭 이벤트를 처리하고 place_crew_at() 직접 호출
 
 
 ## 전투 전 배치 시작 (Select Your Squads 단계)
@@ -82,6 +78,11 @@ func start_pre_battle_placement(crews: Array, spawn_area: Array[Vector2i] = []) 
 	# 슬로우 모션
 	if auto_slow_motion:
 		Engine.time_scale = slow_motion_scale
+
+	# 첫 번째 크루 자동 선택
+	if not available_crews.is_empty():
+		selected_crew = available_crews[0]
+		crew_selected.emit(selected_crew)
 
 	placement_started.emit()
 	valid_positions_updated.emit(valid_placement_tiles)
@@ -153,6 +154,7 @@ func place_crew_at(crew: Node, tile_pos: Vector2i) -> bool:
 		return false
 
 	if not _is_valid_placement(tile_pos):
+		print("[PlacementPhase] Invalid placement at: ", tile_pos)
 		return false
 
 	# 기존 위치에서 제거
@@ -167,12 +169,16 @@ func place_crew_at(crew: Node, tile_pos: Vector2i) -> bool:
 	# 크루 위치 업데이트
 	_move_crew_to_tile(crew, tile_pos)
 
-	crew_placed.emit(crew, tile_pos)
+	# 전투 전 배치: available_crews에서 제거 후 다음 크루 자동 선택
+	if is_pre_battle and crew in available_crews:
+		available_crews.erase(crew)
+		if not available_crews.is_empty():
+			selected_crew = available_crews[0]
+			crew_selected.emit(selected_crew)
+		else:
+			selected_crew = null
 
-	# 전투 전 배치에서 모든 크루 배치 완료 확인
-	if is_pre_battle and _all_crews_placed():
-		# 자동 종료하지 않음 - 플레이어가 직접 "Deploy" 버튼 클릭
-		pass
+	crew_placed.emit(crew, tile_pos)
 
 	return true
 
@@ -205,19 +211,7 @@ func get_remaining_time() -> float:
 
 # ===== PRIVATE =====
 
-func _on_tile_clicked(tile_pos: Vector2i) -> void:
-	if not is_placement_active:
-		return
-
-	if selected_crew:
-		place_crew_at(selected_crew, tile_pos)
-	elif is_pre_battle and not available_crews.is_empty():
-		# 다음 배치할 크루 자동 선택
-		var next_crew = available_crews[0]
-		if place_crew_at(next_crew, tile_pos):
-			available_crews.erase(next_crew)
-			if not available_crews.is_empty():
-				select_crew(available_crews[0])
+# 참고: 크루 배치는 Battle3DScene._on_tile_right_clicked → place_crew_at() 호출로 처리됨
 
 
 func _calculate_default_spawn_area() -> void:

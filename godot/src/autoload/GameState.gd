@@ -35,6 +35,7 @@ var current_node_id: String = ""      # 현재 선택된 노드 ID
 var battle_squads: Array = []         # 전투에 투입할 분대
 var current_station_layout: Variant = null  # StationLayout - 프리뷰↔전투 공유
 var battle_result: Dictionary = {}         # 전투 결과 데이터
+var sector_data: Dictionary = {}           # 섹터맵 데이터 (노드, 연결 등)
 
 
 # ===== META PROGRESSION =====
@@ -714,6 +715,10 @@ func set_current_node_id(node_id: String) -> void:
 	current_node_id = node_id
 
 
+func get_current_node_id() -> String:
+	return current_node_id
+
+
 func clear_battle_data() -> void:
 	current_station = {}
 	current_node_id = ""
@@ -735,3 +740,11 @@ func set_battle_result(result: Dictionary) -> void:
 
 func get_battle_result() -> Dictionary:
 	return battle_result
+
+
+func set_sector_data(data: Dictionary) -> void:
+	sector_data = data
+
+
+func get_sector_data() -> Dictionary:
+	return sector_data

@@ -37,8 +37,9 @@ signal zoom_changed(new_zoom: float)
 
 # ===== STATE =====
 
-var _target_zoom: float = 15.0
+var _target_zoom: float = 10.0  # 더 가깝게 시작
 var _target_position: Vector3 = Vector3.ZERO
+var _target_rotation_y: float = 45.0  # Y축 회전 (기본 45도)
 var _is_panning: bool = false
 var _pan_start_mouse: Vector2
 var _pan_start_position: Vector3
@@ -50,6 +51,7 @@ func _ready() -> void:
 	_setup_camera()
 	_target_zoom = size
 	_target_position = global_position
+	_target_rotation_y = rotation_angle
 
 
 func _setup_camera() -> void:
@@ -62,19 +64,21 @@ func _setup_camera() -> void:
 
 	# 기본 위치 (위에서 내려다봄)
 	if global_position == Vector3.ZERO:
-		global_position = Vector3(10, 20, 10)
+		global_position = Vector3(10, 12, 10)  # Y 낮춤
 
 
 func _process(delta: float) -> void:
 	_handle_edge_pan(delta)
 	_smooth_zoom(delta)
 	_smooth_pan(delta)
+	_smooth_rotation(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	_handle_zoom_input(event)
 	_handle_pan_input(event)
 	_handle_keyboard_pan(event)
+	_handle_rotation_input(event)
 
 
 # ===== ZOOM =====
@@ -104,6 +108,30 @@ func set_zoom(value: float) -> void:
 
 func _smooth_zoom(delta: float) -> void:
 	size = lerpf(size, _target_zoom, zoom_smoothing * delta)
+
+
+# ===== ROTATION =====
+
+func _handle_rotation_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_Q:
+			rotate_left()
+		elif event.keycode == KEY_E:
+			rotate_right()
+
+
+func rotate_left() -> void:
+	_target_rotation_y -= 45.0
+
+
+func rotate_right() -> void:
+	_target_rotation_y += 45.0
+
+
+func _smooth_rotation(delta: float) -> void:
+	var current_y: float = rotation_degrees.y
+	var new_y: float = lerpf(current_y, _target_rotation_y, pan_smoothing * delta)
+	rotation_degrees = Vector3(-isometric_angle, new_y, 0)
 
 
 # ===== PAN =====

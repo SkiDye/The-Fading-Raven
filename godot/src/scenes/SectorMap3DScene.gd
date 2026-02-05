@@ -71,7 +71,7 @@ var _selected_node_id: String = ""
 var _storm_depth: int = 0
 
 var _camera_target: Vector3 = Vector3.ZERO
-var _camera_zoom: float = 20.0
+var _camera_zoom: float = 12.0  # 더 가깝게 시작
 var _is_dragging: bool = false
 var _drag_start: Vector2 = Vector2.ZERO
 
@@ -146,7 +146,7 @@ func _setup_camera() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = _camera_zoom
 	camera.rotation_degrees = Vector3(-45, 0, 0)
-	camera.position = Vector3(0, 30, 20)
+	camera.position = Vector3(0, 15, 12)  # Y 낮춤 (30 → 15)
 	camera.far = 200.0
 
 
@@ -323,6 +323,11 @@ func _generate_test_sector() -> void:
 		_current_node_id = nodes[0].id
 		_camera_target = Vector3.ZERO
 
+	# GameState에 저장
+	if GameState and GameState.has_method("set_sector_data"):
+		GameState.set_sector_data(_sector_data)
+		GameState.set_current_node_id(_current_node_id)
+
 
 func _on_node_entered_transition(node_id: String) -> void:
 	# 노드 타입에 따라 다른 씬으로 전환
@@ -472,6 +477,10 @@ func set_current_node(node_id: String) -> void:
 	if _node_objects.has(node_id):
 		var node_obj: Node3D = _node_objects[node_id]
 		_camera_target = node_obj.global_position
+
+	# GameState에 저장
+	if GameState and GameState.has_method("set_current_node_id"):
+		GameState.set_current_node_id(node_id)
 
 
 ## 스톰 깊이 설정

@@ -7,6 +7,7 @@ extends Node3D
 # ===== SIGNALS =====
 
 signal tile_clicked(tile_pos: Vector2i)
+signal tile_right_clicked(tile_pos: Vector2i)
 signal tile_hovered(tile_pos: Vector2i)
 signal entity_clicked(entity: Node3D)
 
@@ -155,7 +156,9 @@ func _input(event: InputEvent) -> void:
 		_update_hover(event.position)
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			_handle_click(event.position)
+			_handle_click(event.position, false)
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			_handle_click(event.position, true)
 
 
 # ===== PUBLIC API =====
@@ -174,6 +177,11 @@ func set_map_size(width: int, height: int) -> void:
 	_width = width
 	_height = height
 	# rebuild_map() 호출은 외부에서 명시적으로 해야 함
+
+
+## 맵 크기 반환
+func get_map_size() -> Vector2i:
+	return Vector2i(_width, _height)
 
 
 ## StationLayout에서 타일/고도 정보 복사
@@ -717,7 +725,7 @@ func _update_hover(screen_pos: Vector2) -> void:
 			tile_hovered.emit(_hovered_tile)
 
 
-func _handle_click(screen_pos: Vector2) -> void:
+func _handle_click(screen_pos: Vector2, is_right_click: bool = false) -> void:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return
@@ -732,4 +740,7 @@ func _handle_click(screen_pos: Vector2) -> void:
 		var tile_pos := world_to_tile(world_pos)
 
 		if _is_valid_tile(tile_pos):
-			tile_clicked.emit(tile_pos)
+			if is_right_click:
+				tile_right_clicked.emit(tile_pos)
+			else:
+				tile_clicked.emit(tile_pos)

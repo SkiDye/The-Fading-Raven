@@ -45,16 +45,23 @@ var _wave_number: int = 0
 var _total_waves: int = 5
 var _use_drop_pods: bool = true  # 드롭팟 사용 여부
 var _battle_ended: bool = false  # 전투 종료 플래그
+var _wave_spawning: bool = false  # 웨이브 스폰 진행 중
 
 
 # ===== LIFECYCLE =====
 
 func _ready() -> void:
+	print("[Battle3D] _ready started")
 	_setup_spawn_controller()
+	print("[Battle3D] spawn controller done")
 	_setup_effects_manager()
+	print("[Battle3D] effects manager done")
 	_connect_signals()
+	print("[Battle3D] signals done")
 	_setup_ui()
+	print("[Battle3D] ui done")
 	call_deferred("_initialize_battle")
+	print("[Battle3D] _ready completed")
 
 
 func _setup_spawn_controller() -> void:
@@ -81,15 +88,23 @@ func _setup_effects_manager() -> void:
 
 
 func _connect_signals() -> void:
+	print("[Battle3D] Connecting signals...")
 	# Battle map signals
 	if battle_map:
-		battle_map.tile_clicked.connect(_on_tile_clicked)
-		battle_map.tile_hovered.connect(_on_tile_hovered)
+		print("[Battle3D] Connecting battle_map signals...")
+		if battle_map.has_signal("tile_clicked"):
+			battle_map.tile_clicked.connect(_on_tile_clicked)
+		if battle_map.has_signal("tile_right_clicked"):
+			battle_map.tile_right_clicked.connect(_on_tile_right_clicked)
+		if battle_map.has_signal("tile_hovered"):
+			battle_map.tile_hovered.connect(_on_tile_hovered)
+		print("[Battle3D] Battle map signals connected")
 
 	# Placement phase signals
 	if placement_phase:
 		placement_phase.placement_ended.connect(_on_placement_ended)
 		placement_phase.crew_placed.connect(_on_crew_placed)
+		placement_phase.crew_selected.connect(_on_placement_crew_selected)
 
 	# UI buttons
 	if deploy_button:
@@ -351,6 +366,10 @@ func _check_wave_completion() -> void:
 	if _is_placement_phase or _battle_ended:
 		return
 
+	# 웨이브 스폰 진행 중이면 체크 안 함
+	if _wave_spawning:
+		return
+
 	# 살아있는 아군 확인
 	var alive_crews := _crews.filter(func(c):
 		return is_instance_valid(c) and (not "is_alive" in c or c.is_alive)
@@ -412,13 +431,65 @@ func _set_crew_highlight(crew: Node3D, highlighted: bool) -> void:
 # ===== TILE EVENTS =====
 
 func _on_tile_clicked(tile_pos: Vector2i) -> void:
-	print("[Battle3D] Tile clicked: ", tile_pos)
+	## 좌클릭: 타일에 있는 팀장 선택
+	print("[Battle3D] Tile left-clicked: ", tile_pos)
+
+	# 해당 타일에 크루가 있는지 확인
+	var crew_at_tile := _find_crew_at_tile(tile_pos)
+	if crew_at_tile:
+		_select_crew(crew_at_tile)
+		# 배치 페이즈에서 선택 동기화
+		if _is_placement_phase and placement_phase:
+			placement_phase.select_crew(crew_at_tile)
+	else:
+		# 빈 타일 클릭 시 선택 해제
+		_select_crew(null)
+
+
+func _on_tile_right_clicked(tile_pos: Vector2i) -> void:
+	## 우클릭: 선택된 팀장을 해당 타일로 이동/배치
+	print("[Battle3D] Tile right-clicked: ", tile_pos)
 
 	if _is_placement_phase:
+		# 배치 페이즈: PlacementPhase.place_crew_at 사용
+		if placement_phase:
+			var crew_to_place: Node = _selected_crew
+			# 선택된 크루 없으면 PlacementPhase의 selected_crew 사용
+			if crew_to_place == null and placement_phase.selected_crew:
+				crew_to_place = placement_phase.selected_crew
+			if crew_to_place:
+				placement_phase.place_crew_at(crew_to_place, tile_pos)
 		return
 
-	if _selected_crew:
-		_move_crew_to(tile_pos)
+	# 전투 페이즈: 선택된 크루 이동
+	if _selected_crew == null:
+		return
+	_move_crew_to(tile_pos)
+
+
+func _find_crew_at_tile(tile_pos: Vector2i) -> Node3D:
+	## 해당 타일 위치에 있는 크루 찾기
+	for crew in _crews:
+		if not is_instance_valid(crew):
+			continue
+
+		var crew_tile := _get_crew_tile(crew)
+		if crew_tile == tile_pos:
+			return crew
+
+	return null
+
+
+func _get_crew_tile(crew: Node3D) -> Vector2i:
+	## 크루의 현재 타일 위치 반환
+	if crew.has_meta("tile_pos"):
+		return crew.get_meta("tile_pos")
+
+	# 월드 좌표로부터 타일 계산
+	if battle_map and battle_map.has_method("world_to_tile"):
+		return battle_map.world_to_tile(crew.global_position)
+
+	return Vector2i(int(crew.global_position.x), int(crew.global_position.z))
 
 
 func _on_tile_hovered(_tile_pos: Vector2i) -> void:
@@ -455,6 +526,12 @@ func _on_crew_placed(crew: Node, tile_pos: Vector2i) -> void:
 	print("[Battle3D] Crew placed at: ", tile_pos)
 
 
+func _on_placement_crew_selected(crew: Node) -> void:
+	## PlacementPhase에서 크루 선택 시 시각적 동기화
+	if crew is Node3D:
+		_select_crew(crew)
+
+
 func _start_combat() -> void:
 	_is_placement_phase = false
 
@@ -475,21 +552,33 @@ func _spawn_wave_enemies() -> void:
 	if battle_map == null:
 		return
 
+	_wave_spawning = true  # 스폰 시작
+
 	var enemy_count := 3 + _wave_number * 2
 
 	if _use_drop_pods and _spawn_controller:
 		_spawn_wave_via_pods(enemy_count)
 	else:
 		_spawn_wave_direct(enemy_count)
+		_wave_spawning = false  # 직접 스폰은 즉시 완료
 
 
 func _spawn_wave_via_pods(enemy_count: int) -> void:
-	# 맵 가장자리 진입점
+	# 맵 크기에 따른 동적 진입점 계산
+	var map_width: int = 15
+	var map_height: int = 12
+
+	if battle_map and battle_map.has_method("get_map_size"):
+		var size: Vector2i = battle_map.get_map_size()
+		map_width = size.x
+		map_height = size.y
+
+	# Bad North 스타일: 4면 가장자리에서 진입
 	var entry_points := [
-		Vector2i(0, 6),
-		Vector2i(14, 6),
-		Vector2i(7, 0),
-		Vector2i(7, 11)
+		Vector2i(0, map_height / 2),               # 왼쪽
+		Vector2i(map_width - 1, map_height / 2),   # 오른쪽
+		Vector2i(map_width / 2, 0),                # 위
+		Vector2i(map_width / 2, map_height - 1)    # 아래
 	]
 
 	# 적을 그룹으로 나누어 드롭팟에 배치
@@ -498,23 +587,34 @@ func _spawn_wave_via_pods(enemy_count: int) -> void:
 
 	for i in range(groups_count):
 		var entry_point: Vector2i = entry_points[i % entry_points.size()]
-		# 약간의 랜덤 오프셋
-		entry_point += Vector2i(randi() % 3 - 1, randi() % 3 - 1)
+		# 가장자리를 따라 약간의 랜덤 오프셋 (맵 밖으로 나가지 않게)
+		if entry_point.x == 0 or entry_point.x == map_width - 1:
+			entry_point.y = clampi(entry_point.y + randi() % 5 - 2, 1, map_height - 2)
+		else:
+			entry_point.x = clampi(entry_point.x + randi() % 5 - 2, 1, map_width - 2)
 
 		var group_count := mini(enemies_per_group, enemy_count - i * enemies_per_group)
 		if group_count > 0:
 			_spawn_controller.spawn_enemy_group_via_pod("rusher", group_count, entry_point)
 
-	print("[Battle3D] Spawning %d enemies via %d drop pods" % [enemy_count, groups_count])
+	print("[Battle3D] Spawning %d enemies via %d drop pods (map: %dx%d)" % [enemy_count, groups_count, map_width, map_height])
 
 
 func _spawn_wave_direct(enemy_count: int) -> void:
 	# 기존 직접 스폰 방식 (폴백)
+	var map_width: int = 15
+	var map_height: int = 12
+
+	if battle_map and battle_map.has_method("get_map_size"):
+		var size: Vector2i = battle_map.get_map_size()
+		map_width = size.x
+		map_height = size.y
+
 	var spawn_positions := [
-		Vector2i(0, 6),
-		Vector2i(14, 6),
-		Vector2i(7, 0),
-		Vector2i(7, 11)
+		Vector2i(0, map_height / 2),
+		Vector2i(map_width - 1, map_height / 2),
+		Vector2i(map_width / 2, 0),
+		Vector2i(map_width / 2, map_height - 1)
 	]
 
 	for i in range(enemy_count):
@@ -555,6 +655,7 @@ func _on_pod_landed(pod: Node3D, target_tile: Vector2i) -> void:
 
 func _on_wave_spawn_complete() -> void:
 	print("[Battle3D] All drop pods for wave %d deployed" % _wave_number)
+	_wave_spawning = false  # 스폰 완료
 
 
 func _on_wave_cleared() -> void:

@@ -46,7 +46,7 @@ const StationGeneratorClass = preload("res://src/systems/campaign/StationGenerat
 var _station_data: Variant = null  # StationLayout
 var _node_data: Dictionary = {}    # Sector node data
 var _rotation_angle: float = 0.0
-var _zoom_level: float = 15.0
+var _zoom_level: float = 10.0  # 더 가깝게 시작
 var _is_rotating_left: bool = false
 var _is_rotating_right: bool = false
 var _is_dragging: bool = false
@@ -110,7 +110,7 @@ func _setup_camera() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = _zoom_level
 	camera.rotation_degrees = Vector3(-35.264, 0, 0)
-	camera.position = Vector3(0, 0, 20)
+	camera.position = Vector3(0, 0, 15)  # 더 가깝게
 	camera.far = 100.0
 
 
