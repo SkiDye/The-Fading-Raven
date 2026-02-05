@@ -5,11 +5,14 @@ extends RefCounted
 ## [br][br]
 ## 타일의 위치, 타입, 고도, 시설, 점유자 등의 정보를 관리합니다.
 
+# Preload to avoid autoload resolution issues
+const ConstantsScript = preload("res://src/autoload/Constants.gd")
+
 
 # ===== PROPERTIES =====
 
 var position: Vector2i
-var type: Constants.TileType
+var type: int  # ConstantsScript.TileType value
 var elevation: int = 0  ## 0 = 평지, 1 = 고지대, -1 = 저지대
 var facility: Node = null  ## 시설 참조 (있을 경우)
 var occupant: Node = null  ## 점유 엔티티 (있을 경우)
@@ -19,7 +22,7 @@ var metadata: Dictionary = {}
 
 # ===== INITIALIZATION =====
 
-func _init(pos: Vector2i = Vector2i.ZERO, tile_type: Constants.TileType = Constants.TileType.FLOOR) -> void:
+func _init(pos: Vector2i = Vector2i.ZERO, tile_type: int = ConstantsScript.TileType.FLOOR) -> void:
 	position = pos
 	type = tile_type
 	elevation = 0
@@ -32,13 +35,13 @@ func _init(pos: Vector2i = Vector2i.ZERO, tile_type: Constants.TileType = Consta
 ## [return]: 이동 가능 여부
 func is_walkable() -> bool:
 	match type:
-		Constants.TileType.FLOOR, \
-		Constants.TileType.AIRLOCK, \
-		Constants.TileType.ELEVATED, \
-		Constants.TileType.LOWERED, \
-		Constants.TileType.FACILITY, \
-		Constants.TileType.COVER_HALF, \
-		Constants.TileType.COVER_FULL:
+		ConstantsScript.TileType.FLOOR, \
+		ConstantsScript.TileType.AIRLOCK, \
+		ConstantsScript.TileType.ELEVATED, \
+		ConstantsScript.TileType.LOWERED, \
+		ConstantsScript.TileType.FACILITY, \
+		ConstantsScript.TileType.COVER_HALF, \
+		ConstantsScript.TileType.COVER_FULL:
 			return true
 		_:
 			return false
@@ -49,7 +52,7 @@ func is_walkable() -> bool:
 ## [return]: 시야 차단 여부
 func is_blocking_los() -> bool:
 	match type:
-		Constants.TileType.WALL, Constants.TileType.COVER_FULL:
+		ConstantsScript.TileType.WALL, ConstantsScript.TileType.COVER_FULL:
 			return true
 		_:
 			return false
@@ -59,7 +62,7 @@ func is_blocking_los() -> bool:
 ## [br][br]
 ## [return]: 부분 시야 차단 여부
 func is_partial_cover() -> bool:
-	return type == Constants.TileType.COVER_HALF
+	return type == ConstantsScript.TileType.COVER_HALF
 
 
 # ===== MOVEMENT COST =====
@@ -69,9 +72,9 @@ func is_partial_cover() -> bool:
 ## [return]: 이동 비용 (기본 1.0)
 func get_movement_cost() -> float:
 	match type:
-		Constants.TileType.ELEVATED:
+		ConstantsScript.TileType.ELEVATED:
 			return 1.5  # 고지대 이동 비용 증가
-		Constants.TileType.LOWERED:
+		ConstantsScript.TileType.LOWERED:
 			return 0.8  # 저지대 이동 비용 감소
 		_:
 			return 1.0
@@ -84,10 +87,10 @@ func get_movement_cost() -> float:
 ## [return]: 피해 감소율 (0.0 ~ 1.0)
 func get_cover_reduction() -> float:
 	match type:
-		Constants.TileType.COVER_HALF:
-			return Constants.BALANCE.get("cover_half_reduction", 0.25)
-		Constants.TileType.COVER_FULL:
-			return Constants.BALANCE.get("cover_full_reduction", 0.50)
+		ConstantsScript.TileType.COVER_HALF:
+			return 0.25  # Default cover_half_reduction
+		ConstantsScript.TileType.COVER_FULL:
+			return 0.50  # Default cover_full_reduction
 		_:
 			return 0.0
 
@@ -110,4 +113,4 @@ func has_facility() -> bool:
 
 ## 디버그용 문자열 반환
 func _to_string() -> String:
-	return "TileData(%s, %s, elev=%d)" % [position, Constants.TileType.keys()[type], elevation]
+	return "TileData(%s, %s, elev=%d)" % [position, ConstantsScript.TileType.keys()[type], elevation]
