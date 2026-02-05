@@ -58,36 +58,31 @@ func _set_version() -> void:
 # ===== BUTTON HANDLERS =====
 
 func _on_new_game_pressed() -> void:
-	# 새 런 시작 후 캠페인으로 이동
+	# NewGameSetup으로 이동 (난이도 & 시작 팀장 선택)
+	var new_game_setup := "res://scenes/campaign/NewGameSetup.tscn"
+	if ResourceLoader.exists(new_game_setup):
+		get_tree().change_scene_to_file(new_game_setup)
+		return
+
+	# NewGameSetup이 없으면 바로 섹터맵으로
 	if GameState:
 		GameState.start_new_run(-1, Constants.Difficulty.NORMAL)
 
-	# 3D 전투 씬 우선 시도
-	var battle_3d := "res://scenes/battle/Battle3D.tscn"
-	if ResourceLoader.exists(battle_3d):
-		get_tree().change_scene_to_file(battle_3d)
-		return
-
-	var campaign_scene := "res://scenes/campaign/Campaign.tscn"
-	if ResourceLoader.exists(campaign_scene):
-		get_tree().change_scene_to_file(campaign_scene)
+	var sector_map := "res://scenes/campaign/SectorMap3D.tscn"
+	if ResourceLoader.exists(sector_map):
+		get_tree().change_scene_to_file(sector_map)
 	else:
-		# 캠페인 씬이 없으면 테스트 전투로 폴백
-		var test_battle := "res://scenes/battle/TestBattle.tscn"
-		if ResourceLoader.exists(test_battle):
-			get_tree().change_scene_to_file(test_battle)
-		else:
-			push_warning("MainMenu: Campaign/TestBattle scene not found")
+		push_warning("MainMenu: SectorMap3D scene not found")
 
 
 func _on_continue_pressed() -> void:
 	if GameState and GameState.has_method("load_game"):
 		if GameState.load_game():
-			var campaign_scene := "res://scenes/campaign/Campaign.tscn"
-			if ResourceLoader.exists(campaign_scene):
-				get_tree().change_scene_to_file(campaign_scene)
+			var sector_map := "res://scenes/campaign/SectorMap3D.tscn"
+			if ResourceLoader.exists(sector_map):
+				get_tree().change_scene_to_file(sector_map)
 			else:
-				push_warning("MainMenu: Campaign scene not found")
+				push_warning("MainMenu: SectorMap3D scene not found")
 
 
 func _on_settings_pressed() -> void:
@@ -121,6 +116,6 @@ func _start_new_game(difficulty: int) -> void:
 	if GameState and GameState.has_method("start_new_run"):
 		GameState.start_new_run(-1, difficulty)
 
-	var campaign_scene := "res://scenes/campaign/Campaign.tscn"
-	if ResourceLoader.exists(campaign_scene):
-		get_tree().change_scene_to_file(campaign_scene)
+	var sector_map := "res://scenes/campaign/SectorMap3D.tscn"
+	if ResourceLoader.exists(sector_map):
+		get_tree().change_scene_to_file(sector_map)

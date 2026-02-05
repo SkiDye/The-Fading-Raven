@@ -18,50 +18,67 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.1, 0.1, 0.15, 1)
+color = Color(0.08, 0.08, 0.12, 1)
 
-[node name="TopBar" type="HBoxContainer" parent="."]
+[node name="TopBar" type="PanelContainer" parent="."]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 60.0
 grow_horizontal = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="TopBar"]
+[node name="HBox" type="HBoxContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Margin" type="MarginContainer" parent="TopBar/HBox"]
 layout_mode = 2
 theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_bottom = 10
 
-[node name="TitleLabel" type="Label" parent="TopBar/MarginContainer"]
+[node name="TitleLabel" type="Label" parent="TopBar/HBox/Margin"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 28
 text = "UPGRADE CREW"
 
-[node name="Spacer" type="Control" parent="TopBar"]
+[node name="Spacer" type="Control" parent="TopBar/HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="CreditsLabel" type="Label" parent="TopBar"]
+[node name="CreditsContainer" type="HBoxContainer" parent="TopBar/HBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Credits: 0"
+theme_override_constants/separation = 8
+
+[node name="CreditsIcon" type="Label" parent="TopBar/HBox/CreditsContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+text = "$"
 vertical_alignment = 1
 
-[node name="MarginContainer2" type="MarginContainer" parent="TopBar"]
+[node name="CreditsLabel" type="Label" parent="TopBar/HBox/CreditsContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "0"
+vertical_alignment = 1
+
+[node name="Margin2" type="MarginContainer" parent="TopBar/HBox"]
 layout_mode = 2
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_right = 20
 
-[node name="DoneBtn" type="Button" parent="TopBar"]
+[node name="BackBtn" type="Button" parent="TopBar/HBox"]
 custom_minimum_size = Vector2(100, 40)
 layout_mode = 2
-text = "DONE"
+theme_override_font_sizes/font_size = 16
+text = "BACK"
 
-[node name="MarginContainer3" type="MarginContainer" parent="TopBar"]
+[node name="Margin3" type="MarginContainer" parent="TopBar/HBox"]
 layout_mode = 2
 theme_override_constants/margin_right = 16
 
-[node name="HSplitContainer" type="HSplitContainer" parent="."]
+[node name="MainContent" type="HSplitContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -69,122 +86,352 @@ anchor_bottom = 1.0
 offset_top = 60.0
 grow_horizontal = 2
 grow_vertical = 2
-split_offset = 300
+split_offset = 320
 
-[node name="LeftPanel" type="PanelContainer" parent="HSplitContainer"]
-custom_minimum_size = Vector2(250, 0)
+[node name="LeftPanel" type="PanelContainer" parent="MainContent"]
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="HSplitContainer/LeftPanel"]
+[node name="VBox" type="VBoxContainer" parent="MainContent/LeftPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/separation = 0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer/LeftPanel/MarginContainer"]
+[node name="HeaderMargin" type="MarginContainer" parent="MainContent/LeftPanel/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 8
 
-[node name="CrewListLabel" type="Label" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer"]
+[node name="HeaderLabel" type="Label" parent="MainContent/LeftPanel/VBox/HeaderMargin"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "Your Crew"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.7, 0.7, 0.8, 1)
+text = "TEAM LEADERS"
 horizontal_alignment = 1
 
-[node name="HSeparator" type="HSeparator" parent="HSplitContainer/LeftPanel/MarginContainer/VBoxContainer"]
+[node name="HSeparator" type="HSeparator" parent="MainContent/LeftPanel/VBox"]
 layout_mode = 2
 
-[node name="CrewList" type="VBoxContainer" parent="HSplitContainer/LeftPanel/MarginContainer"]
+[node name="ScrollContainer" type="ScrollContainer" parent="MainContent/LeftPanel/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 8
+horizontal_scroll_mode = 0
 
-[node name="RightPanel" type="PanelContainer" parent="HSplitContainer"]
+[node name="CrewList" type="VBoxContainer" parent="MainContent/LeftPanel/VBox/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="RightPanel" type="PanelContainer" parent="MainContent"]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="MarginContainer" type="MarginContainer" parent="HSplitContainer/RightPanel"]
+[node name="ScrollContainer" type="ScrollContainer" parent="MainContent/RightPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 20
+horizontal_scroll_mode = 0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer"]
+[node name="ContentMargin" type="MarginContainer" parent="MainContent/RightPanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
+
+[node name="HeaderSection" type="HBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="PortraitContainer" type="PanelContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HeaderSection"]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+
+[node name="Portrait" type="ColorRect" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HeaderSection/PortraitContainer"]
+layout_mode = 2
+color = Color(0.3, 0.5, 0.7, 1)
+
+[node name="ClassIcon" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HeaderSection/PortraitContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="InfoVBox" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HeaderSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="CrewNameLabel" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HeaderSection/InfoVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "Team Leader"
+
+[node name="ClassLabel" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HeaderSection/InfoVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.6, 0.8, 1, 1)
+text = "Militia"
+
+[node name="RankLabel" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HeaderSection/InfoVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+text = "Standard"
+
+[node name="TraitLabel" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HeaderSection/InfoVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
+text = ""
+
+[node name="StatsLabel" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HeaderSection/InfoVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Kills: 0 | Losses: 0"
+
+[node name="HSeparator" type="HSeparator" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
+layout_mode = 2
+
+[node name="ClassSelectionSection" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SectionTitle" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/ClassSelectionSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.9, 0.7, 0.3, 1)
+text = "SELECT CLASS"
+
+[node name="ClassGrid" type="GridContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/ClassSelectionSection"]
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="RankUpgradeSection" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SectionTitle" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.9, 0.7, 0.3, 1)
+text = "CLASS RANK"
+
+[node name="RankInfo" type="HBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="CrewNameLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+[node name="CurrentRank" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection/RankInfo"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Guardian"
-horizontal_alignment = 1
+size_flags_horizontal = 3
 
-[node name="HSeparator" type="HSeparator" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+[node name="Label" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection/RankInfo/CurrentRank"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Current"
+
+[node name="RankName" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection/RankInfo/CurrentRank"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Standard"
+
+[node name="Arrow" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection/RankInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = ">"
+vertical_alignment = 1
+
+[node name="NextRank" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection/RankInfo"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection/RankInfo/NextRank"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Next"
+
+[node name="RankName" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection/RankInfo/NextRank"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+text = "Veteran"
+
+[node name="UpgradeRankBtn" type="Button" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/RankUpgradeSection"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "UPGRADE - 12 Credits"
+
+[node name="HSeparator2" type="HSeparator" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
 layout_mode = 2
 
-[node name="HealthContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+[node name="SkillSection" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 12
 
-[node name="HealthTitle" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/HealthContainer"]
+[node name="SectionTitle" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/SkillSection"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-text = "HEALTH"
-
-[node name="HealthLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/HealthContainer"]
-layout_mode = 2
-text = "Health: 8 / 8"
-
-[node name="HealBtn" type="Button" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/HealthContainer"]
-custom_minimum_size = Vector2(0, 40)
-layout_mode = 2
-text = "Full Health"
-
-[node name="HSeparator2" type="HSeparator" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
-layout_mode = 2
-
-[node name="SkillContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="SkillTitle" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/SkillContainer"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.9, 0.7, 0.3, 1)
 text = "SKILL"
 
-[node name="SkillNameLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/SkillContainer"]
+[node name="SkillInfo" type="HBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/SkillSection"]
 layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="SkillDetails" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/SkillSection/SkillInfo"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="SkillName" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/SkillSection/SkillInfo/SkillDetails"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
 text = "Shield Bash"
 
-[node name="SkillLevelLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/SkillContainer"]
+[node name="SkillDesc" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/SkillSection/SkillInfo/SkillDetails"]
 layout_mode = 2
-text = "Level: 1 / 3"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Stun enemies in front"
+autowrap_mode = 2
 
-[node name="UpgradeSkillBtn" type="Button" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/SkillContainer"]
-custom_minimum_size = Vector2(0, 40)
-layout_mode = 2
-text = "Upgrade - 7 credits"
-
-[node name="HSeparator3" type="HSeparator" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+[node name="LevelContainer" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/SkillSection/SkillInfo"]
 layout_mode = 2
 
-[node name="EquipmentContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer"]
+[node name="LevelLabel" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/SkillSection/SkillInfo/LevelContainer"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Level"
+horizontal_alignment = 1
 
-[node name="EquipmentTitle" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/EquipmentContainer"]
+[node name="LevelValue" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/SkillSection/SkillInfo/LevelContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 24
+text = "1/3"
+horizontal_alignment = 1
+
+[node name="UpgradeSkillBtn" type="Button" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/SkillSection"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "UPGRADE - 7 Credits"
+
+[node name="HSeparator3" type="HSeparator" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
+layout_mode = 2
+
+[node name="HealthSection" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SectionTitle" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HealthSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.9, 0.7, 0.3, 1)
+text = "SQUAD"
+
+[node name="HealthInfo" type="HBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HealthSection"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="HealthDetails" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HealthSection/HealthInfo"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HealthBar" type="ProgressBar" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HealthSection/HealthInfo/HealthDetails"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+value = 75.0
+show_percentage = false
+
+[node name="HealthLabel" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HealthSection/HealthInfo/HealthDetails"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "6 / 8 members"
+
+[node name="HealBtn" type="Button" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/HealthSection"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "HEAL - 2 Credits"
+
+[node name="HSeparator4" type="HSeparator" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
+layout_mode = 2
+
+[node name="EquipmentSection" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SectionTitle" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/EquipmentSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.9, 0.7, 0.3, 1)
 text = "EQUIPMENT"
 
-[node name="EquipmentLabel" type="Label" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/EquipmentContainer"]
+[node name="EquipmentSlot" type="PanelContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/EquipmentSection"]
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
-text = "No equipment"
 
-[node name="EquipBtn" type="Button" parent="HSplitContainer/RightPanel/MarginContainer/VBoxContainer/EquipmentContainer"]
+[node name="HBox" type="HBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/EquipmentSection/EquipmentSlot"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Margin" type="MarginContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/EquipmentSection/EquipmentSlot/HBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="EquipIcon" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/EquipmentSection/EquipmentSlot/HBox/Margin"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "[ ]"
+vertical_alignment = 1
+
+[node name="EquipInfo" type="VBoxContainer" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/EquipmentSection/EquipmentSlot/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="EquipName" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/EquipmentSection/EquipmentSlot/HBox/EquipInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Empty Slot"
+vertical_alignment = 1
+
+[node name="EquipDesc" type="Label" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/EquipmentSection/EquipmentSlot/HBox/EquipInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "No equipment equipped"
+
+[node name="ChangeEquipBtn" type="Button" parent="MainContent/RightPanel/ScrollContainer/ContentMargin/VBox/EquipmentSection"]
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
-text = "Change Equipment"
+text = "CHANGE EQUIPMENT"
+
+[node name="NoSelectionPanel" type="PanelContainer" parent="MainContent"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CenterContainer" type="CenterContainer" parent="MainContent/NoSelectionPanel"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MainContent/NoSelectionPanel/CenterContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+text = "Select a Team Leader"

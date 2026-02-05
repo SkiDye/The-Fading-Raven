@@ -204,9 +204,10 @@ func _show_landing_warning(tile_pos: Vector2i, eta: float) -> void:
 		return
 
 	# 3D 경고 효과
-	if EffectsManager3D:
+	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
+	if effects_mgr:
 		var world_pos := _tile_to_world(tile_pos)
-		EffectsManager3D.spawn_floating_text_3d("!", world_pos + Vector3(0, 2, 0), Color.RED, 1.5)
+		effects_mgr.spawn_floating_text_3d("!", world_pos + Vector3(0, 2, 0), Color.RED, 1.5)
 
 	# 경고 씬 스폰
 	if _warning_scene:
@@ -275,18 +276,20 @@ func _remove_landing_warning(tile_pos: Vector2i) -> void:
 
 # ===== POD EVENT HANDLERS =====
 
-func _on_pod_approaching(_eta: float, pod: Node3D, tile_pos: Vector2i) -> void:
+func _on_pod_approaching(_eta: float, pod: Node3D, _tile_pos: Vector2i) -> void:
 	# 접근 중 이펙트
-	if EffectsManager3D:
-		EffectsManager3D.spawn_engine_trail_3d(pod.global_position, Vector3.DOWN, 2.0)
+	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
+	if effects_mgr:
+		effects_mgr.spawn_engine_trail_3d(pod.global_position, Vector3.DOWN, 2.0)
 
 
 func _on_pod_landed(tile_pos: Vector2i, pod: Node3D) -> void:
 	drop_pod_landed.emit(pod, tile_pos)
 
 	# 착륙 이펙트
-	if EffectsManager3D:
-		EffectsManager3D.spawn_impact_effect_3d(pod.global_position, 2.0)
+	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
+	if effects_mgr:
+		effects_mgr.spawn_impact_effect_3d(pod.global_position, 2.0)
 
 
 func _on_pod_enemies_deployed(deployed: Array, pod: Node3D, tile_pos: Vector2i) -> void:
@@ -317,9 +320,10 @@ func _on_pod_enemies_deployed(deployed: Array, pod: Node3D, tile_pos: Vector2i) 
 	enemies_spawned.emit(spawned_enemies)
 
 	# EventBus 알림
-	if EventBus:
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
 		for enemy in spawned_enemies:
-			EventBus.enemy_spawned.emit(enemy, tile_pos)
+			event_bus.enemy_spawned.emit(enemy, tile_pos)
 
 
 func _on_pod_departed(pod: Node3D) -> void:

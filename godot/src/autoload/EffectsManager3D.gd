@@ -3,6 +3,11 @@ extends Node
 ## 3D 전역 이펙트 매니저
 ## 3D 공간에서의 전투 이펙트, 카메라 쉐이크, 오브젝트 풀링 관리
 
+# Preload to avoid autoload resolution issues
+const ConstantsScript = preload("res://src/autoload/Constants.gd")
+
+# Local damage type constants (fallback)
+enum DamageType { PHYSICAL = 0, ENERGY = 1, EXPLOSIVE = 2, TRUE = 3 }
 
 # ===== SCENE REFERENCES =====
 
@@ -57,11 +62,12 @@ func _load_scenes() -> void:
 
 
 func _connect_signals() -> void:
-	if EventBus:
-		EventBus.damage_dealt.connect(_on_damage_dealt)
-		EventBus.entity_died.connect(_on_entity_died)
-		EventBus.skill_used.connect(_on_skill_used)
-		EventBus.screen_shake.connect(_on_screen_shake)
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
+		event_bus.damage_dealt.connect(_on_damage_dealt)
+		event_bus.entity_died.connect(_on_entity_died)
+		event_bus.skill_used.connect(_on_skill_used)
+		event_bus.screen_shake.connect(_on_screen_shake)
 
 
 func _process(delta: float) -> void:
@@ -209,9 +215,11 @@ func _on_damage_dealt(_source: Node, target: Node, amount: int, damage_type: int
 	if not is_instance_valid(target):
 		return
 
-	var pos: Vector3 = target.global_position
-	if target is Node3D:
-		pos = target.global_position
+	if not target is Node3D:
+		return
+
+	var target_3d: Node3D = target as Node3D
+	var pos: Vector3 = target_3d.global_position
 
 	spawn_damage_number_3d(pos + Vector3(0, 1, 0), amount)
 	spawn_hit_effect_3d(pos + Vector3(0, 0.5, 0), damage_type)
@@ -221,23 +229,29 @@ func _on_entity_died(entity: Node) -> void:
 	if not is_instance_valid(entity):
 		return
 
-	if entity is Node3D:
-		var entity_type := "unknown"
-		if entity.is_in_group("crews"):
-			entity_type = "crew"
-		elif entity.is_in_group("enemies"):
-			entity_type = "enemy"
+	if not entity is Node3D:
+		return
 
-		spawn_death_effect_3d(entity.global_position, entity_type)
+	var entity_3d: Node3D = entity as Node3D
+	var entity_type: String = "unknown"
+	if entity_3d.is_in_group("crews"):
+		entity_type = "crew"
+	elif entity_3d.is_in_group("enemies"):
+		entity_type = "enemy"
+
+	spawn_death_effect_3d(entity_3d.global_position, entity_type)
 
 
 func _on_skill_used(caster: Node, skill_id: String, _target: Variant, _level: int) -> void:
 	if not is_instance_valid(caster):
 		return
 
-	if caster is Node3D:
-		var direction := -caster.global_transform.basis.z
-		spawn_skill_effect_3d(skill_id, caster.global_position, direction)
+	if not caster is Node3D:
+		return
+
+	var caster_3d: Node3D = caster as Node3D
+	var direction: Vector3 = -caster_3d.global_transform.basis.z
+	spawn_skill_effect_3d(skill_id, caster_3d.global_position, direction)
 
 
 func _on_screen_shake(intensity: float, duration: float) -> void:
@@ -300,11 +314,11 @@ func _create_simple_hit_effect(damage_type: int) -> Node3D:
 
 	var mat := StandardMaterial3D.new()
 	match damage_type:
-		Constants.DamageType.PHYSICAL:
+		DamageType.PHYSICAL:
 			mat.albedo_color = Color(1.0, 0.8, 0.2)
-		Constants.DamageType.ENERGY:
+		DamageType.ENERGY:
 			mat.albedo_color = Color(0.3, 0.8, 1.0)
-		Constants.DamageType.EXPLOSIVE:
+		DamageType.EXPLOSIVE:
 			mat.albedo_color = Color(1.0, 0.4, 0.1)
 		_:
 			mat.albedo_color = Color.WHITE
@@ -471,7 +485,7 @@ func _spawn_volley_fire_effect(position: Vector3) -> void:
 		var offset := Vector3(randf_range(-1, 1), 0.5, randf_range(-1, 1))
 		var delayed_pos := position + offset
 		get_tree().create_timer(i * 0.1).timeout.connect(
-			func(): spawn_hit_effect_3d(delayed_pos, Constants.DamageType.ENERGY)
+			func(): spawn_hit_effect_3d(delayed_pos, DamageType.ENERGY)
 		)
 
 
@@ -483,4 +497,4 @@ func _spawn_deploy_turret_effect(position: Vector3) -> void:
 
 func _spawn_blink_effect(position: Vector3) -> void:
 	spawn_floating_text_3d("BLINK", position + Vector3(0, 1, 0), Color.PURPLE, 0.8)
-	spawn_hit_effect_3d(position, Constants.DamageType.ENERGY)
+	spawn_hit_effect_3d(position, DamageType.ENERGY)

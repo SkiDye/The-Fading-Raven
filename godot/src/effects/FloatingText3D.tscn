@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3 uid="uid://floatingtext3d01"]
+
+[ext_resource type="Script" path="res://src/effects/FloatingText3D.gd" id="1_script"]
+
+[node name="FloatingText3D" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Label3D" type="Label3D" parent="."]
+billboard = 1
+no_depth_test = true
+fixed_size = true
+pixel_size = 0.01
+text = "0"
+font_size = 32
+outline_size = 8
+modulate = Color(1, 0.3, 0.2, 1)
+outline_modulate = Color(0.4, 0.1, 0.1, 1)

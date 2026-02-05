@@ -197,7 +197,9 @@ func _update_formation_positions() -> void:
 func select() -> void:
 	is_selected = true
 	_update_selection_visual()
-	EventBus.crew_selected.emit(self)
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
+		event_bus.crew_selected.emit(self)
 
 
 func deselect() -> void:
@@ -398,7 +400,9 @@ func _die() -> void:
 		if member.is_alive:
 			member.die()
 
-	EventBus.entity_died.emit(self)
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
+		event_bus.entity_died.emit(self)
 
 	var tween := create_tween()
 	tween.tween_interval(2.0)
@@ -429,9 +433,10 @@ func use_skill(skill_id: String = "") -> bool:
 	skill_activated.emit(skill_id)
 
 	# 3D 이펙트 매니저로 이펙트 스폰
-	if EffectsManager3D:
+	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
+	if effects_mgr:
 		var direction := -global_transform.basis.z
-		EffectsManager3D.spawn_skill_effect_3d(_get_skill_id_for_class(), global_position, direction)
+		effects_mgr.spawn_skill_effect_3d(_get_skill_id_for_class(), global_position, direction)
 
 	match class_id:
 		"guardian":
@@ -480,7 +485,9 @@ func _skill_volley_fire() -> void:
 
 
 func _skill_deploy_turret() -> void:
-	EventBus.turret_deploy_requested.emit(self, tile_position)
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
+		event_bus.turret_deploy_requested.emit(self, tile_position)
 
 
 func _skill_blink() -> void:

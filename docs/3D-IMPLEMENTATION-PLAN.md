@@ -223,7 +223,7 @@ SectorMap3D (Node3D)
 
 ---
 
-## Phase 2.5: 팀장 관리 & 업그레이드 전환
+## Phase 2.5: 팀장 관리 & 업그레이드 전환 ✅ 완료
 
 ### 2.5.1 섹터 맵 → 업그레이드 화면 전환
 
@@ -491,12 +491,15 @@ godot/
 ### 중기 (Phase 3) ✅ 완료
 9. ✅ StationPreview3D.tscn - 정거장 미리보기
 10. ✅ SquadSelection.tscn - 분대 선택 화면
-11. 🔴 NewGameSetup.tscn - 새 게임 설정 (Phase 4로 이동)
 
-### 후기 (Phase 4)
-12. 🔴 3D 이펙트 (Explosion3D, HitEffect3D)
-13. 🔴 씬 전환 트랜지션 효과
-14. 🔴 레거시 2D 씬 정리/삭제
+### 후기 (Phase 4) ✅ 완료
+11. ✅ NewGameSetup.tscn - 새 게임 설정 화면
+12. ✅ BattleResult.tscn - 전투 결과 화면
+13. ✅ Turret3D.tscn - Engineer 터렛 엔티티
+14. ✅ Projectile3D.tscn - 투사체 엔티티
+15. ✅ 3D 이펙트 (Explosion3D, HitEffect3D, FloatingText3D)
+16. ✅ SceneTransition autoload - 씬 전환 트랜지션
+17. 🔴 레거시 2D 씬 정리/삭제 (Phase 5)
 
 ---
 
@@ -545,4 +548,4 @@ godot/
 ---
 
 *문서 작성일: 2026-02-05*
-*버전: 1.2 - Phase 3 완료 (StationPreview3D, SquadSelection)*
+*버전: 1.3 - Phase 4 완료 (NewGameSetup, BattleResult, Turret3D, Projectile3D, 3D Effects, SceneTransition)*

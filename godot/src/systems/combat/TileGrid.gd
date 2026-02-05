@@ -9,6 +9,7 @@ extends Node2D
 const PathfindingClass = preload("res://src/systems/combat/Pathfinding.gd")
 const LineOfSightClass = preload("res://src/systems/combat/LineOfSight.gd")
 const UtilsClass = preload("res://src/utils/Utils.gd")
+const ConstantsScript = preload("res://src/autoload/Constants.gd")
 
 # Load at runtime to avoid circular reference issues
 var GridTileDataClass: GDScript
@@ -19,7 +20,7 @@ func _init() -> void:
 
 # ===== SIGNALS =====
 
-signal tile_changed(pos: Vector2i, old_type: Constants.TileType, new_type: Constants.TileType)
+signal tile_changed(pos: Vector2i, old_type: ConstantsScript.TileType, new_type: ConstantsScript.TileType)
 signal occupant_changed(pos: Vector2i, old_occupant: Node, new_occupant: Node)
 signal tile_visibility_changed(pos: Vector2i, is_visible: bool)
 signal fog_of_war_toggled(enabled: bool)
@@ -27,7 +28,7 @@ signal fog_of_war_toggled(enabled: bool)
 
 # ===== CONSTANTS =====
 
-const TILE_SIZE: int = Constants.TILE_SIZE
+const TILE_SIZE: int = 32  # From ConstantsScript.TILE_SIZE
 
 
 # ===== EXPORTS =====
@@ -75,7 +76,7 @@ func initialize(w: int, h: int) -> void:
 	for y in range(height):
 		var row: Array = []
 		for x in range(width):
-			var tile = GridTileDataClass.new(Vector2i(x, y), Constants.TileType.FLOOR)
+			var tile = GridTileDataClass.new(Vector2i(x, y), ConstantsScript.TileType.FLOOR)
 			row.append(tile)
 		tiles.append(row)
 
@@ -101,7 +102,7 @@ func initialize_from_station_data(station) -> void:
 	for y in range(height):
 		var row: Array = []
 		for x in range(width):
-			var tile_type: Constants.TileType = station.tiles[y][x]
+			var tile_type: ConstantsScript.TileType = station.tiles[y][x]
 			var tile = GridTileDataClass.new(Vector2i(x, y), tile_type)
 
 			# 고도 설정
@@ -141,12 +142,12 @@ func get_tile(pos: Vector2i):
 ## [br][br]
 ## [param pos]: 타일 좌표
 ## [param new_type]: 새 타일 타입
-func set_tile_type(pos: Vector2i, new_type: Constants.TileType) -> void:
+func set_tile_type(pos: Vector2i, new_type: ConstantsScript.TileType) -> void:
 	if not is_valid_position(pos):
 		return
 
 	var tile = tiles[pos.y][pos.x]
-	var old_type: Constants.TileType = tile.type
+	var old_type: ConstantsScript.TileType = tile.type
 	tile.type = new_type
 	tile_changed.emit(pos, old_type, new_type)
 
@@ -450,7 +451,10 @@ func get_elevation_bonus(attacker_pos: Vector2i, target_pos: Vector2i) -> float:
 	var target_elev := get_elevation(target_pos)
 
 	if attacker_elev > target_elev:
-		return Constants.BALANCE.combat.get("elevation_damage_bonus", 0.2)
+		var constants_node := get_node_or_null("/root/Constants")
+		if constants_node and constants_node.BALANCE.has("combat"):
+			return constants_node.BALANCE.combat.get("elevation_damage_bonus", 0.2)
+		return 0.2  # Default fallback
 	return 0.0
 
 
@@ -477,7 +481,7 @@ func get_facility_tiles() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	for y in range(height):
 		for x in range(width):
-			if tiles[y][x].type == Constants.TileType.FACILITY:
+			if tiles[y][x].type == ConstantsScript.TileType.FACILITY:
 				result.append(Vector2i(x, y))
 	return result
 
@@ -490,7 +494,7 @@ func set_facility(pos: Vector2i, facility: Node) -> void:
 	var tile = get_tile(pos)
 	if tile:
 		tile.facility = facility
-		tile.type = Constants.TileType.FACILITY
+		tile.type = ConstantsScript.TileType.FACILITY
 
 
 ## 주어진 위치의 시설을 반환합니다.
@@ -509,15 +513,15 @@ func get_facility_at(pos: Vector2i) -> Node:
 ## 그리드를 콘솔에 출력합니다.
 func print_grid() -> void:
 	var symbols: Dictionary = {
-		Constants.TileType.VOID: " ",
-		Constants.TileType.FLOOR: ".",
-		Constants.TileType.WALL: "#",
-		Constants.TileType.AIRLOCK: "A",
-		Constants.TileType.ELEVATED: "^",
-		Constants.TileType.LOWERED: "v",
-		Constants.TileType.FACILITY: "F",
-		Constants.TileType.COVER_HALF: "-",
-		Constants.TileType.COVER_FULL: "=",
+		ConstantsScript.TileType.VOID: " ",
+		ConstantsScript.TileType.FLOOR: ".",
+		ConstantsScript.TileType.WALL: "#",
+		ConstantsScript.TileType.AIRLOCK: "A",
+		ConstantsScript.TileType.ELEVATED: "^",
+		ConstantsScript.TileType.LOWERED: "v",
+		ConstantsScript.TileType.FACILITY: "F",
+		ConstantsScript.TileType.COVER_HALF: "-",
+		ConstantsScript.TileType.COVER_FULL: "=",
 	}
 
 	for y in range(height):

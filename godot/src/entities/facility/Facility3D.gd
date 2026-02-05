@@ -75,19 +75,24 @@ func initialize(data: Dictionary) -> void:
 
 
 func _load_model() -> void:
+	if model_container == null:
+		return
+
+	# 기존 모델 제거
+	for child in model_container.get_children():
+		child.queue_free()
+
 	var model_path := "res://assets/models/facilities/%s.glb" % facility_id
 
-	if not ResourceLoader.exists(model_path):
-		model_path = "res://assets/models/facilities/residential_sml.glb"
-
-	if ResourceLoader.exists(model_path) and model_container:
+	if ResourceLoader.exists(model_path):
 		var model_scene: PackedScene = load(model_path)
 		if model_scene:
-			for child in model_container.get_children():
-				child.queue_free()
-
 			var model := model_scene.instantiate()
 			model_container.add_child(model)
+			return
+
+	# GLB 없으면 프로시저럴 메시 생성
+	_create_procedural_model()
 
 
 # ===== DAMAGE =====
@@ -237,3 +242,207 @@ func get_bonus_value() -> float:
 
 func get_credit_value() -> int:
 	return credit_value if is_alive else 0
+
+
+# ===== PROCEDURAL MODEL =====
+
+const FACILITY_COLORS: Dictionary = {
+	Constants.FacilityType.HOUSING: Color(0.5, 0.55, 0.6),
+	Constants.FacilityType.MEDICAL: Color(0.3, 0.7, 0.4),
+	Constants.FacilityType.ARMORY: Color(0.7, 0.4, 0.3),
+	Constants.FacilityType.COMM_TOWER: Color(0.3, 0.5, 0.8),
+	Constants.FacilityType.POWER_PLANT: Color(0.8, 0.7, 0.2)
+}
+
+func _create_procedural_model() -> void:
+	if model_container == null:
+		return
+
+	var color: Color = FACILITY_COLORS.get(facility_type, Color(0.5, 0.5, 0.55))
+
+	match facility_type:
+		Constants.FacilityType.HOUSING:
+			_create_housing_mesh(color)
+		Constants.FacilityType.MEDICAL:
+			_create_medical_mesh(color)
+		Constants.FacilityType.ARMORY:
+			_create_armory_mesh(color)
+		Constants.FacilityType.COMM_TOWER:
+			_create_comm_tower_mesh(color)
+		Constants.FacilityType.POWER_PLANT:
+			_create_power_plant_mesh(color)
+		_:
+			_create_housing_mesh(color)
+
+
+func _create_housing_mesh(color: Color) -> void:
+	# Housing: 주거 모듈 - 박스 형태
+	var size_mult := 1.0 + credit_value * 0.2  # 크레딧 가치에 따라 크기 조절
+
+	var base := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(0.8 * size_mult, 0.6 * size_mult, 0.8 * size_mult)
+	base.mesh = base_mesh
+	base.position = Vector3(0, 0.3 * size_mult, 0)
+	base.material_override = _create_material(color)
+	model_container.add_child(base)
+
+	# 지붕
+	var roof := MeshInstance3D.new()
+	var roof_mesh := BoxMesh.new()
+	roof_mesh.size = Vector3(0.9 * size_mult, 0.1, 0.9 * size_mult)
+	roof.mesh = roof_mesh
+	roof.position = Vector3(0, 0.65 * size_mult, 0)
+	roof.material_override = _create_material(color.darkened(0.2))
+	model_container.add_child(roof)
+
+	# 문
+	var door := MeshInstance3D.new()
+	var door_mesh := BoxMesh.new()
+	door_mesh.size = Vector3(0.2, 0.35, 0.05)
+	door.mesh = door_mesh
+	door.position = Vector3(0, 0.18, -0.4 * size_mult)
+	door.material_override = _create_material(Color(0.3, 0.25, 0.2))
+	model_container.add_child(door)
+
+
+func _create_medical_mesh(color: Color) -> void:
+	# Medical: 의료 시설 - 십자가 표시
+	var base := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(0.9, 0.5, 0.9)
+	base.mesh = base_mesh
+	base.position = Vector3(0, 0.25, 0)
+	base.material_override = _create_material(color)
+	model_container.add_child(base)
+
+	# 십자가 (수평)
+	var cross_h := MeshInstance3D.new()
+	var cross_h_mesh := BoxMesh.new()
+	cross_h_mesh.size = Vector3(0.5, 0.08, 0.15)
+	cross_h.mesh = cross_h_mesh
+	cross_h.position = Vector3(0, 0.55, -0.4)
+	cross_h.material_override = _create_material(Color(0.9, 0.2, 0.2))
+	model_container.add_child(cross_h)
+
+	# 십자가 (수직)
+	var cross_v := MeshInstance3D.new()
+	var cross_v_mesh := BoxMesh.new()
+	cross_v_mesh.size = Vector3(0.15, 0.35, 0.08)
+	cross_v.mesh = cross_v_mesh
+	cross_v.position = Vector3(0, 0.55, -0.4)
+	cross_v.material_override = _create_material(Color(0.9, 0.2, 0.2))
+	model_container.add_child(cross_v)
+
+
+func _create_armory_mesh(color: Color) -> void:
+	# Armory: 무기고 - 단단한 형태
+	var base := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(1.0, 0.4, 0.8)
+	base.mesh = base_mesh
+	base.position = Vector3(0, 0.2, 0)
+	base.material_override = _create_material(color)
+	model_container.add_child(base)
+
+	# 상단 구조물
+	var top := MeshInstance3D.new()
+	var top_mesh := BoxMesh.new()
+	top_mesh.size = Vector3(0.7, 0.3, 0.6)
+	top.mesh = top_mesh
+	top.position = Vector3(0, 0.55, 0)
+	top.material_override = _create_material(color.darkened(0.15))
+	model_container.add_child(top)
+
+	# 무기 랙 표시
+	var rack := MeshInstance3D.new()
+	var rack_mesh := BoxMesh.new()
+	rack_mesh.size = Vector3(0.6, 0.25, 0.05)
+	rack.mesh = rack_mesh
+	rack.position = Vector3(0, 0.35, -0.38)
+	rack.material_override = _create_material(Color(0.3, 0.3, 0.35))
+	model_container.add_child(rack)
+
+
+func _create_comm_tower_mesh(color: Color) -> void:
+	# Comm Tower: 통신탑 - 높은 안테나
+	var base := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(0.6, 0.3, 0.6)
+	base.mesh = base_mesh
+	base.position = Vector3(0, 0.15, 0)
+	base.material_override = _create_material(color)
+	model_container.add_child(base)
+
+	# 타워
+	var tower := MeshInstance3D.new()
+	var tower_mesh := CylinderMesh.new()
+	tower_mesh.top_radius = 0.06
+	tower_mesh.bottom_radius = 0.12
+	tower_mesh.height = 1.0
+	tower.mesh = tower_mesh
+	tower.position = Vector3(0, 0.8, 0)
+	tower.material_override = _create_material(Color(0.4, 0.4, 0.45))
+	model_container.add_child(tower)
+
+	# 안테나 접시
+	var dish := MeshInstance3D.new()
+	var dish_mesh := CylinderMesh.new()
+	dish_mesh.top_radius = 0.25
+	dish_mesh.bottom_radius = 0.15
+	dish_mesh.height = 0.08
+	dish.mesh = dish_mesh
+	dish.position = Vector3(0, 1.1, 0)
+	dish.rotation_degrees = Vector3(30, 0, 0)
+	dish.material_override = _create_material(Color(0.7, 0.7, 0.75))
+	model_container.add_child(dish)
+
+
+func _create_power_plant_mesh(color: Color) -> void:
+	# Power Plant: 발전소 - 원통형 리액터
+	var base := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(0.9, 0.25, 0.9)
+	base.mesh = base_mesh
+	base.position = Vector3(0, 0.125, 0)
+	base.material_override = _create_material(color)
+	model_container.add_child(base)
+
+	# 리액터 코어
+	var core := MeshInstance3D.new()
+	var core_mesh := CylinderMesh.new()
+	core_mesh.top_radius = 0.3
+	core_mesh.bottom_radius = 0.3
+	core_mesh.height = 0.6
+	core.mesh = core_mesh
+	core.position = Vector3(0, 0.55, 0)
+	var core_mat := _create_material(Color(0.9, 0.8, 0.2))
+	core_mat.emission_enabled = true
+	core_mat.emission = Color(0.9, 0.7, 0.1)
+	core_mat.emission_energy_multiplier = 0.5
+	core.material_override = core_mat
+	model_container.add_child(core)
+
+	# 냉각 파이프
+	for i in range(4):
+		var pipe := MeshInstance3D.new()
+		var pipe_mesh := CylinderMesh.new()
+		pipe_mesh.top_radius = 0.05
+		pipe_mesh.bottom_radius = 0.05
+		pipe_mesh.height = 0.4
+		pipe.mesh = pipe_mesh
+		pipe.rotation_degrees = Vector3(90, 0, i * 90)
+		pipe.position = Vector3(
+			cos(deg_to_rad(i * 90)) * 0.35,
+			0.55,
+			sin(deg_to_rad(i * 90)) * 0.35
+		)
+		pipe.material_override = _create_material(Color(0.35, 0.35, 0.4))
+		model_container.add_child(pipe)
+
+
+func _create_material(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.6
+	return mat

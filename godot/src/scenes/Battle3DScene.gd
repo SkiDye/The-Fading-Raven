@@ -69,13 +69,14 @@ func _setup_spawn_controller() -> void:
 
 func _setup_effects_manager() -> void:
 	# 이펙트 매니저에 컨테이너 설정
-	if EffectsManager3D and battle_map:
+	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
+	if effects_mgr and battle_map:
 		var effects_container := battle_map.get_node_or_null("Effects")
 		if effects_container == null:
 			effects_container = Node3D.new()
 			effects_container.name = "Effects"
 			battle_map.add_child(effects_container)
-		EffectsManager3D.set_effects_container(effects_container)
+		effects_mgr.set_effects_container(effects_container)
 
 
 func _connect_signals() -> void:
@@ -274,8 +275,9 @@ func _update_ui() -> void:
 		var alive_enemies := _enemies.filter(func(e): return is_instance_valid(e) and e.get("is_alive", true))
 		enemy_count_label.text = "Enemies: %d" % alive_enemies.size()
 
-	if credits_label and GameState:
-		credits_label.text = "Credits: %d" % GameState.get_credits()
+	var game_state := get_node_or_null("/root/GameState")
+	if credits_label and game_state:
+		credits_label.text = "Credits: %d" % game_state.get_credits()
 
 
 func _check_wave_completion() -> void:
@@ -493,8 +495,9 @@ func _on_wave_cleared() -> void:
 func _on_battle_victory() -> void:
 	print("[Battle3D] Battle Victory!")
 
-	if EventBus:
-		EventBus.battle_ended.emit(true)
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
+		event_bus.battle_ended.emit(true)
 
 
 func _find_closest_target(enemy: Node3D) -> Node:
@@ -536,8 +539,9 @@ func _use_crew_skill(crew: Node3D) -> void:
 func _use_raven_ability(ability: int) -> void:
 	print("[Battle3D] Raven ability: ", ability)
 
-	if EventBus:
-		EventBus.raven_ability_used.emit(ability)
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
+		event_bus.raven_ability_used.emit(ability)
 
 
 # ===== PAUSE =====

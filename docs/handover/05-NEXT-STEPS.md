@@ -16,80 +16,84 @@
 |-------|------|------|--------|
 | **Phase 1** | 3D 전투 엔티티 | ✅ 완료 | 2026-02-05 |
 | **Phase 2** | 3D 섹터 맵 | ✅ 완료 | 2026-02-05 |
-| **Phase 2.5** | 팀장 관리 & 업그레이드 | 🔴 대기 | - |
+| **Phase 2.5** | 팀장 관리 & 업그레이드 | ✅ 완료 | 2026-02-05 |
 | **Phase 3** | 정거장 미리보기 & 분대 선택 | ✅ 완료 | 2026-02-05 |
-| **Phase 4** | 화면 전환 & 이펙트 | 🔴 대기 | - |
+| **Phase 4** | 화면 전환 & 이펙트 | ✅ 완료 | 2026-02-05 |
 
 ---
 
-## Phase 4 작업 목록
+## Phase 4 작업 목록 ✅ 완료
 
-### 4.1 신규 씬
-| 항목 | 설명 | 우선순위 |
-|------|------|----------|
-| `NewGameSetup.tscn` | 새 게임 설정 (난이도, 시작 팀장 2명, 시작 장비) | P0 |
-| `BattleResult.tscn` | 전투 결과 (획득 크레딧, 새 팀장/장비) | P0 |
+### 4.1 신규 씬 ✅
+| 항목 | 설명 | 상태 |
+|------|------|------|
+| `NewGameSetup.tscn` | 새 게임 설정 (난이도, 시작 팀장 2명) | ✅ 완료 |
+| `BattleResult.tscn` | 전투 결과 (획득 크레딧, 새 팀장/장비) | ✅ 완료 |
 
-### 4.2 미구현 3D 엔티티
-| 항목 | 설명 | 우선순위 |
-|------|------|----------|
-| `Turret3D.tscn` | Engineer 터렛 (자동 공격 AI) | P1 |
-| `Projectile3D.tscn` | 투사체 (Ranger, Turret용) | P1 |
+### 4.2 3D 엔티티 ✅
+| 항목 | 설명 | 상태 |
+|------|------|------|
+| `Turret3D.tscn` | Engineer 터렛 (자동 공격 AI) | ✅ 완료 |
+| `Projectile3D.tscn` | 투사체 (Ranger, Turret용) | ✅ 완료 |
 
-### 4.3 3D 이펙트
-| 항목 | 설명 | 우선순위 |
-|------|------|----------|
-| `Explosion3D.tscn` | GPUParticles3D 폭발 이펙트 | P2 |
-| `HitEffect3D.tscn` | GPUParticles3D 피격 이펙트 | P2 |
-| `FloatingText3D.tscn` | Label3D 빌보드 데미지 숫자 | P2 |
+### 4.3 3D 이펙트 ✅
+| 항목 | 설명 | 상태 |
+|------|------|------|
+| `Explosion3D.tscn` | GPUParticles3D 폭발 이펙트 | ✅ 완료 |
+| `HitEffect3D.tscn` | GPUParticles3D 피격 이펙트 | ✅ 완료 |
+| `FloatingText3D.tscn` | Label3D 빌보드 데미지 숫자 | ✅ 완료 |
 
-### 4.4 씬 전환
-| 전환 | 효과 | 우선순위 |
-|------|------|----------|
-| 메뉴 → 섹터 맵 | 페이드 아웃/인 | P2 |
-| 섹터 맵 → 미리보기 | 카메라 줌인 (3D 트랜지션) | P2 |
-| 미리보기 → 전투 | 크로스페이드 | P2 |
-| 전투 → 결과 | 슬로우 페이드 | P2 |
+### 4.4 씬 전환 ✅
+| 항목 | 설명 | 상태 |
+|------|------|------|
+| `SceneTransition.gd` | 씬 전환 시스템 (autoload) | ✅ 완료 |
+| 페이드/크로스페이드/줌 | 다양한 전환 효과 지원 | ✅ 완료 |
 
-### 4.5 레거시 정리
-| 항목 | 설명 | 우선순위 |
-|------|------|----------|
-| 2D 씬 삭제 | Battle.tscn, sector_map.tscn 등 | P3 |
-| 레거시 autoload | godot/autoload/ 정리 | P3 |
+### 4.5 레거시 정리 ✅ 완료
+| 항목 | 설명 | 상태 |
+|------|------|------|
+| 2D 씬 삭제 | Battle.tscn, sector_map.tscn 등 | ✅ 완료 |
+| 레거시 autoload | godot/autoload/ 삭제 | ✅ 완료 |
+| 레거시 scripts | godot/scripts/ 삭제 | ✅ 완료 |
+| 레거시 tests | godot/tests/ 삭제 | ✅ 완료 |
 
----
-
-## Phase 2.5 (업그레이드 시스템)
-
-### 목표
-UpgradeScreen.tscn 개선 - Bad North 스타일 업그레이드
-
-### 작업 항목
-| 항목 | 설명 |
-|------|------|
-| 팀장 목록 (좌측 패널) | 초상화, 클래스 아이콘, 상태 텍스트 |
-| 팀장 상세 (우측 패널) | 대형 초상화, 특성, 통계 |
-| 클래스 선택 | Militia → 5클래스 선택 (6크레딧) |
-| 클래스 업그레이드 | Standard → Veteran (12) → Elite (20) |
-| 스킬 업그레이드 | Lv1(7) → Lv2(10) → Lv3(14) |
-| 장비 업그레이드 | Lv2(8), Lv3(14-16) |
+### 4.6 프로시저럴 3D 메시 ✅ 완료
+| 항목 | 설명 | 상태 |
+|------|------|------|
+| CrewSquad3D | GLB 없을 시 클래스별 프로시저럴 메시 | ✅ 완료 |
+| EnemyUnit3D | GLB 없을 시 적 타입별 프로시저럴 메시 | ✅ 완료 |
+| Facility3D | GLB 없을 시 시설별 프로시저럴 메시 | ✅ 완료 |
+| DropPod3D | GLB 없을 시 침투정 프로시저럴 메시 | ✅ 완료 |
 
 ---
 
-## 전체 게임 플로우 목표
+## Phase 2.5 (업그레이드 시스템) ✅ 완료
+
+### 구현 완료 항목
+| 항목 | 설명 | 상태 |
+|------|------|------|
+| 팀장 목록 (좌측 패널) | 초상화, 클래스 아이콘, 체력 표시 | ✅ |
+| 팀장 상세 (우측 패널) | 대형 초상화, 특성, 통계 | ✅ |
+| 클래스 선택 | Militia → 5클래스 선택 (6크레딧) | ✅ |
+| 클래스 업그레이드 | Standard → Veteran (12) → Elite (20) | ✅ |
+| 스킬 업그레이드 | Lv1(7) → Lv2(10) → Lv3(14) | ✅ |
+| 섹터 맵 연동 | U키, 팀장 슬롯 클릭 | ✅ |
+| 장비 선택 모달 | 장비 변경 UI | 🔴 TODO |
+
+---
+
+## 전체 게임 플로우 (구현 완료)
 
 ```
 [MainMenu.tscn] (2D)
     ↓ NEW GAME
-[NewGameSetup.tscn] (2D) 🔴 신규
+[NewGameSetup.tscn] (2D) ✅
     - 난이도 선택
     - 시작 팀장 2명 선택
-    - 시작 장비/특성 선택
     ↓ START
 [SectorMap3D.tscn] (3D) ←──────────────────────────┐
     │                                              │
-    ├── 팀장 초상화 클릭 ────→ [UpgradeScreen] ───┘
-    │   (또는 U키)                  │
+    ├── 팀장 클릭 또는 U키 ──→ [UpgradeScreen] ✅ ─┘
     │                               └─ BACK 버튼
     │
     └── 노드 클릭
@@ -100,10 +104,8 @@ UpgradeScreen.tscn 개선 - Bad North 스타일 업그레이드
     ↓ DEPLOY
 [Battle3D.tscn] (3D) ✅
     ↓ 승리/패배
-[BattleResult.tscn] (2D) 🔴 신규
+[BattleResult.tscn] (2D) ✅
     ↓ CONTINUE
-[UpgradeScreen.tscn] (2D) ← 전투 후 자동 (선택적)
-    ↓ DONE
 [SectorMap3D.tscn] (반복)
 ```
 
@@ -135,21 +137,25 @@ UpgradeScreen.tscn 개선 - Bad North 스타일 업그레이드
 
 ## 즉시 시작 가능한 작업
 
-### 옵션 A: Phase 4 진행
-1. `NewGameSetup.tscn` 구현
-2. `BattleResult.tscn` 구현
-3. `Turret3D.tscn` 구현
-4. 씬 전환 트랜지션
-
-### 옵션 B: Phase 2.5 진행
-1. `UpgradeScreen.tscn` 개선
-2. 클래스/스킬 업그레이드 UI
-3. 섹터 맵과 연동
-
-### 옵션 C: 통합 테스트
-1. 전체 게임 플로우 테스트
+### 옵션 A: 통합 테스트 (권장)
+1. 전체 게임 플로우 테스트 (메뉴 → 섹터맵 → 전투 → 결과)
 2. 버그 수정
 3. 밸런스 조정
+
+### ~~옵션 B: 레거시 정리~~ ✅ 완료
+- ~~2D 씬 삭제~~ ✅
+- ~~레거시 autoload/scripts/tests 정리~~ ✅
+- ~~프로시저럴 3D 메시 추가~~ ✅
+
+### 옵션 B: 콘텐츠 확장
+1. 추가 적 유닛 구현
+2. 추가 장비 구현
+3. 사운드/음악 통합
+
+### 옵션 C: GLB 3D 모델 추가
+1. 크루 클래스 GLB 모델 (guardian, sentinel, ranger, engineer, bionic)
+2. 적 유닛 GLB 모델 (rusher, gunner, shield_trooper 등)
+3. 시설 GLB 모델 (residential, medical, armory 등)
 
 ---
 

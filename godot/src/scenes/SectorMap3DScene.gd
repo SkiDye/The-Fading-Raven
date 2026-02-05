@@ -82,6 +82,8 @@ func _ready() -> void:
 	_setup_environment()
 	_setup_camera()
 	_connect_signals()
+	_initialize_sector()
+	_update_ui()
 
 
 func _process(delta: float) -> void:
@@ -141,6 +143,199 @@ func _connect_signals() -> void:
 		next_turn_btn.pressed.connect(_on_next_turn_pressed)
 	if enter_btn:
 		enter_btn.pressed.connect(_on_enter_pressed)
+
+	# 노드 진입 시 씬 전환
+	node_entered.connect(_on_node_entered_transition)
+
+
+func _initialize_sector() -> void:
+	# GameState에서 섹터 데이터 로드 또는 생성
+	if GameState and GameState.has_method("get_sector_data"):
+		var data: Dictionary = GameState.get_sector_data()
+		if not data.is_empty():
+			setup(data)
+			if GameState.has_method("get_current_node_id"):
+				set_current_node(GameState.get_current_node_id())
+			return
+
+	# 섹터 데이터가 없으면 테스트용 생성
+	_generate_test_sector()
+
+
+func _generate_test_sector() -> void:
+	# 테스트용 섹터 생성
+	var nodes: Array = []
+	var node_id := 0
+
+	# 레이어별 노드 생성
+	for layer in range(6):
+		var nodes_in_layer: int
+		var node_types: Array
+
+		match layer:
+			0:  # 시작
+				nodes_in_layer = 1
+				node_types = [Constants.NodeType.START]
+			1, 2, 3:  # 중간
+				nodes_in_layer = 2 + (layer % 2)
+				node_types = [Constants.NodeType.BATTLE, Constants.NodeType.RESCUE, Constants.NodeType.REST]
+			4:  # 보스 전
+				nodes_in_layer = 2
+				node_types = [Constants.NodeType.BATTLE, Constants.NodeType.DEPOT]
+			5:  # 보스
+				nodes_in_layer = 1
+				node_types = [Constants.NodeType.GATE]
+
+		for i in range(nodes_in_layer):
+			var node_type: int = node_types[i % node_types.size()]
+			var node_data := {
+				"id": "node_%d" % node_id,
+				"layer": layer,
+				"type": node_type,
+				"connections_out": [] as Array
+			}
+			nodes.append(node_data)
+			node_id += 1
+
+	# 연결 생성 (레이어 간)
+	for i in range(nodes.size()):
+		var node: Dictionary = nodes[i]
+		var current_layer: int = node.layer
+
+		for j in range(nodes.size()):
+			var other: Dictionary = nodes[j]
+			if other.layer == current_layer + 1:
+				# 다음 레이어의 노드와 연결
+				node.connections_out.append(other.id)
+
+	_sector_data = {"nodes": nodes}
+	_rebuild_map()
+
+	# 시작 노드로 설정
+	if not nodes.is_empty():
+		_current_node_id = nodes[0].id
+		_camera_target = Vector3.ZERO
+
+
+func _on_node_entered_transition(node_id: String) -> void:
+	# 노드 타입에 따라 다른 씬으로 전환
+	var node_data := _get_node_data(node_id)
+	if node_data.is_empty():
+		return
+
+	var node_type: int = node_data.get("type", Constants.NodeType.BATTLE)
+
+	# GameState에 현재 노드 저장
+	if GameState and GameState.has_method("set_current_node_id"):
+		GameState.set_current_node_id(node_id)
+
+	match node_type:
+		Constants.NodeType.START:
+			# 시작 노드 - 아무것도 안함
+			_current_node_id = node_id
+			_update_node_visuals()
+
+		Constants.NodeType.BATTLE, Constants.NodeType.STORM, Constants.NodeType.BOSS:
+			# 전투 노드 -> StationPreview3D
+			if GameState and GameState.has_method("set_current_station"):
+				var station_data := {"node_id": node_id, "node_type": node_type}
+				GameState.set_current_station(station_data)
+
+			var preview_scene := "res://scenes/campaign/StationPreview3D.tscn"
+			if ResourceLoader.exists(preview_scene):
+				get_tree().change_scene_to_file(preview_scene)
+
+		Constants.NodeType.COMMANDER, Constants.NodeType.RESCUE:
+			# 구조 노드 - 직접 결과 처리
+			_handle_rescue_node(node_id)
+
+		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE, Constants.NodeType.DEPOT:
+			# 장비 노드 - 직접 결과 처리
+			_handle_equipment_node(node_id)
+
+		Constants.NodeType.REST:
+			# 휴식 노드 - 회복 처리
+			_handle_rest_node(node_id)
+
+		Constants.NodeType.GATE:
+			# 탈출 게이트 - 승리
+			_handle_victory()
+
+
+func _handle_rescue_node(node_id: String) -> void:
+	_current_node_id = node_id
+
+	# 새 팀장 추가 (50% 확률)
+	if randf() > 0.5:
+		var dialog := AcceptDialog.new()
+		dialog.title = "Survivor Rescued!"
+		dialog.dialog_text = "A new team leader has joined your crew!"
+		add_child(dialog)
+		dialog.popup_centered()
+		dialog.confirmed.connect(func():
+			dialog.queue_free()
+			# TODO: 실제 팀장 추가 로직
+		)
+	else:
+		var dialog := AcceptDialog.new()
+		dialog.title = "Empty Station"
+		dialog.dialog_text = "No survivors found. You received 2 credits."
+		add_child(dialog)
+		dialog.popup_centered()
+		dialog.confirmed.connect(func():
+			dialog.queue_free()
+			if GameState and GameState.has_method("add_credits"):
+				GameState.add_credits(2)
+		)
+
+	_update_node_visuals()
+	_update_ui()
+
+
+func _handle_equipment_node(node_id: String) -> void:
+	_current_node_id = node_id
+
+	var dialog := AcceptDialog.new()
+	dialog.title = "Salvage Found!"
+	dialog.dialog_text = "You found useful equipment!\n(TODO: Equipment selection)"
+	add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(func(): dialog.queue_free())
+
+	_update_node_visuals()
+	_update_ui()
+
+
+func _handle_rest_node(node_id: String) -> void:
+	_current_node_id = node_id
+
+	# 모든 크루 회복
+	if GameState and GameState.has_method("heal_all_crews"):
+		GameState.heal_all_crews()
+
+	var dialog := AcceptDialog.new()
+	dialog.title = "Rest Stop"
+	dialog.dialog_text = "Your crew has fully recovered."
+	add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(func(): dialog.queue_free())
+
+	_update_node_visuals()
+	_update_ui()
+
+
+func _handle_victory() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "VICTORY!"
+	dialog.dialog_text = "You have reached the escape gate!\nYour crew survives to fight another day."
+	add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+		if GameState:
+			GameState.end_run(true)
+		get_tree().change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
+	)
 
 
 # ===== PUBLIC API =====
@@ -393,17 +588,18 @@ func _create_connection_line(from_pos: Vector3, to_pos: Vector3) -> Node3D:
 
 	mesh_instance.mesh = cylinder
 
-	# 위치와 회전 설정
+	# 위치 설정
 	line.position = (from_pos + to_pos) * 0.5
 	line.position.y = 0.1
 
-	# 방향 회전
+	# 방향 회전 (look_at 대신 직접 계산)
 	if direction.length() > 0.01:
-		var up := Vector3.UP
 		var forward := direction.normalized()
-		# 실린더는 Y축으로 생성되므로 회전 필요
-		line.look_at(line.position + forward, up)
-		line.rotate_object_local(Vector3.RIGHT, PI / 2)
+		# 실린더는 Y축 방향이므로 forward를 Y축에 맞춤
+		var angle := Vector3.UP.angle_to(forward)
+		var axis := Vector3.UP.cross(forward).normalized()
+		if axis.length() > 0.001:
+			line.transform.basis = Basis(axis, angle)
 
 	line.add_child(mesh_instance)
 
@@ -552,6 +748,10 @@ func _handle_node_selection(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_raycast_node_selection(event.position)
+
+	# U 키 - 업그레이드 화면
+	if event is InputEventKey and event.pressed and event.keycode == KEY_U:
+		_on_upgrade_pressed()
 
 
 func _raycast_node_selection(screen_pos: Vector2) -> void:

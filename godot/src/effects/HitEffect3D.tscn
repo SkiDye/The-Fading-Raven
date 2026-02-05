@@ -1,0 +1,37 @@
+[gd_scene load_steps=4 format=3 uid="uid://hiteffect3d00001"]
+
+[ext_resource type="Script" path="res://src/effects/HitEffect3D.gd" id="1_script"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_hit"]
+emission_shape = 1
+emission_sphere_radius = 0.1
+direction = Vector3(0, 0, -1)
+spread = 45.0
+initial_velocity_min = 2.0
+initial_velocity_max = 4.0
+gravity = Vector3(0, -5, 0)
+scale_min = 0.05
+scale_max = 0.15
+color = Color(1, 0.3, 0.1, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_particle"]
+radius = 0.05
+height = 0.1
+
+[node name="HitEffect3D" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Particles" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 12
+one_shot = true
+explosiveness = 1.0
+lifetime = 0.4
+process_material = SubResource("ParticleProcessMaterial_hit")
+draw_pass_1 = SubResource("SphereMesh_particle")
+
+[node name="FlashLight" type="OmniLight3D" parent="."]
+light_color = Color(1, 0.3, 0.1, 1)
+light_energy = 2.0
+omni_range = 1.5
+omni_attenuation = 2.0

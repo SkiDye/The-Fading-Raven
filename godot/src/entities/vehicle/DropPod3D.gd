@@ -223,9 +223,10 @@ func _process_approach(delta: float) -> void:
 
 
 func _spawn_engine_trail() -> void:
-	if EffectsManager3D:
+	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
+	if effects_mgr:
 		var trail_pos := global_position + Vector3(0, -0.5, 0)
-		EffectsManager3D.spawn_engine_trail_3d(trail_pos, Vector3.UP, 1.5)
+		effects_mgr.spawn_engine_trail_3d(trail_pos, Vector3.UP, 1.5)
 	else:
 		# 폴백: 간단한 파티클 생성
 		_create_simple_trail_particle()
@@ -276,8 +277,9 @@ func _start_landing() -> void:
 
 func _on_landing_start() -> void:
 	# 먼지/연기 이펙트
-	if EffectsManager3D:
-		EffectsManager3D.spawn_explosion_3d(global_position, 0.5)
+	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
+	if effects_mgr:
+		effects_mgr.spawn_explosion_3d(global_position, 0.5)
 
 
 func _process_landing(delta: float) -> void:
@@ -290,13 +292,15 @@ func _process_landing(delta: float) -> void:
 
 func _on_landing_complete() -> void:
 	# 착륙 완료 이펙트
-	if EffectsManager3D:
-		EffectsManager3D.screen_shake_3d(5.0, 0.3)
-		EffectsManager3D.spawn_impact_effect_3d(global_position, 2.0)
+	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
+	if effects_mgr:
+		effects_mgr.screen_shake_3d(5.0, 0.3)
+		effects_mgr.spawn_impact_effect_3d(global_position, 2.0)
 	else:
 		# 폴백: EventBus로 화면 흔들림 요청
-		if EventBus:
-			EventBus.screen_shake.emit(5.0, 0.3)
+		var event_bus := get_node_or_null("/root/EventBus")
+		if event_bus:
+			event_bus.screen_shake.emit(5.0, 0.3)
 
 	# 엔진 글로우 끄기
 	if _engine_glow:
