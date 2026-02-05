@@ -20,7 +20,7 @@ func _init() -> void:
 
 # ===== SIGNALS =====
 
-signal tile_changed(pos: Vector2i, old_type: ConstantsScript.TileType, new_type: ConstantsScript.TileType)
+signal tile_changed(pos: Vector2i, old_type: int, new_type: int)  # TileType enum values
 signal occupant_changed(pos: Vector2i, old_occupant: Node, new_occupant: Node)
 signal tile_visibility_changed(pos: Vector2i, is_visible: bool)
 signal fog_of_war_toggled(enabled: bool)

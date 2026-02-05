@@ -45,29 +45,31 @@ func _ready() -> void:
 
 
 func _load_scenes() -> void:
-	var paths := {
-		"hit_effect": "res://src/effects/HitEffect3D.tscn",
-		"explosion": "res://src/effects/Explosion3D.tscn",
-		"floating_text": "res://src/effects/FloatingText3D.tscn"
-	}
+	var hit_path: String = "res://src/effects/HitEffect3D.tscn"
+	var explosion_path: String = "res://src/effects/Explosion3D.tscn"
+	var floating_text_path: String = "res://src/effects/FloatingText3D.tscn"
 
-	if ResourceLoader.exists(paths["hit_effect"]):
-		_hit_effect_scene = load(paths["hit_effect"])
+	if ResourceLoader.exists(hit_path):
+		_hit_effect_scene = load(hit_path)
 
-	if ResourceLoader.exists(paths["explosion"]):
-		_explosion_scene = load(paths["explosion"])
+	if ResourceLoader.exists(explosion_path):
+		_explosion_scene = load(explosion_path)
 
-	if ResourceLoader.exists(paths["floating_text"]):
-		_floating_text_scene = load(paths["floating_text"])
+	if ResourceLoader.exists(floating_text_path):
+		_floating_text_scene = load(floating_text_path)
 
 
 func _connect_signals() -> void:
-	var event_bus := get_node_or_null("/root/EventBus")
+	var event_bus: Node = get_node_or_null("/root/EventBus")
 	if event_bus:
-		event_bus.damage_dealt.connect(_on_damage_dealt)
-		event_bus.entity_died.connect(_on_entity_died)
-		event_bus.skill_used.connect(_on_skill_used)
-		event_bus.screen_shake.connect(_on_screen_shake)
+		if event_bus.has_signal("damage_dealt"):
+			event_bus.damage_dealt.connect(_on_damage_dealt)
+		if event_bus.has_signal("entity_died"):
+			event_bus.entity_died.connect(_on_entity_died)
+		if event_bus.has_signal("skill_used"):
+			event_bus.skill_used.connect(_on_skill_used)
+		if event_bus.has_signal("screen_shake"):
+			event_bus.screen_shake.connect(_on_screen_shake)
 
 
 func _process(delta: float) -> void:
@@ -146,14 +148,14 @@ func spawn_floating_text_3d(text: String, position: Vector3, color: Color = Colo
 
 ## 3D 데미지 숫자 표시
 func spawn_damage_number_3d(position: Vector3, amount: int, is_critical: bool = false) -> void:
-	var color := Color.RED if amount > 0 else Color.GREEN
-	var scale := 1.5 if is_critical else 1.0
-	var text := str(abs(amount))
+	var color: Color = Color.RED if amount > 0 else Color.GREEN
+	var text_scale: float = 1.5 if is_critical else 1.0
+	var text: String = str(abs(amount))
 	if amount < 0:
 		text = "+" + text
 
-	var offset := Vector3(randf_range(-0.2, 0.2), randf_range(0, 0.2), randf_range(-0.2, 0.2))
-	spawn_floating_text_3d(text, position + offset, color, scale)
+	var offset: Vector3 = Vector3(randf_range(-0.2, 0.2), randf_range(0, 0.2), randf_range(-0.2, 0.2))
+	spawn_floating_text_3d(text, position + offset, color, text_scale)
 
 
 ## 3D 카메라 쉐이크
@@ -181,7 +183,7 @@ func spawn_engine_trail_3d(position: Vector3, direction: Vector3, length: float 
 	if _effects_container == null:
 		return
 
-	var trail := _create_engine_trail(direction, length)
+	var trail: Node3D = _create_engine_trail(direction, length)
 	trail.global_position = position
 	_effects_container.add_child(trail)
 
@@ -205,7 +207,7 @@ func spawn_skill_effect_3d(skill_id: String, position: Vector3, direction: Vecto
 func spawn_death_effect_3d(position: Vector3, entity_type: String) -> void:
 	spawn_explosion_3d(position, 0.8)
 
-	var color := Color.CYAN if entity_type == "enemy" else Color.RED
+	var color: Color = Color.CYAN if entity_type == "enemy" else Color.RED
 	spawn_floating_text_3d("X", position + Vector3(0, 0.5, 0), color, 1.5)
 
 
@@ -264,10 +266,10 @@ func _apply_camera_shake() -> void:
 	if _active_camera == null:
 		return
 
-	var progress := _shake_timer / _shake_duration
-	var current_intensity := _shake_intensity * progress
+	var progress: float = _shake_timer / _shake_duration
+	var current_intensity: float = _shake_intensity * progress
 
-	var offset := Vector3(
+	var offset: Vector3 = Vector3(
 		randf_range(-current_intensity, current_intensity) * 0.1,
 		randf_range(-current_intensity, current_intensity) * 0.1,
 		randf_range(-current_intensity, current_intensity) * 0.05
@@ -304,15 +306,15 @@ func _return_to_pool(effect: Node3D) -> void:
 # ===== SIMPLE EFFECT CREATION (FALLBACK) =====
 
 func _create_simple_hit_effect(damage_type: int) -> Node3D:
-	var effect := Node3D.new()
+	var effect: Node3D = Node3D.new()
 	effect.name = "HitEffect"
 
-	var mesh := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
+	var mesh: MeshInstance3D = MeshInstance3D.new()
+	var sphere: SphereMesh = SphereMesh.new()
 	sphere.radius = 0.15
 	sphere.height = 0.3
 
-	var mat := StandardMaterial3D.new()
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	match damage_type:
 		DamageType.PHYSICAL:
 			mat.albedo_color = Color(1.0, 0.8, 0.2)
@@ -332,7 +334,7 @@ func _create_simple_hit_effect(damage_type: int) -> Node3D:
 	effect.add_child(mesh)
 
 	# 페이드아웃 애니메이션
-	var tween := effect.create_tween()
+	var tween: Tween = effect.create_tween()
 	tween.tween_property(mesh, "scale", Vector3.ZERO, 0.3)
 	tween.tween_callback(effect.queue_free)
 
@@ -340,15 +342,15 @@ func _create_simple_hit_effect(damage_type: int) -> Node3D:
 
 
 func _create_simple_explosion(radius: float) -> Node3D:
-	var effect := Node3D.new()
+	var effect: Node3D = Node3D.new()
 	effect.name = "Explosion"
 
-	var mesh := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
+	var mesh: MeshInstance3D = MeshInstance3D.new()
+	var sphere: SphereMesh = SphereMesh.new()
 	sphere.radius = radius * 0.3
 	sphere.height = radius * 0.6
 
-	var mat := StandardMaterial3D.new()
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	mat.albedo_color = Color(1.0, 0.5, 0.1, 0.8)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.emission_enabled = true
@@ -360,7 +362,7 @@ func _create_simple_explosion(radius: float) -> Node3D:
 	effect.add_child(mesh)
 
 	# 확장 + 페이드아웃
-	var tween := effect.create_tween()
+	var tween: Tween = effect.create_tween()
 	tween.tween_property(mesh, "scale", Vector3(radius, radius, radius), 0.2)
 	tween.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.4)
 	tween.tween_callback(effect.queue_free)
@@ -369,10 +371,10 @@ func _create_simple_explosion(radius: float) -> Node3D:
 
 
 func _create_simple_floating_text(text: String, color: Color) -> Node3D:
-	var effect := Node3D.new()
+	var effect: Node3D = Node3D.new()
 	effect.name = "FloatingText"
 
-	var label := Label3D.new()
+	var label: Label3D = Label3D.new()
 	label.text = text
 	label.font_size = 48
 	label.modulate = color
@@ -381,7 +383,7 @@ func _create_simple_floating_text(text: String, color: Color) -> Node3D:
 	effect.add_child(label)
 
 	# 위로 떠오르며 페이드아웃
-	var tween := effect.create_tween()
+	var tween: Tween = effect.create_tween()
 	tween.tween_property(effect, "position:y", effect.position.y + 1.0, 0.8)
 	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.8)
 	tween.tween_callback(effect.queue_free)
@@ -393,16 +395,16 @@ func _spawn_shockwave_ring(position: Vector3, radius: float) -> void:
 	if _effects_container == null:
 		return
 
-	var ring := Node3D.new()
+	var ring: Node3D = Node3D.new()
 	ring.name = "Shockwave"
 	ring.position = position
 
-	var mesh := MeshInstance3D.new()
-	var torus := TorusMesh.new()
+	var mesh: MeshInstance3D = MeshInstance3D.new()
+	var torus: TorusMesh = TorusMesh.new()
 	torus.inner_radius = 0.1
 	torus.outer_radius = 0.3
 
-	var mat := StandardMaterial3D.new()
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	mat.albedo_color = Color(1.0, 0.8, 0.4, 0.7)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.emission_enabled = true
@@ -417,24 +419,24 @@ func _spawn_shockwave_ring(position: Vector3, radius: float) -> void:
 	_effects_container.add_child(ring)
 
 	# 확장 + 페이드아웃
-	var tween := ring.create_tween()
+	var tween: Tween = ring.create_tween()
 	tween.tween_property(ring, "scale", Vector3(radius * 2, radius * 2, radius * 2), 0.4)
 	tween.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.4)
 	tween.tween_callback(ring.queue_free)
 
 
 func _create_engine_trail(direction: Vector3, length: float) -> Node3D:
-	var trail := Node3D.new()
+	var trail: Node3D = Node3D.new()
 	trail.name = "EngineTrail"
 
 	# 여러 파티클 생성
-	for i in range(5):
-		var particle := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
+	for i: int in range(5):
+		var particle: MeshInstance3D = MeshInstance3D.new()
+		var sphere: SphereMesh = SphereMesh.new()
 		sphere.radius = 0.1 + randf() * 0.1
 		sphere.height = sphere.radius * 2
 
-		var mat := StandardMaterial3D.new()
+		var mat: StandardMaterial3D = StandardMaterial3D.new()
 		mat.albedo_color = Color(1.0, 0.6 + randf() * 0.3, 0.2, 0.8)
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.emission_enabled = true
@@ -447,12 +449,12 @@ func _create_engine_trail(direction: Vector3, length: float) -> Node3D:
 		trail.add_child(particle)
 
 		# 개별 페이드아웃
-		var tween := particle.create_tween()
+		var tween: Tween = particle.create_tween()
 		tween.tween_interval(i * 0.05)
 		tween.tween_property(mat, "albedo_color:a", 0.0, 0.3 + randf() * 0.2)
 
 	# 전체 트레일 제거
-	var cleanup_tween := trail.create_tween()
+	var cleanup_tween: Tween = trail.create_tween()
 	cleanup_tween.tween_interval(1.0)
 	cleanup_tween.tween_callback(trail.queue_free)
 
@@ -481,9 +483,9 @@ func _spawn_volley_fire_effect(position: Vector3) -> void:
 	spawn_floating_text_3d("VOLLEY!", position + Vector3(0, 1.2, 0), Color.ORANGE, 1.0)
 
 	# 다중 히트 이펙트
-	for i in range(5):
-		var offset := Vector3(randf_range(-1, 1), 0.5, randf_range(-1, 1))
-		var delayed_pos := position + offset
+	for i: int in range(5):
+		var offset: Vector3 = Vector3(randf_range(-1, 1), 0.5, randf_range(-1, 1))
+		var delayed_pos: Vector3 = position + offset
 		get_tree().create_timer(i * 0.1).timeout.connect(
 			func(): spawn_hit_effect_3d(delayed_pos, DamageType.ENERGY)
 		)
