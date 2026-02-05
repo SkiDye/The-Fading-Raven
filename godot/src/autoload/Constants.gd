@@ -456,14 +456,14 @@ func get_wave_budget_multiplier(difficulty: Difficulty = Difficulty.NORMAL) -> f
 
 
 ## 크레딧 획득 배율
-func get_credit_multiplier(difficulty: Difficulty = GameState.current_difficulty) -> float:
-	var settings := get_difficulty_settings(difficulty)
+func get_credit_multiplier(difficulty: Difficulty = Difficulty.NORMAL) -> float:
+	var settings: Dictionary = get_difficulty_settings(difficulty)
 	return settings.get("credit_mult", 1.0)
 
 
 ## 난이도별 Raven 충전량
-func get_raven_charges_for_difficulty(ability: RavenAbility, difficulty: Difficulty = GameState.current_difficulty) -> int:
-	var settings := get_difficulty_settings(difficulty)
+func get_raven_charges_for_difficulty(ability: RavenAbility, difficulty: Difficulty = Difficulty.NORMAL) -> int:
+	var settings: Dictionary = get_difficulty_settings(difficulty)
 	if settings.has("raven_charges") and settings.raven_charges.has(ability):
 		return settings.raven_charges[ability]
 	# 기본값
@@ -471,21 +471,21 @@ func get_raven_charges_for_difficulty(ability: RavenAbility, difficulty: Difficu
 
 
 ## 난이도별 섹터 깊이 범위 [min, max]
-func get_sector_depth_range(difficulty: Difficulty = GameState.current_difficulty) -> Array:
+func get_sector_depth_range(difficulty: Difficulty = Difficulty.NORMAL) -> Array:
 	if BALANCE.campaign.depth_range.has(difficulty):
 		return BALANCE.campaign.depth_range[difficulty]
 	return [8, 12]
 
 
 ## 난이도별 레이어당 노드 수 범위 [min, max]
-func get_nodes_per_layer_range(difficulty: Difficulty = GameState.current_difficulty) -> Array:
+func get_nodes_per_layer_range(difficulty: Difficulty = Difficulty.NORMAL) -> Array:
 	if BALANCE.campaign.nodes_per_layer.has(difficulty):
 		return BALANCE.campaign.nodes_per_layer[difficulty]
 	return [2, 3]
 
 
 ## 난이도별 스톰 진행 속도
-func get_storm_advance_rate(difficulty: Difficulty = GameState.current_difficulty) -> int:
+func get_storm_advance_rate(difficulty: Difficulty = Difficulty.NORMAL) -> int:
 	if BALANCE.campaign.storm_advance_rate.has(difficulty):
 		return BALANCE.campaign.storm_advance_rate[difficulty]
 	return 2
