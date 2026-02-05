@@ -203,34 +203,34 @@ func _generate_bsp_rooms(w: int, h: int) -> Array[Rect2i]:
 func _split_node(node: BSPNode, min_size: int) -> void:
 	# 더 이상 분할 불가능하면 방 생성
 	if node.bsp_width < min_size * 2 and node.bsp_height < min_size * 2:
-		var room_w := _rng.range_int(min_size, maxi(min_size, node.bsp_width - 1))
-		var room_h := _rng.range_int(min_size, maxi(min_size, node.bsp_height - 1))
-		var room_x := node.x + _rng.range_int(0, maxi(0, node.bsp_width - room_w - 1))
-		var room_y := node.y + _rng.range_int(0, maxi(0, node.bsp_height - room_h - 1))
+		var room_w: int = _rng.range_int(min_size, maxi(min_size, node.bsp_width - 1))
+		var room_h: int = _rng.range_int(min_size, maxi(min_size, node.bsp_height - 1))
+		var room_x: int = node.x + _rng.range_int(0, maxi(0, node.bsp_width - room_w - 1))
+		var room_y: int = node.y + _rng.range_int(0, maxi(0, node.bsp_height - room_h - 1))
 		node.room = Rect2i(room_x, room_y, room_w, room_h)
 		return
 
 	# 분할 방향 결정
-	var split_h := node.bsp_width > node.bsp_height * 1.25
+	var split_h: bool = node.bsp_width > node.bsp_height * 1.25
 	if node.bsp_width >= node.bsp_height and not split_h:
 		split_h = _rng.chance(0.5)
 
 	if split_h and node.bsp_width >= min_size * 2:
 		# 수평 분할
-		var split := _rng.range_int(int(node.bsp_width * 0.4), int(node.bsp_width * 0.6))
+		var split: int = _rng.range_int(int(node.bsp_width * 0.4), int(node.bsp_width * 0.6))
 		node.left = BSPNode.new(node.x, node.y, split, node.bsp_height)
 		node.right = BSPNode.new(node.x + split, node.y, node.bsp_width - split, node.bsp_height)
 	elif node.bsp_height >= min_size * 2:
 		# 수직 분할
-		var split := _rng.range_int(int(node.bsp_height * 0.4), int(node.bsp_height * 0.6))
+		var split: int = _rng.range_int(int(node.bsp_height * 0.4), int(node.bsp_height * 0.6))
 		node.left = BSPNode.new(node.x, node.y, node.bsp_width, split)
 		node.right = BSPNode.new(node.x, node.y + split, node.bsp_width, node.bsp_height - split)
 	else:
 		# 분할 불가, 방 생성
-		var room_w := _rng.range_int(min_size, maxi(min_size, node.bsp_width - 1))
-		var room_h := _rng.range_int(min_size, maxi(min_size, node.bsp_height - 1))
-		var room_x := node.x + _rng.range_int(0, maxi(0, node.bsp_width - room_w - 1))
-		var room_y := node.y + _rng.range_int(0, maxi(0, node.bsp_height - room_h - 1))
+		var room_w: int = _rng.range_int(min_size, maxi(min_size, node.bsp_width - 1))
+		var room_h: int = _rng.range_int(min_size, maxi(min_size, node.bsp_height - 1))
+		var room_x: int = node.x + _rng.range_int(0, maxi(0, node.bsp_width - room_w - 1))
+		var room_y: int = node.y + _rng.range_int(0, maxi(0, node.bsp_height - room_h - 1))
 		node.room = Rect2i(room_x, room_y, room_w, room_h)
 		return
 
@@ -355,7 +355,7 @@ func _place_facilities(data: StationLayout, rooms: Array[Rect2i], count: int) ->
 
 
 func _place_entry_points(data: StationLayout) -> Array[Vector2i]:
-	var count := _rng.range_int(2, 4)
+	var count: int = _rng.range_int(2, 4)
 	var edges := ["top", "bottom", "left", "right"]
 	var used_edges: Array[String] = []
 
