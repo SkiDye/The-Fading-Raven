@@ -25,6 +25,8 @@ GameState="*res://src/autoload/GameState.gd"
 AudioManager="*res://src/autoload/AudioManager.gd"
 EffectsManager="*res://src/autoload/EffectsManager.gd"
 MetaProgress="*res://src/autoload/MetaProgress.gd"
+SceneTransition="*res://src/autoload/SceneTransition.gd"
+EffectsManager3D="*res://src/autoload/EffectsManager3D.gd"
 
 [debug]
 

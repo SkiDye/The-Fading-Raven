@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://squadmember3d001"]
+
+[ext_resource type="Script" path="res://src/entities/crew/SquadMember3D.gd" id="1_script"]
+
+[node name="SquadMember3D" type="Node3D"]
+script = ExtResource("1_script")

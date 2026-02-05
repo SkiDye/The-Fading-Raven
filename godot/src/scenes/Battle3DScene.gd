@@ -2,6 +2,7 @@ extends Node3D
 
 ## 3D 전투 씬 컨트롤러
 ## Bad North 스타일 아이소메트릭 전투
+## 드롭팟 스폰 시스템 통합
 
 # ===== REFERENCES =====
 
@@ -28,6 +29,11 @@ extends Node3D
 @onready var orbital_btn: Button = $UI/BattleHUD/BottomPanel/HBox/RavenPanel/RavenButtons/OrbitalBtn
 
 
+# ===== SPAWN CONTROLLER =====
+
+var _spawn_controller: SpawnController3D
+
+
 # ===== STATE =====
 
 var _crews: Array = []
@@ -37,14 +43,39 @@ var _is_paused: bool = false
 var _is_placement_phase: bool = true
 var _wave_number: int = 0
 var _total_waves: int = 5
+var _use_drop_pods: bool = true  # 드롭팟 사용 여부
 
 
 # ===== LIFECYCLE =====
 
 func _ready() -> void:
+	_setup_spawn_controller()
+	_setup_effects_manager()
 	_connect_signals()
 	_setup_ui()
 	call_deferred("_initialize_battle")
+
+
+func _setup_spawn_controller() -> void:
+	_spawn_controller = SpawnController3D.new()
+	_spawn_controller.name = "SpawnController3D"
+	add_child(_spawn_controller)
+
+	_spawn_controller.enemies_spawned.connect(_on_enemies_spawned)
+	_spawn_controller.drop_pod_approaching.connect(_on_pod_approaching)
+	_spawn_controller.drop_pod_landed.connect(_on_pod_landed)
+	_spawn_controller.wave_spawn_complete.connect(_on_wave_spawn_complete)
+
+
+func _setup_effects_manager() -> void:
+	# 이펙트 매니저에 컨테이너 설정
+	if EffectsManager3D and battle_map:
+		var effects_container := battle_map.get_node_or_null("Effects")
+		if effects_container == null:
+			effects_container = Node3D.new()
+			effects_container.name = "Effects"
+			battle_map.add_child(effects_container)
+		EffectsManager3D.set_effects_container(effects_container)
 
 
 func _connect_signals() -> void:
@@ -81,7 +112,6 @@ func _setup_ui() -> void:
 	if pause_overlay:
 		pause_overlay.visible = false
 
-	# 배치 페이즈 UI
 	if deploy_button:
 		deploy_button.visible = true
 	if placement_label:
@@ -91,16 +121,15 @@ func _setup_ui() -> void:
 func _initialize_battle() -> void:
 	print("[Battle3D] Initializing...")
 
-	# 맵 생성
 	_create_test_map()
-
-	# 크루 생성
 	_spawn_test_crews()
 
-	# 배치 페이즈 시작
+	# 스폰 컨트롤러에 배틀맵 설정
+	if _spawn_controller and battle_map:
+		_spawn_controller.set_battle_map(battle_map)
+
 	_start_placement_phase()
 
-	# 카메라 중앙 이동
 	if camera and camera.has_method("center_on_map"):
 		camera.center_on_map(15, 12, 1.0)
 
@@ -111,11 +140,9 @@ func _create_test_map() -> void:
 	if battle_map == null:
 		return
 
-	# TileGrid가 없으면 맵 크기만 설정
 	battle_map.set_map_size(15, 12)
 	battle_map.rebuild_map()
 
-	# 테스트 시설 배치
 	battle_map.spawn_facility(Vector2i(7, 6), "power_plant")
 	battle_map.spawn_facility(Vector2i(3, 4), "armory")
 	battle_map.spawn_facility(Vector2i(11, 8), "medical")
@@ -133,7 +160,7 @@ func _spawn_test_crews() -> void:
 	]
 
 	for i in range(crew_classes.size()):
-		var crew := battle_map.spawn_crew(spawn_positions[i], crew_classes[i])
+		var crew: Node3D = battle_map.spawn_crew(spawn_positions[i], crew_classes[i])
 		if crew:
 			crew.set_meta("index", i)
 			_crews.append(crew)
@@ -148,10 +175,8 @@ func _start_placement_phase() -> void:
 	if deploy_button:
 		deploy_button.visible = true
 
-	# 배치 페이즈 시작
 	if placement_phase:
 		var spawn_area: Array[Vector2i] = []
-		# 맵 중앙 영역
 		for y in range(3, 10):
 			for x in range(3, 12):
 				spawn_area.append(Vector2i(x, y))
@@ -170,7 +195,6 @@ func _create_crew_slot_ui(crew: Node3D, index: int) -> void:
 	var vbox := VBoxContainer.new()
 	slot.add_child(vbox)
 
-	# 클래스 이름 - CrewSquad3D의 속성 또는 메타 사용
 	var class_id: String = ""
 	if crew.has_method("get_class_id"):
 		class_id = crew.get_class_id()
@@ -178,27 +202,25 @@ func _create_crew_slot_ui(crew: Node3D, index: int) -> void:
 		class_id = crew.class_id
 	else:
 		class_id = crew.get_meta("class_id", "unknown")
+
 	var name_label := Label.new()
 	name_label.text = "[%d] %s" % [index + 1, class_id.to_upper()]
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_font_size_override("font_size", 14)
 	vbox.add_child(name_label)
 
-	# HP 바
 	var hp_bar := ProgressBar.new()
 	hp_bar.custom_minimum_size = Vector2(90, 12)
 	hp_bar.value = 100
 	hp_bar.show_percentage = false
 	vbox.add_child(hp_bar)
 
-	# 스킬 버튼
 	var skill_btn := Button.new()
 	skill_btn.text = "Q: Skill"
 	skill_btn.custom_minimum_size = Vector2(90, 30)
 	skill_btn.pressed.connect(func(): _use_crew_skill(crew))
 	vbox.add_child(skill_btn)
 
-	# 클릭으로 선택
 	slot.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			_select_crew(crew)
@@ -213,16 +235,14 @@ func _process(_delta: float) -> void:
 		return
 
 	_update_ui()
+	_check_wave_completion()
 
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
-				if _is_paused:
-					_toggle_pause()
-				else:
-					_toggle_pause()
+				_toggle_pause()
 			KEY_SPACE:
 				if not _is_placement_phase:
 					_toggle_pause()
@@ -240,26 +260,42 @@ func _input(event: InputEvent) -> void:
 
 
 func _update_ui() -> void:
-	# 웨이브 표시
 	if wave_label:
 		if _is_placement_phase:
 			wave_label.text = "PLACEMENT PHASE"
 		else:
-			wave_label.text = "WAVE %d/%d" % [_wave_number, _total_waves]
+			var pending := _spawn_controller.get_pending_pod_count() if _spawn_controller else 0
+			if pending > 0:
+				wave_label.text = "WAVE %d/%d (Incoming: %d)" % [_wave_number, _total_waves, pending]
+			else:
+				wave_label.text = "WAVE %d/%d" % [_wave_number, _total_waves]
 
-	# 적 수
 	if enemy_count_label:
-		enemy_count_label.text = "Enemies: %d" % _enemies.size()
+		var alive_enemies := _enemies.filter(func(e): return is_instance_valid(e) and e.get("is_alive", true))
+		enemy_count_label.text = "Enemies: %d" % alive_enemies.size()
 
-	# 크레딧
 	if credits_label and GameState:
 		credits_label.text = "Credits: %d" % GameState.get_credits()
+
+
+func _check_wave_completion() -> void:
+	if _is_placement_phase:
+		return
+
+	# 살아있는 적 확인
+	var alive_enemies := _enemies.filter(func(e):
+		return is_instance_valid(e) and (not "is_alive" in e or e.is_alive)
+	)
+
+	# 모든 적 처치 + 팟 없음
+	var pending_pods := _spawn_controller.get_pending_pod_count() if _spawn_controller else 0
+	if alive_enemies.is_empty() and pending_pods == 0:
+		_on_wave_cleared()
 
 
 # ===== SELECTION =====
 
 func _select_crew(crew: Node3D) -> void:
-	# 이전 선택 해제
 	if _selected_crew and is_instance_valid(_selected_crew):
 		if _selected_crew.has_method("deselect"):
 			_selected_crew.deselect()
@@ -277,7 +313,6 @@ func _select_crew(crew: Node3D) -> void:
 		var class_id: String = crew.get_class_id() if crew.has_method("get_class_id") else crew.get_meta("class_id", "unknown")
 		print("[Battle3D] Selected: ", class_id)
 
-		# 배치 페이즈가 아니면 이동 범위 표시
 		if not _is_placement_phase and placement_phase:
 			placement_phase.start_reposition_mode(crew)
 
@@ -288,7 +323,6 @@ func _select_crew_by_index(index: int) -> void:
 
 
 func _set_crew_highlight(crew: Node3D, highlighted: bool) -> void:
-	# 하이라이트 효과 (스케일 변경 또는 색상 변경)
 	if highlighted:
 		crew.scale = Vector3(1.2, 1.2, 1.2)
 	else:
@@ -301,16 +335,14 @@ func _on_tile_clicked(tile_pos: Vector2i) -> void:
 	print("[Battle3D] Tile clicked: ", tile_pos)
 
 	if _is_placement_phase:
-		# 배치 페이즈에서는 placement_phase가 처리
 		return
 
 	if _selected_crew:
-		# 선택된 크루 이동
 		_move_crew_to(tile_pos)
 
 
-func _on_tile_hovered(tile_pos: Vector2i) -> void:
-	pass  # 호버 효과는 BattleMap3D에서 처리
+func _on_tile_hovered(_tile_pos: Vector2i) -> void:
+	pass
 
 
 # ===== MOVEMENT =====
@@ -319,11 +351,9 @@ func _move_crew_to(tile_pos: Vector2i) -> void:
 	if _selected_crew == null:
 		return
 
-	# CrewSquad3D의 command_move() 메서드 활용
 	if _selected_crew.has_method("command_move"):
 		_selected_crew.command_move(tile_pos)
 	else:
-		# 폴백: 직접 이동
 		var world_pos: Vector3 = battle_map.tile_to_world(tile_pos) if battle_map else Vector3(tile_pos.x, 0, tile_pos.y)
 		var tween := create_tween()
 		tween.tween_property(_selected_crew, "position", world_pos, 0.3).set_trans(Tween.TRANS_QUAD)
@@ -338,7 +368,7 @@ func _on_deploy_pressed() -> void:
 
 
 func _on_placement_ended() -> void:
-	pass  # 배치 종료는 _start_combat에서 처리
+	pass
 
 
 func _on_crew_placed(crew: Node, tile_pos: Vector2i) -> void:
@@ -353,7 +383,6 @@ func _start_combat() -> void:
 	if deploy_button:
 		deploy_button.visible = false
 
-	# 첫 웨이브 시작
 	_wave_number = 1
 	_spawn_wave_enemies()
 
@@ -368,7 +397,39 @@ func _spawn_wave_enemies() -> void:
 
 	var enemy_count := 3 + _wave_number * 2
 
-	# 맵 가장자리에서 스폰
+	if _use_drop_pods and _spawn_controller:
+		_spawn_wave_via_pods(enemy_count)
+	else:
+		_spawn_wave_direct(enemy_count)
+
+
+func _spawn_wave_via_pods(enemy_count: int) -> void:
+	# 맵 가장자리 진입점
+	var entry_points := [
+		Vector2i(0, 6),
+		Vector2i(14, 6),
+		Vector2i(7, 0),
+		Vector2i(7, 11)
+	]
+
+	# 적을 그룹으로 나누어 드롭팟에 배치
+	var groups_count := mini(4, ceili(float(enemy_count) / 3.0))
+	var enemies_per_group := ceili(float(enemy_count) / float(groups_count))
+
+	for i in range(groups_count):
+		var entry_point := entry_points[i % entry_points.size()]
+		# 약간의 랜덤 오프셋
+		entry_point += Vector2i(randi() % 3 - 1, randi() % 3 - 1)
+
+		var group_count := mini(enemies_per_group, enemy_count - i * enemies_per_group)
+		if group_count > 0:
+			_spawn_controller.spawn_enemy_group_via_pod("rusher", group_count, entry_point)
+
+	print("[Battle3D] Spawning %d enemies via %d drop pods" % [enemy_count, groups_count])
+
+
+func _spawn_wave_direct(enemy_count: int) -> void:
+	# 기존 직접 스폰 방식 (폴백)
 	var spawn_positions := [
 		Vector2i(0, 6),
 		Vector2i(14, 6),
@@ -377,28 +438,69 @@ func _spawn_wave_enemies() -> void:
 	]
 
 	for i in range(enemy_count):
-		var spawn_pos := spawn_positions[i % spawn_positions.size()]
+		var spawn_pos: Vector2i = spawn_positions[i % spawn_positions.size()]
 		spawn_pos += Vector2i(randi() % 3 - 1, randi() % 3 - 1)
 
-		var enemy := battle_map.spawn_enemy(spawn_pos, "rusher")
+		var enemy: Node3D = battle_map.spawn_enemy(spawn_pos, "rusher")
 		if enemy:
 			_enemies.append(enemy)
+			_set_enemy_target(enemy)
 
-			# EnemyUnit3D의 set_target()으로 AI 활성화
-			if enemy.has_method("set_target") and not _crews.is_empty():
-				# 가장 가까운 크루 또는 시설을 타겟으로 설정
-				var closest_target: Node = _find_closest_target(enemy)
-				if closest_target:
-					enemy.set_target(closest_target)
+	print("[Battle3D] Spawned %d enemies directly" % enemy_count)
 
-	print("[Battle3D] Spawned %d enemies" % enemy_count)
+
+func _set_enemy_target(enemy: Node3D) -> void:
+	if enemy.has_method("set_target") and not _crews.is_empty():
+		var closest_target: Node = _find_closest_target(enemy)
+		if closest_target:
+			enemy.set_target(closest_target)
+
+
+func _on_enemies_spawned(enemies: Array) -> void:
+	for enemy in enemies:
+		if is_instance_valid(enemy):
+			_enemies.append(enemy)
+			_set_enemy_target(enemy)
+
+	print("[Battle3D] %d enemies deployed from drop pod" % enemies.size())
+
+
+func _on_pod_approaching(pod: Node3D, eta: float, target_tile: Vector2i) -> void:
+	print("[Battle3D] Drop pod approaching tile %s, ETA: %.1f" % [target_tile, eta])
+
+
+func _on_pod_landed(pod: Node3D, target_tile: Vector2i) -> void:
+	print("[Battle3D] Drop pod landed at %s" % target_tile)
+
+
+func _on_wave_spawn_complete() -> void:
+	print("[Battle3D] All drop pods for wave %d deployed" % _wave_number)
+
+
+func _on_wave_cleared() -> void:
+	_enemies.clear()
+
+	if _wave_number >= _total_waves:
+		_on_battle_victory()
+	else:
+		_wave_number += 1
+		print("[Battle3D] Wave %d starting..." % _wave_number)
+
+		# 다음 웨이브 딜레이
+		get_tree().create_timer(2.0).timeout.connect(_spawn_wave_enemies)
+
+
+func _on_battle_victory() -> void:
+	print("[Battle3D] Battle Victory!")
+
+	if EventBus:
+		EventBus.battle_ended.emit(true)
 
 
 func _find_closest_target(enemy: Node3D) -> Node:
 	var closest: Node = null
 	var min_dist: float = INF
 
-	# 크루 중 가장 가까운 타겟
 	for crew in _crews:
 		if is_instance_valid(crew):
 			var alive: bool = true
@@ -421,7 +523,6 @@ func _use_crew_skill(crew: Node3D) -> void:
 
 	var class_id: String = crew.get_class_id() if crew.has_method("get_class_id") else crew.get_meta("class_id", "unknown")
 
-	# CrewSquad3D의 use_skill() 메서드 호출
 	if crew.has_method("use_skill"):
 		var success: bool = crew.use_skill()
 		if success:
@@ -435,7 +536,8 @@ func _use_crew_skill(crew: Node3D) -> void:
 func _use_raven_ability(ability: int) -> void:
 	print("[Battle3D] Raven ability: ", ability)
 
-	# TODO: Raven 시스템 연동
+	if EventBus:
+		EventBus.raven_ability_used.emit(ability)
 
 
 # ===== PAUSE =====

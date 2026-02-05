@@ -3,6 +3,7 @@ extends Node3D
 
 ## 3D 크루 분대
 ## 팀장 + 크루원으로 구성된 분대 유닛
+## 개별 SquadMember3D로 시각화됨
 
 # ===== SIGNALS =====
 
@@ -24,6 +25,9 @@ signal combat_ended()
 @export var attack_range: float = 1.5
 @export var attack_damage: int = 10
 @export var attack_cooldown: float = 1.0
+
+const HP_PER_MEMBER: int = 12
+const MEMBER_SPACING: float = 0.4
 
 
 # ===== STATE =====
@@ -48,6 +52,13 @@ var equipment_id: String = ""
 var _move_path: Array[Vector3] = []
 var _move_index: int = 0
 
+# 개별 멤버
+var _members: Array[SquadMember3D] = []
+var _formation_type: FormationSystem3D.FormationType = FormationSystem3D.FormationType.SQUARE
+
+# 프리로드
+var _member_scene: PackedScene
+
 
 # ===== CHILD NODES =====
 
@@ -60,6 +71,7 @@ var _move_index: int = 0
 # ===== LIFECYCLE =====
 
 func _ready() -> void:
+	_load_member_scene()
 	_setup_health()
 	_update_selection_visual()
 	add_to_group("crews")
@@ -83,6 +95,12 @@ func _process(delta: float) -> void:
 		_process_combat(delta)
 
 
+func _load_member_scene() -> void:
+	var path := "res://src/entities/crew/SquadMember3D.tscn"
+	if ResourceLoader.exists(path):
+		_member_scene = load(path)
+
+
 # ===== INITIALIZATION =====
 
 func initialize(data: Dictionary) -> void:
@@ -96,32 +114,82 @@ func initialize(data: Dictionary) -> void:
 		equipment_id = data.equipment_id
 
 	members_alive = max_members
+	_formation_type = FormationSystem3D.get_default_formation_for_class(class_id)
 	_setup_health()
-	_load_model()
+	_spawn_squad_members()
 
 
 func _setup_health() -> void:
-	# 멤버당 HP 계산
-	max_hp = members_alive * 12  # 멤버당 12 HP
+	max_hp = members_alive * HP_PER_MEMBER
 	current_hp = max_hp
 
 
+func _spawn_squad_members() -> void:
+	if model_container == null:
+		return
+
+	# 기존 모델/멤버 제거
+	for child in model_container.get_children():
+		child.queue_free()
+	_members.clear()
+
+	# 포메이션 위치 계산
+	var positions := FormationSystem3D.get_formation_positions(
+		max_members,
+		_formation_type,
+		MEMBER_SPACING
+	)
+
+	# 각 멤버 생성
+	for i in range(max_members):
+		var member: SquadMember3D
+
+		if _member_scene:
+			member = _member_scene.instantiate()
+		else:
+			# 폴백: 직접 생성
+			member = SquadMember3D.new()
+
+		model_container.add_child(member)
+
+		var is_leader := FormationSystem3D.is_leader_position(i, _formation_type)
+		member.initialize(class_id, i, is_leader)
+
+		# 포메이션 위치 설정
+		if i < positions.size():
+			member.set_immediate_position(positions[i])
+
+		member.died.connect(_on_member_visual_died.bind(i))
+		_members.append(member)
+
+
 func _load_model() -> void:
-	# 클래스별 GLB 모델 로드
-	var model_path := "res://assets/models/crews/%s.glb" % class_id
+	# 이전 버전 호환: 이제 _spawn_squad_members()를 사용
+	_spawn_squad_members()
 
-	if not ResourceLoader.exists(model_path):
-		model_path = "res://assets/models/crews/guardian.glb"
 
-	if ResourceLoader.exists(model_path):
-		var model_scene: PackedScene = load(model_path)
-		if model_scene and model_container:
-			# 기존 모델 제거
-			for child in model_container.get_children():
-				child.queue_free()
+# ===== FORMATION =====
 
-			var model := model_scene.instantiate()
-			model_container.add_child(model)
+func set_formation(type: FormationSystem3D.FormationType) -> void:
+	_formation_type = type
+	_update_formation_positions()
+
+
+func _update_formation_positions() -> void:
+	var positions := FormationSystem3D.get_formation_positions(
+		members_alive,
+		_formation_type,
+		MEMBER_SPACING
+	)
+
+	# 현재 회전 적용
+	var rotated := FormationSystem3D.rotate_formation(positions, rotation.y)
+
+	var alive_index := 0
+	for member in _members:
+		if member.is_alive and alive_index < rotated.size():
+			member.set_target_position(rotated[alive_index])
+			alive_index += 1
 
 
 # ===== SELECTION =====
@@ -129,8 +197,6 @@ func _load_model() -> void:
 func select() -> void:
 	is_selected = true
 	_update_selection_visual()
-
-	# Tactical Mode 진입 (BattleController에서 처리)
 	EventBus.crew_selected.emit(self)
 
 
@@ -152,7 +218,6 @@ func command_move(target_tile: Vector2i, path: Array = []) -> void:
 
 	tile_position = target_tile
 
-	# 경로가 있으면 경로 따라 이동
 	if not path.is_empty():
 		_move_path.clear()
 		for tile_pos in path:
@@ -162,16 +227,16 @@ func command_move(target_tile: Vector2i, path: Array = []) -> void:
 		is_moving = true
 		movement_started.emit(_move_path[-1])
 	else:
-		# 직접 이동
 		var target_world := _tile_to_world(target_tile)
 		_move_path = [target_world]
 		_move_index = 0
 		is_moving = true
 		movement_started.emit(target_world)
 
-	# 이동 애니메이션
-	if animation_player and animation_player.has_animation("walk"):
-		animation_player.play("walk")
+	# 멤버들 걷기 애니메이션
+	for member in _members:
+		if member.is_alive:
+			member.play_walk()
 
 
 func _process_movement(delta: float) -> void:
@@ -196,6 +261,7 @@ func _process_movement(delta: float) -> void:
 	if direction.length() > 0.01:
 		var look_target := global_position + Vector3(direction.x, 0, direction.z)
 		look_at(look_target)
+		_update_formation_positions()
 
 
 func _finish_movement() -> void:
@@ -203,8 +269,10 @@ func _finish_movement() -> void:
 	_move_path.clear()
 	movement_finished.emit()
 
-	if animation_player and animation_player.has_animation("idle"):
-		animation_player.play("idle")
+	# 멤버들 idle
+	for member in _members:
+		if member.is_alive:
+			member.play_idle()
 
 
 # ===== COMBAT =====
@@ -217,8 +285,10 @@ func command_attack(enemy: Node3D) -> void:
 	is_in_combat = true
 	combat_started.emit(enemy)
 
-	if animation_player and animation_player.has_animation("attack"):
-		animation_player.play("attack")
+	# 멤버들 공격 애니메이션
+	for member in _members:
+		if member.is_alive:
+			member.play_attack()
 
 
 func _process_combat(_delta: float) -> void:
@@ -226,15 +296,12 @@ func _process_combat(_delta: float) -> void:
 		end_combat()
 		return
 
-	# 타겟이 죽었는지 확인
 	if "is_alive" in current_target and not current_target.is_alive:
 		end_combat()
 		return
 
-	# 공격 범위 확인
 	var distance := global_position.distance_to(current_target.global_position)
 	if distance > attack_range * 2:
-		# 범위 벗어남 - 추적
 		var dir := (current_target.global_position - global_position).normalized()
 		global_position += dir * move_speed * get_process_delta_time()
 
@@ -244,8 +311,9 @@ func end_combat() -> void:
 	current_target = null
 	combat_ended.emit()
 
-	if animation_player and animation_player.has_animation("idle"):
-		animation_player.play("idle")
+	for member in _members:
+		if member.is_alive:
+			member.play_idle()
 
 
 # ===== DAMAGE =====
@@ -260,16 +328,35 @@ func take_damage(amount: int, _source: Node = null) -> void:
 	health_changed.emit(current_hp, max_hp)
 	_update_health_bar()
 
-	# 멤버 사망 체크
-	var new_members := ceili(float(current_hp) / 12.0)
+	# 멤버 사망 동기화
+	var new_members := ceili(float(current_hp) / float(HP_PER_MEMBER))
 	if new_members < members_alive:
-		var died := members_alive - new_members
-		members_alive = new_members
+		_sync_members_to_health(new_members)
 		member_died.emit(members_alive)
 
-	# 분대 전멸 체크
 	if current_hp <= 0:
 		_die()
+
+
+func _sync_members_to_health(new_count: int) -> void:
+	# 뒤에서부터 사망 처리
+	var to_kill := members_alive - new_count
+	var killed := 0
+
+	for i in range(_members.size() - 1, -1, -1):
+		if killed >= to_kill:
+			break
+		if _members[i].is_alive:
+			_members[i].die()
+			killed += 1
+
+	members_alive = new_count
+	_update_formation_positions()
+
+
+func _on_member_visual_died(_index: int) -> void:
+	# 시각적 사망 처리 완료 시 호출
+	pass
 
 
 func heal(amount: int) -> void:
@@ -280,10 +367,25 @@ func heal(amount: int) -> void:
 	current_hp = mini(current_hp, max_hp)
 
 	# 멤버 회복
-	members_alive = ceili(float(current_hp) / 12.0)
+	var new_members := ceili(float(current_hp) / float(HP_PER_MEMBER))
+	if new_members > members_alive:
+		_revive_members(new_members - members_alive)
 
 	health_changed.emit(current_hp, max_hp)
 	_update_health_bar()
+
+
+func _revive_members(count: int) -> void:
+	var revived := 0
+	for member in _members:
+		if revived >= count:
+			break
+		if not member.is_alive:
+			member.revive()
+			revived += 1
+			members_alive += 1
+
+	_update_formation_positions()
 
 
 func _die() -> void:
@@ -291,20 +393,27 @@ func _die() -> void:
 	members_alive = 0
 	squad_eliminated.emit()
 
-	if animation_player and animation_player.has_animation("death"):
-		animation_player.play("death")
+	# 모든 멤버 사망
+	for member in _members:
+		if member.is_alive:
+			member.die()
 
 	EventBus.entity_died.emit(self)
 
-	# 일정 시간 후 제거
 	var tween := create_tween()
 	tween.tween_interval(2.0)
 	tween.tween_callback(queue_free)
 
 
 func _update_health_bar() -> void:
-	if health_bar and health_bar.has_method("set_value"):
-		health_bar.set_value(float(current_hp) / float(max_hp))
+	if health_bar == null:
+		return
+
+	# HealthBar3D의 Fill 메시 스케일 조절
+	var fill_node := health_bar.get_node_or_null("Fill")
+	if fill_node:
+		var percent := float(current_hp) / float(max_hp) if max_hp > 0 else 0.0
+		fill_node.scale.x = percent
 
 
 # ===== SKILLS =====
@@ -319,7 +428,11 @@ func use_skill(skill_id: String = "") -> bool:
 	skill_cooldown = skill_max_cooldown
 	skill_activated.emit(skill_id)
 
-	# 클래스별 스킬 실행
+	# 3D 이펙트 매니저로 이펙트 스폰
+	if EffectsManager3D:
+		var direction := -global_transform.basis.z
+		EffectsManager3D.spawn_skill_effect_3d(_get_skill_id_for_class(), global_position, direction)
+
 	match class_id:
 		"guardian":
 			_skill_shield_bash()
@@ -335,31 +448,42 @@ func use_skill(skill_id: String = "") -> bool:
 	return true
 
 
+func _get_skill_id_for_class() -> String:
+	match class_id:
+		"guardian":
+			return "shield_bash"
+		"sentinel":
+			return "lance_charge"
+		"ranger":
+			return "volley_fire"
+		"engineer":
+			return "deploy_turret"
+		"bionic":
+			return "blink"
+		_:
+			return ""
+
+
 func _skill_shield_bash() -> void:
-	# 전방 돌진 + 넉백
 	if animation_player and animation_player.has_animation("skill"):
 		animation_player.play("skill")
 
 
 func _skill_lance_charge() -> void:
-	# 돌격
 	if animation_player and animation_player.has_animation("skill"):
 		animation_player.play("skill")
 
 
 func _skill_volley_fire() -> void:
-	# 일제 사격
 	if animation_player and animation_player.has_animation("skill"):
 		animation_player.play("skill")
 
 
 func _skill_deploy_turret() -> void:
-	# 터렛 배치
 	EventBus.turret_deploy_requested.emit(self, tile_position)
 
 
 func _skill_blink() -> void:
-	# 순간이동
 	if animation_player and animation_player.has_animation("skill"):
 		animation_player.play("skill")
 
@@ -367,15 +491,10 @@ func _skill_blink() -> void:
 # ===== RESUPPLY =====
 
 func start_resupply(facility: Node) -> void:
-	# 시설에서 재보급 시작
 	set_meta("resupply_facility", facility)
-
-	if animation_player and animation_player.has_animation("idle"):
-		animation_player.play("idle")
 
 
 func finish_resupply() -> void:
-	# 재보급 완료 - 체력 회복
 	heal(max_hp - current_hp)
 	remove_meta("resupply_facility")
 
@@ -392,3 +511,35 @@ func get_class_id() -> String:
 
 func get_health_percent() -> float:
 	return float(current_hp) / float(max_hp) if max_hp > 0 else 0.0
+
+
+func get_members_alive() -> int:
+	return members_alive
+
+
+func get_formation_type() -> FormationSystem3D.FormationType:
+	return _formation_type
+
+
+# ===== PROCEDURAL MODEL (레거시 호환) =====
+# 이제 SquadMember3D에서 개별 처리
+
+const CLASS_COLORS: Dictionary = {
+	"guardian": Color(0.3, 0.5, 0.9),
+	"sentinel": Color(0.9, 0.5, 0.2),
+	"ranger": Color(0.3, 0.8, 0.4),
+	"engineer": Color(0.9, 0.7, 0.2),
+	"bionic": Color(0.7, 0.3, 0.9),
+	"militia": Color(0.5, 0.5, 0.5)
+}
+
+func _create_procedural_model() -> void:
+	# 레거시 호환: 개별 멤버 스폰으로 대체
+	_spawn_squad_members()
+
+
+func _create_material(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.7
+	return mat
