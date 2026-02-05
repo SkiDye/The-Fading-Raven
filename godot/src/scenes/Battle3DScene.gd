@@ -44,6 +44,7 @@ var _is_placement_phase: bool = true
 var _wave_number: int = 0
 var _total_waves: int = 5
 var _use_drop_pods: bool = true  # 드롭팟 사용 여부
+var _battle_ended: bool = false  # 전투 종료 플래그
 
 
 # ===== LIFECYCLE =====
@@ -122,8 +123,9 @@ func _setup_ui() -> void:
 func _initialize_battle() -> void:
 	print("[Battle3D] Initializing...")
 
-	_create_test_map()
+	_create_battle_map()
 	_spawn_test_crews()
+	_spawn_rescue_ally_if_needed()
 
 	# 스폰 컨트롤러에 배틀맵 설정
 	if _spawn_controller and battle_map:
@@ -131,39 +133,104 @@ func _initialize_battle() -> void:
 
 	_start_placement_phase()
 
+	# 맵 크기에 맞춰 카메라 중앙 배치
+	var map_width: int = 20
+	var map_height: int = 16
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state and game_state.has_method("get_current_station_layout"):
+		var layout: Variant = game_state.get_current_station_layout()
+		if layout != null:
+			map_width = layout.width
+			map_height = layout.height
 	if camera and camera.has_method("center_on_map"):
-		camera.center_on_map(15, 12, 1.0)
+		camera.center_on_map(map_width, map_height, 1.0)
 
 	print("[Battle3D] Initialized! Crews: %d" % _crews.size())
 
 
-func _create_test_map() -> void:
+func _create_battle_map() -> void:
 	if battle_map == null:
 		return
 
-	battle_map.set_map_size(15, 12)
-	battle_map.rebuild_map()
+	var game_state: Node = get_node_or_null("/root/GameState")
+	var layout: Variant = null
 
-	battle_map.spawn_facility(Vector2i(7, 6), "power_plant")
-	battle_map.spawn_facility(Vector2i(3, 4), "armory")
-	battle_map.spawn_facility(Vector2i(11, 8), "medical")
+	if game_state and game_state.has_method("get_current_station_layout"):
+		layout = game_state.get_current_station_layout()
+
+	if layout != null:
+		# StationLayout에서 로드
+		battle_map.set_map_size(layout.width, layout.height)
+		if battle_map.has_method("initialize_from_layout"):
+			battle_map.initialize_from_layout(layout)
+		battle_map.rebuild_map()
+
+		# 시설 스폰
+		for fac in layout.facilities:
+			battle_map.spawn_facility(fac.position, fac.facility_id)
+
+		print("[Battle3D] Loaded map from StationLayout: %dx%d" % [layout.width, layout.height])
+	else:
+		# 폴백: 테스트 맵
+		battle_map.set_map_size(20, 16)
+		battle_map.rebuild_map()
+		battle_map.spawn_facility(Vector2i(10, 8), "power_plant")
+		battle_map.spawn_facility(Vector2i(5, 5), "armory")
+		battle_map.spawn_facility(Vector2i(15, 10), "medical")
+		print("[Battle3D] Using fallback test map: 20x16")
+
+
+func _spawn_rescue_ally_if_needed() -> void:
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state == null:
+		return
+
+	var station: Dictionary = game_state.current_station
+	if not station.get("is_rescue", false):
+		return
+
+	# 구조 미션: 아군 NPC 스폰 (보호 대상)
+	var spawn_pos := Vector2i(10, 8)
+	if battle_map:
+		var ally: Node3D = battle_map.spawn_crew(spawn_pos, "militia")
+		if ally:
+			ally.set_meta("is_rescue_target", true)
+			ally.set_meta("cannot_move", true)
+			_crews.append(ally)
+			print("[Battle3D] Spawned rescue target ally")
 
 
 func _spawn_test_crews() -> void:
 	if battle_map == null:
 		return
 
-	var crew_classes := ["guardian", "ranger", "engineer"]
+	# GameState에서 선택된 분대 확인
+	var game_state: Node = get_node_or_null("/root/GameState")
+	var squads_to_spawn: Array = []
+
+	if game_state and not game_state.battle_squads.is_empty():
+		squads_to_spawn = game_state.battle_squads
+		print("[Battle3D] Spawning %d squads from GameState" % squads_to_spawn.size())
+	else:
+		push_warning("[Battle3D] No battle_squads in GameState!")
+		return
+
 	var spawn_positions := [
 		Vector2i(5, 6),
 		Vector2i(6, 7),
-		Vector2i(7, 8)
+		Vector2i(7, 8),
+		Vector2i(8, 6)
 	]
 
-	for i in range(crew_classes.size()):
-		var crew: Node3D = battle_map.spawn_crew(spawn_positions[i], crew_classes[i])
+	for i in range(squads_to_spawn.size()):
+		var squad_data: Dictionary = squads_to_spawn[i] if squads_to_spawn[i] is Dictionary else {}
+		var class_id: String = squad_data.get("class_id", "militia")
+		var spawn_pos: Vector2i = spawn_positions[i % spawn_positions.size()]
+
+		var crew: Node3D = battle_map.spawn_crew(spawn_pos, class_id)
 		if crew:
 			crew.set_meta("index", i)
+			crew.set_meta("squad_data", squad_data)
 			_crews.append(crew)
 			_create_crew_slot_ui(crew, i)
 
@@ -272,7 +339,7 @@ func _update_ui() -> void:
 				wave_label.text = "WAVE %d/%d" % [_wave_number, _total_waves]
 
 	if enemy_count_label:
-		var alive_enemies := _enemies.filter(func(e): return is_instance_valid(e) and e.get("is_alive", true))
+		var alive_enemies := _enemies.filter(func(e): return is_instance_valid(e) and (not "is_alive" in e or e.is_alive))
 		enemy_count_label.text = "Enemies: %d" % alive_enemies.size()
 
 	var game_state := get_node_or_null("/root/GameState")
@@ -281,7 +348,18 @@ func _update_ui() -> void:
 
 
 func _check_wave_completion() -> void:
-	if _is_placement_phase:
+	if _is_placement_phase or _battle_ended:
+		return
+
+	# 살아있는 아군 확인
+	var alive_crews := _crews.filter(func(c):
+		return is_instance_valid(c) and (not "is_alive" in c or c.is_alive)
+	)
+
+	# 아군 전멸 = 패배
+	if alive_crews.is_empty():
+		_battle_ended = true
+		_on_battle_defeat()
 		return
 
 	# 살아있는 적 확인
@@ -419,7 +497,7 @@ func _spawn_wave_via_pods(enemy_count: int) -> void:
 	var enemies_per_group := ceili(float(enemy_count) / float(groups_count))
 
 	for i in range(groups_count):
-		var entry_point := entry_points[i % entry_points.size()]
+		var entry_point: Vector2i = entry_points[i % entry_points.size()]
 		# 약간의 랜덤 오프셋
 		entry_point += Vector2i(randi() % 3 - 1, randi() % 3 - 1)
 
@@ -493,11 +571,96 @@ func _on_wave_cleared() -> void:
 
 
 func _on_battle_victory() -> void:
+	if _battle_ended:
+		return
+	_battle_ended = true
+
 	print("[Battle3D] Battle Victory!")
 
 	var event_bus := get_node_or_null("/root/EventBus")
 	if event_bus:
 		event_bus.battle_ended.emit(true)
+
+	# 전투 결과 화면으로 전환
+	_show_battle_result(true)
+
+
+func _on_battle_defeat() -> void:
+	print("[Battle3D] Battle Defeat!")
+
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
+		event_bus.battle_ended.emit(false)
+
+	# 전투 결과 화면으로 전환
+	_show_battle_result(false)
+
+
+func _show_battle_result(victory: bool) -> void:
+	var game_state := get_node_or_null("/root/GameState")
+
+	# 결과 데이터 구성
+	var result := {
+		"victory": victory,
+		"station_name": "Station",
+		"credits_earned": _calculate_credits(victory),
+		"facilities_saved": _count_alive_facilities(),
+		"facilities_lost": 0,
+		"enemies_killed": _total_waves * 5,  # 대략적 추정
+		"crew_results": _get_crew_results()
+	}
+
+	# GameState에 결과 저장
+	if game_state and game_state.has_method("set_battle_result"):
+		game_state.set_battle_result(result)
+
+	# 결과 화면으로 전환
+	var result_scenes := [
+		"res://scenes/battle/BattleResult.tscn",
+		"res://src/scenes/BattleResultScene.tscn"
+	]
+
+	for path in result_scenes:
+		if ResourceLoader.exists(path):
+			get_tree().change_scene_to_file(path)
+			return
+
+	push_warning("[Battle3D] BattleResultScene not found")
+	get_tree().change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
+
+
+func _calculate_credits(victory: bool) -> int:
+	if not victory:
+		return 0
+	return 2 + _wave_number  # 기본 2 + 클리어 웨이브
+
+
+func _count_alive_facilities() -> int:
+	if battle_map == null:
+		return 0
+	var facilities: Array = battle_map.get_facilities() if battle_map.has_method("get_facilities") else []
+	return facilities.filter(func(f): return is_instance_valid(f) and (not "is_destroyed" in f or not f.is_destroyed)).size()
+
+
+func _get_crew_results() -> Array:
+	var results: Array = []
+	for crew in _crews:
+		if not is_instance_valid(crew):
+			continue
+		var is_dead: bool = false
+		if "is_alive" in crew:
+			is_dead = not crew.is_alive
+		var class_id: String = crew.get_class_id() if crew.has_method("get_class_id") else crew.get_meta("class_id", "unknown")
+		results.append({
+			"name": class_id.capitalize(),
+			"class_id": class_id,
+			"is_dead": is_dead,
+			"current_hp": crew.current_hp if "current_hp" in crew else 100,
+			"max_hp": crew.max_hp if "max_hp" in crew else 100,
+			"current_squad_size": 6,
+			"max_squad_size": 8
+		})
+	return results
 
 
 func _find_closest_target(enemy: Node3D) -> Node:

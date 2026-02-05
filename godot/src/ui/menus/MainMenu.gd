@@ -6,6 +6,7 @@ extends Control
 
 
 @onready var _title_label: Label = $VBoxContainer/TitleLabel
+@onready var _subtitle_label: Label = $VBoxContainer/SubtitleLabel
 @onready var _new_game_btn: Button = $VBoxContainer/ButtonsContainer/NewGameBtn
 @onready var _continue_btn: Button = $VBoxContainer/ButtonsContainer/ContinueBtn
 @onready var _settings_btn: Button = $VBoxContainer/ButtonsContainer/SettingsBtn
@@ -18,6 +19,11 @@ func _ready() -> void:
 	_setup_buttons()
 	_update_continue_button()
 	_set_version()
+	_update_localized_text()
+
+	# 언어 변경 시 UI 업데이트
+	if Localization:
+		Localization.locale_changed.connect(_on_locale_changed)
 
 
 func _setup_buttons() -> void:
@@ -53,6 +59,34 @@ func _update_continue_button() -> void:
 func _set_version() -> void:
 	if _version_label:
 		_version_label.text = "v0.1.0 - Development"
+
+
+func _update_localized_text() -> void:
+	## 모든 UI 텍스트를 현재 로케일로 업데이트
+	if not Localization:
+		return
+
+	if _title_label:
+		_title_label.text = Localization.get_text("main_menu.title").to_upper()
+
+	if _new_game_btn:
+		_new_game_btn.text = Localization.get_text("main_menu.new_game").to_upper()
+
+	if _continue_btn:
+		_continue_btn.text = Localization.get_text("main_menu.continue_game").to_upper()
+
+	if _settings_btn:
+		_settings_btn.text = Localization.get_text("main_menu.settings").to_upper()
+
+	if _credits_btn:
+		_credits_btn.text = Localization.get_text("common.credits").to_upper()
+
+	if _quit_btn:
+		_quit_btn.text = Localization.get_text("main_menu.quit").to_upper()
+
+
+func _on_locale_changed(_new_locale: String) -> void:
+	_update_localized_text()
 
 
 # ===== BUTTON HANDLERS =====

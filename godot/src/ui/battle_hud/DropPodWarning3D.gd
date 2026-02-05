@@ -205,7 +205,7 @@ func _finish_warning() -> void:
 	_is_active = false
 	warning_finished.emit()
 
-	# 페이드아웃 후 제거
+	# 페이드아웃 후 제거 (3D 노드는 modulate 없음 - 스케일로 대체)
 	var tween := create_tween()
-	tween.tween_property(self, "modulate:a", 0.0, 0.3)
+	tween.tween_property(self, "scale", Vector3.ZERO, 0.3)
 	tween.tween_callback(queue_free)

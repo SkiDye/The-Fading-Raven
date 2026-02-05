@@ -41,6 +41,8 @@ var _height: int = 0
 var _tile_meshes: Dictionary = {}  # Vector2i -> MeshInstance3D
 var _hovered_tile: Vector2i = Vector2i(-1, -1)
 var _selected_tiles: Array[Vector2i] = []
+var _tile_types: Dictionary = {}   # Vector2i -> TileType (from layout)
+var _tile_elevations: Dictionary = {}  # Vector2i -> int (from layout)
 
 
 # ===== PRELOADS =====
@@ -171,7 +173,28 @@ func set_tile_grid(grid: Node) -> void:
 func set_map_size(width: int, height: int) -> void:
 	_width = width
 	_height = height
-	rebuild_map()
+	# rebuild_map() 호출은 외부에서 명시적으로 해야 함
+
+
+## StationLayout에서 타일/고도 정보 복사
+func initialize_from_layout(layout: Variant) -> void:
+	if layout == null:
+		return
+
+	_tile_types.clear()
+	_tile_elevations.clear()
+
+	for y in range(layout.height):
+		for x in range(layout.width):
+			var pos := Vector2i(x, y)
+			var tile_type: int = layout.get_tile(pos)
+			var elevation: int = 0
+			if layout.has_method("get_elevation"):
+				elevation = layout.get_elevation(pos)
+			_tile_types[pos] = tile_type
+			_tile_elevations[pos] = elevation
+
+	print("[BattleMap3D] Loaded layout: %dx%d, tiles: %d" % [layout.width, layout.height, _tile_types.size()])
 
 
 ## 맵 재생성
@@ -610,6 +633,11 @@ func _create_placeholder_vehicle() -> Node3D:
 # ===== PRIVATE: HELPERS =====
 
 func _get_tile_type(pos: Vector2i) -> int:
+	# 먼저 layout에서 로드된 데이터 확인
+	if _tile_types.has(pos):
+		return _tile_types[pos]
+
+	# 폴백: tile_grid
 	if _tile_grid == null:
 		return Constants.TileType.FLOOR
 
@@ -621,6 +649,11 @@ func _get_tile_type(pos: Vector2i) -> int:
 
 
 func _get_tile_elevation(pos: Vector2i) -> int:
+	# 먼저 layout에서 로드된 데이터 확인
+	if _tile_elevations.has(pos):
+		return _tile_elevations[pos]
+
+	# 폴백: tile_grid
 	if _tile_grid == null:
 		return 0
 

@@ -64,6 +64,7 @@ func _ready() -> void:
 	_setup_environment()
 	_setup_camera()
 	_connect_signals()
+	_load_station_from_gamestate()
 
 
 func _process(delta: float) -> void:
@@ -120,6 +121,27 @@ func _connect_signals() -> void:
 		back_btn.pressed.connect(_on_back_pressed)
 
 
+## GameState에서 스테이션 데이터를 가져와 미리보기 생성
+func _load_station_from_gamestate() -> void:
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state == null:
+		# 폴백: 테스트 스테이션 생성
+		generate_and_preview(12345, 1.0)
+		return
+
+	var node_data: Dictionary = game_state.current_station
+	if node_data.is_empty():
+		# 데이터가 없으면 테스트 스테이션 생성
+		generate_and_preview(12345, 1.0)
+		return
+
+	# 노드 ID로 시드 생성
+	var seed_val: int = hash(node_data.get("node_id", "test"))
+	var difficulty: float = 1.0 + node_data.get("node_type", 0) * 0.2
+
+	generate_and_preview(seed_val, difficulty, node_data)
+
+
 # ===== PUBLIC API =====
 
 ## 스테이션 데이터 설정
@@ -138,6 +160,11 @@ func generate_and_preview(seed: int, difficulty_score: float, node_data: Diction
 	var generator := StationGeneratorClass.new()
 	var station_layout = generator.generate(seed, difficulty_score)
 	setup_station(station_layout, node_data)
+
+	# GameState에 레이아웃 저장 (전투 씬에서 사용)
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state and game_state.has_method("set_current_station_layout"):
+		game_state.set_current_station_layout(station_layout)
 
 
 # ===== PREVIEW BUILDING =====
@@ -456,7 +483,11 @@ func _get_reward_text(node_type: int) -> String:
 
 func _on_continue_pressed() -> void:
 	continue_pressed.emit()
+	# SquadSelection으로 전환
+	get_tree().change_scene_to_file("res://scenes/campaign/SquadSelection.tscn")
 
 
 func _on_back_pressed() -> void:
 	back_pressed.emit()
+	# SectorMap으로 복귀
+	get_tree().change_scene_to_file("res://scenes/campaign/SectorMap3D.tscn")

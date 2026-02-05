@@ -268,7 +268,7 @@ func _create_simple_warning(tile_pos: Vector2i, eta: float) -> void:
 
 func _remove_landing_warning(tile_pos: Vector2i) -> void:
 	if _warnings.has(tile_pos):
-		var warning := _warnings[tile_pos]
+		var warning: Node3D = _warnings[tile_pos]
 		if is_instance_valid(warning):
 			warning.queue_free()
 		_warnings.erase(tile_pos)

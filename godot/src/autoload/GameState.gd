@@ -29,6 +29,13 @@ var current_seed: int = 0
 var current_difficulty: int = Constants.Difficulty.NORMAL
 var is_paused: bool = false
 
+# 씬 전환 데이터
+var current_station: Dictionary = {}  # 현재 스테이션 데이터
+var current_node_id: String = ""      # 현재 선택된 노드 ID
+var battle_squads: Array = []         # 전투에 투입할 분대
+var current_station_layout: Variant = null  # StationLayout - 프리뷰↔전투 공유
+var battle_result: Dictionary = {}         # 전투 결과 데이터
+
 
 # ===== META PROGRESSION =====
 ## 런 간 영구 저장되는 데이터
@@ -695,3 +702,36 @@ func get_unlocked_difficulties() -> Array:
 
 func get_lifetime_stats() -> Dictionary:
 	return meta_data.lifetime_stats.duplicate()
+
+
+# ===== SCENE TRANSITION HELPERS =====
+
+func set_current_station(station_data: Dictionary) -> void:
+	current_station = station_data
+
+
+func set_current_node_id(node_id: String) -> void:
+	current_node_id = node_id
+
+
+func clear_battle_data() -> void:
+	current_station = {}
+	current_node_id = ""
+	battle_squads = []
+	current_station_layout = null
+
+
+func set_current_station_layout(layout: Variant) -> void:
+	current_station_layout = layout
+
+
+func get_current_station_layout() -> Variant:
+	return current_station_layout
+
+
+func set_battle_result(result: Dictionary) -> void:
+	battle_result = result
+
+
+func get_battle_result() -> Dictionary:
+	return battle_result

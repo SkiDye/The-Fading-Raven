@@ -46,6 +46,7 @@ var _available_cards: Dictionary = {}  # squad_id -> card node
 func _ready() -> void:
 	_connect_signals()
 	_setup_slots()
+	_load_squads_from_gamestate()
 
 
 func _input(event: InputEvent) -> void:
@@ -83,6 +84,23 @@ func _setup_slots() -> void:
 		var slot := _create_empty_slot(i)
 		selected_container.add_child(slot)
 		_selected_slots.append(slot)
+
+
+## GameState에서 분대 데이터 로드
+func _load_squads_from_gamestate() -> void:
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state == null:
+		push_warning("[SquadSelection] GameState not found!")
+		return
+
+	var squads: Array = game_state.get_crews()
+	print("[SquadSelection] Loaded %d squads from GameState" % squads.size())
+
+	if squads.is_empty():
+		push_warning("[SquadSelection] No crews in GameState - is run active? %s" % game_state.is_run_active())
+		return
+
+	setup(squads)
 
 
 # ===== PUBLIC API =====
@@ -364,7 +382,12 @@ func _get_class_id(squad: Variant) -> String:
 
 func _get_rank(squad: Variant) -> int:
 	if squad is Dictionary:
+		# class_rank (from NewGameSetup) 또는 rank 둘 다 지원
+		if squad.has("class_rank"):
+			return squad.get("class_rank", 0)
 		return squad.get("rank", 0)
+	elif "class_rank" in squad:
+		return squad.class_rank
 	elif "rank" in squad:
 		return squad.rank
 	return 0
@@ -408,8 +431,18 @@ func _on_deploy_pressed() -> void:
 	if _selected_squads.is_empty():
 		return
 
+	# 선택한 분대를 GameState에 저장
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state:
+		game_state.battle_squads = _selected_squads.duplicate()
+
 	deploy_pressed.emit(_selected_squads.duplicate())
+
+	# Battle3D로 전환
+	get_tree().change_scene_to_file("res://scenes/battle/Battle3D.tscn")
 
 
 func _on_back_pressed() -> void:
 	back_pressed.emit()
+	# StationPreview로 복귀
+	get_tree().change_scene_to_file("res://scenes/campaign/StationPreview3D.tscn")

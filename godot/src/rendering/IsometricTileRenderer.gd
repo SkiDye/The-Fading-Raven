@@ -92,8 +92,8 @@ var _fog_of_war_tiles: Dictionary = {}  # Vector2i -> bool (true = fogged)
 # ===== LIFECYCLE =====
 
 func _ready() -> void:
-	# 마우스 이벤트 받기
-	mouse_filter = Control.MOUSE_FILTER_PASS if self is Control else 0
+	# Node2D는 mouse_filter가 없음 - _input 또는 _unhandled_input 사용
+	pass
 
 
 func _draw() -> void:
@@ -114,7 +114,7 @@ func _process(_delta: float) -> void:
 	if highlight_hovered:
 		var mouse_pos := get_local_mouse_position()
 		var result := IsometricUtilsClass.find_tile_at_screen(mouse_pos)
-		var new_hovered := result.position
+		var new_hovered: Vector2i = result.position
 
 		if new_hovered != _hovered_tile and _is_valid_tile(new_hovered):
 			_hovered_tile = new_hovered

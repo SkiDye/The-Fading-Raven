@@ -1,8 +1,8 @@
 class_name SectorMap3DScene
 extends Node3D
 
-## 3D 섹터 맵 씬 컨트롤러
-## Bad North 스타일 3D 캠페인 맵
+## 3D 성계 지도 씬 컨트롤러
+## Bad North 스타일 3D 캠페인 맵 - 우주 테마
 
 # ===== SIGNALS =====
 
@@ -104,15 +104,37 @@ func _setup_environment() -> void:
 		add_child(environment)
 
 	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.02, 0.02, 0.05)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.2, 0.2, 0.3)
-	env.ambient_light_energy = 0.5
+	env.background_mode = Environment.BG_SKY
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_color = Color(0.15, 0.12, 0.25)
+	env.ambient_light_energy = 0.4
+
+	# 우주 배경 스카이
+	var sky := Sky.new()
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color(0.02, 0.01, 0.08)       # 깊은 우주
+	sky_material.sky_horizon_color = Color(0.08, 0.04, 0.15)   # 보라빛 성운
+	sky_material.ground_bottom_color = Color(0.01, 0.01, 0.03)
+	sky_material.ground_horizon_color = Color(0.05, 0.02, 0.1)
+	sky_material.sun_angle_max = 0  # 태양 숨기기
+	sky.sky_material = sky_material
+	env.sky = sky
+
+	# Glow 효과 (노드 빛남)
 	env.glow_enabled = true
-	env.glow_intensity = 0.5
-	env.glow_bloom = 0.3
+	env.glow_intensity = 0.8
+	env.glow_bloom = 0.5
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+
+	# 톤매핑
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+
 	environment.environment = env
+
+	# 별 필드 생성
+	_create_star_field()
+	# 성운 파티클 생성
+	_create_nebula_clouds()
 
 
 func _setup_camera() -> void:
@@ -137,6 +159,8 @@ func _connect_signals() -> void:
 		back_btn.pressed.connect(_on_back_pressed)
 	if pause_btn:
 		pause_btn.pressed.connect(_on_pause_pressed)
+		# 일시정지 상태에서도 버튼 작동하도록 설정
+		pause_btn.process_mode = Node.PROCESS_MODE_ALWAYS
 	if upgrade_btn:
 		upgrade_btn.pressed.connect(_on_upgrade_pressed)
 	if next_turn_btn:
@@ -146,6 +170,89 @@ func _connect_signals() -> void:
 
 	# 노드 진입 시 씬 전환
 	node_entered.connect(_on_node_entered_transition)
+
+
+func _create_star_field() -> void:
+	## 절차적 별 필드 생성
+	var star_container := Node3D.new()
+	star_container.name = "StarField"
+	add_child(star_container)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42  # 일관된 별 배치
+
+	# 여러 층의 별들
+	for i in range(200):
+		var star := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+
+		# 별 크기 (먼 별은 작게)
+		var size: float = rng.randf_range(0.05, 0.2)
+		sphere.radius = size
+		sphere.height = size * 2
+
+		# 별 재질 (빛나는 흰색/파란색/노란색)
+		var mat := StandardMaterial3D.new()
+		var star_colors := [
+			Color(1.0, 1.0, 1.0),      # 흰색
+			Color(0.8, 0.9, 1.0),      # 청백색
+			Color(1.0, 0.95, 0.8),     # 노란빛
+			Color(0.9, 0.8, 1.0),      # 보라빛
+		]
+		mat.albedo_color = star_colors[rng.randi() % star_colors.size()]
+		mat.emission_enabled = true
+		mat.emission = mat.albedo_color
+		mat.emission_energy_multiplier = rng.randf_range(0.5, 2.0)
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		sphere.material = mat
+
+		star.mesh = sphere
+		star.position = Vector3(
+			rng.randf_range(-80, 80),
+			rng.randf_range(-30, 50),
+			rng.randf_range(-50, 100)
+		)
+
+		star_container.add_child(star)
+
+
+func _create_nebula_clouds() -> void:
+	## 성운 구름 효과
+	var nebula_container := Node3D.new()
+	nebula_container.name = "NebulaClouds"
+	add_child(nebula_container)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 123
+
+	# 여러 개의 반투명 성운 구름
+	for i in range(8):
+		var cloud := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		sphere.radius = rng.randf_range(15, 40)
+		sphere.height = sphere.radius * 2
+
+		var mat := StandardMaterial3D.new()
+		var nebula_colors := [
+			Color(0.3, 0.1, 0.5, 0.08),   # 보라
+			Color(0.1, 0.2, 0.4, 0.06),   # 파랑
+			Color(0.4, 0.1, 0.3, 0.05),   # 자주
+			Color(0.2, 0.3, 0.5, 0.07),   # 청록
+		]
+		mat.albedo_color = nebula_colors[rng.randi() % nebula_colors.size()]
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		sphere.material = mat
+
+		cloud.mesh = sphere
+		cloud.position = Vector3(
+			rng.randf_range(-40, 40),
+			rng.randf_range(-20, 20),
+			rng.randf_range(0, 80)
+		)
+
+		nebula_container.add_child(cloud)
 
 
 func _initialize_sector() -> void:
@@ -235,22 +342,25 @@ func _on_node_entered_transition(node_id: String) -> void:
 			_current_node_id = node_id
 			_update_node_visuals()
 
-		Constants.NodeType.BATTLE, Constants.NodeType.STORM, Constants.NodeType.BOSS:
-			# 전투 노드 -> StationPreview3D
+		# 모든 전투 노드 → StationPreview → Battle
+		Constants.NodeType.BATTLE, Constants.NodeType.STORM, Constants.NodeType.BOSS, \
+		Constants.NodeType.RESCUE, Constants.NodeType.COMMANDER, \
+		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE:
 			if GameState and GameState.has_method("set_current_station"):
-				var station_data := {"node_id": node_id, "node_type": node_type}
+				var station_data := {
+					"node_id": node_id,
+					"node_type": node_type,
+					"is_rescue": node_type in [Constants.NodeType.RESCUE, Constants.NodeType.COMMANDER],
+					"is_equipment": node_type in [Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE]
+				}
 				GameState.set_current_station(station_data)
 
 			var preview_scene := "res://scenes/campaign/StationPreview3D.tscn"
 			if ResourceLoader.exists(preview_scene):
 				get_tree().change_scene_to_file(preview_scene)
 
-		Constants.NodeType.COMMANDER, Constants.NodeType.RESCUE:
-			# 구조 노드 - 직접 결과 처리
-			_handle_rescue_node(node_id)
-
-		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE, Constants.NodeType.DEPOT:
-			# 장비 노드 - 직접 결과 처리
+		Constants.NodeType.DEPOT:
+			# 보급 정거장 - 무료 장비 (전투 없음)
 			_handle_equipment_node(node_id)
 
 		Constants.NodeType.REST:
@@ -268,8 +378,9 @@ func _handle_rescue_node(node_id: String) -> void:
 	# 새 팀장 추가 (50% 확률)
 	if randf() > 0.5:
 		var dialog := AcceptDialog.new()
-		dialog.title = "Survivor Rescued!"
-		dialog.dialog_text = "A new team leader has joined your crew!"
+		dialog.title = Localization.get_text("dialog.rescue_success_title")
+		dialog.dialog_text = Localization.get_text("dialog.rescue_success_desc")
+		dialog.exclusive = false
 		add_child(dialog)
 		dialog.popup_centered()
 		dialog.confirmed.connect(func():
@@ -278,8 +389,9 @@ func _handle_rescue_node(node_id: String) -> void:
 		)
 	else:
 		var dialog := AcceptDialog.new()
-		dialog.title = "Empty Station"
-		dialog.dialog_text = "No survivors found. You received 2 credits."
+		dialog.title = Localization.get_text("dialog.rescue_empty_title")
+		dialog.dialog_text = Localization.get_text("dialog.rescue_empty_desc")
+		dialog.exclusive = false
 		add_child(dialog)
 		dialog.popup_centered()
 		dialog.confirmed.connect(func():
@@ -296,8 +408,9 @@ func _handle_equipment_node(node_id: String) -> void:
 	_current_node_id = node_id
 
 	var dialog := AcceptDialog.new()
-	dialog.title = "Salvage Found!"
-	dialog.dialog_text = "You found useful equipment!\n(TODO: Equipment selection)"
+	dialog.title = Localization.get_text("dialog.salvage_title")
+	dialog.dialog_text = Localization.get_text("dialog.salvage_desc")
+	dialog.exclusive = false
 	add_child(dialog)
 	dialog.popup_centered()
 	dialog.confirmed.connect(func(): dialog.queue_free())
@@ -314,8 +427,9 @@ func _handle_rest_node(node_id: String) -> void:
 		GameState.heal_all_crews()
 
 	var dialog := AcceptDialog.new()
-	dialog.title = "Rest Stop"
-	dialog.dialog_text = "Your crew has fully recovered."
+	dialog.title = Localization.get_text("dialog.rest_title")
+	dialog.dialog_text = Localization.get_text("dialog.rest_desc")
+	dialog.exclusive = false
 	add_child(dialog)
 	dialog.popup_centered()
 	dialog.confirmed.connect(func(): dialog.queue_free())
@@ -326,15 +440,18 @@ func _handle_rest_node(node_id: String) -> void:
 
 func _handle_victory() -> void:
 	var dialog := AcceptDialog.new()
-	dialog.title = "VICTORY!"
-	dialog.dialog_text = "You have reached the escape gate!\nYour crew survives to fight another day."
+	dialog.title = Localization.get_text("dialog.victory_title")
+	dialog.dialog_text = Localization.get_text("dialog.victory_desc")
+	dialog.exclusive = false
 	add_child(dialog)
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
 		if GameState:
 			GameState.end_run(true)
-		get_tree().change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
+		var tree := get_tree()
+		if tree:
+			tree.change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
 	)
 
 
@@ -452,69 +569,48 @@ func _create_node_object(node_id: String, node_type: int) -> Node3D:
 	node_obj.set_meta("node_id", node_id)
 	node_obj.set_meta("node_type", node_type)
 
-	# 베이스 메시 (육각형 또는 박스)
-	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.name = "Mesh"
+	# 스테이션 이름 생성
+	var station_name: String = _generate_station_name(node_id, node_type)
+	node_obj.set_meta("station_name", station_name)
 
-	var mesh: Mesh
-	match node_type:
-		Constants.NodeType.GATE:
-			# 게이트 - 토러스
-			var torus := TorusMesh.new()
-			torus.inner_radius = 0.3
-			torus.outer_radius = 0.8
-			mesh = torus
-		Constants.NodeType.STORM:
-			# 폭풍 - 구
-			var sphere := SphereMesh.new()
-			sphere.radius = 0.6
-			sphere.height = 1.2
-			mesh = sphere
-		Constants.NodeType.BOSS:
-			# 보스 - 큰 박스
-			var box := BoxMesh.new()
-			box.size = Vector3(1.2, 0.8, 1.2)
-			mesh = box
-		_:
-			# 기본 - 실린더
-			var cylinder := CylinderMesh.new()
-			cylinder.top_radius = 0.5
-			cylinder.bottom_radius = 0.5
-			cylinder.height = 0.4
-			mesh = cylinder
+	# 타입별 미니 스테이션 생성
+	var station_mesh := _create_station_mesh(node_type)
+	station_mesh.name = "Mesh"
+	node_obj.add_child(station_mesh)
 
-	# 재질 설정
-	var material := StandardMaterial3D.new()
-	var color: Color = NODE_COLORS.get(node_type, Color.WHITE)
-	material.albedo_color = color
-	material.emission_enabled = true
-	material.emission = color
-	material.emission_energy_multiplier = 0.3
-	material.metallic = 0.3
-	material.roughness = 0.6
-	mesh.material = material
+	# 스테이션 디테일 추가 (안테나, 라이트 등)
+	_add_station_details(node_obj, node_type)
 
-	mesh_instance.mesh = mesh
-	mesh_instance.position.y = 0.3
-	node_obj.add_child(mesh_instance)
+	# 스테이션 이름 라벨
+	var name_label := Label3D.new()
+	name_label.name = "NameLabel"
+	name_label.text = station_name
+	name_label.font_size = 28
+	name_label.position.y = -0.8
+	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	name_label.no_depth_test = true
+	name_label.modulate = Color(0.7, 0.8, 0.9, 0.9)
+	name_label.outline_modulate = Color(0, 0, 0, 0.5)
+	name_label.outline_size = 4
+	node_obj.add_child(name_label)
 
-	# 라벨
-	var label := Label3D.new()
-	label.name = "Label"
-	label.text = _get_node_label(node_type)
-	label.font_size = 48
-	label.position.y = 1.0
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.modulate = Color.WHITE
-	node_obj.add_child(label)
+	# 타입 아이콘 라벨
+	var type_label := Label3D.new()
+	type_label.name = "TypeLabel"
+	type_label.text = _get_node_icon(node_type)
+	type_label.font_size = 64
+	type_label.position.y = 1.8
+	type_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	type_label.no_depth_test = true
+	type_label.modulate = NODE_COLORS.get(node_type, Color.WHITE)
+	node_obj.add_child(type_label)
 
 	# 선택 영역 (Area3D)
 	var area := Area3D.new()
 	area.name = "ClickArea"
 	var collision := CollisionShape3D.new()
 	var shape := SphereShape3D.new()
-	shape.radius = 1.0
+	shape.radius = 1.5
 	collision.shape = shape
 	area.add_child(collision)
 	area.input_event.connect(_on_node_input_event.bind(node_id))
@@ -523,18 +619,305 @@ func _create_node_object(node_id: String, node_type: int) -> Node3D:
 	return node_obj
 
 
-func _get_node_label(node_type: int) -> String:
+func _create_station_mesh(node_type: int) -> Node3D:
+	## 노드 타입별 미니 스테이션 메시 생성
+	var station := Node3D.new()
+	var base_color: Color = NODE_COLORS.get(node_type, Color.WHITE)
+
 	match node_type:
-		Constants.NodeType.START: return "START"
-		Constants.NodeType.BATTLE: return "BATTLE"
-		Constants.NodeType.COMMANDER, Constants.NodeType.RESCUE: return "RESCUE"
-		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE: return "SALVAGE"
-		Constants.NodeType.DEPOT: return "DEPOT"
-		Constants.NodeType.STORM: return "STORM"
-		Constants.NodeType.BOSS: return "BOSS"
-		Constants.NodeType.REST: return "REST"
-		Constants.NodeType.GATE: return "GATE"
-		Constants.NodeType.BEACON: return "BEACON"
+		Constants.NodeType.START:
+			# 시작점 - 작은 안전한 정거장
+			_add_cylinder_module(station, Vector3.ZERO, 0.4, 0.3, base_color)
+			_add_ring(station, Vector3(0, 0.2, 0), 0.5, 0.08, base_color.lightened(0.3))
+
+		Constants.NodeType.BATTLE:
+			# 전투 - 무장 정거장 (팔각형 + 포탑)
+			_add_box_module(station, Vector3.ZERO, Vector3(0.8, 0.4, 0.8), base_color)
+			_add_cylinder_module(station, Vector3(0.3, 0.3, 0.3), 0.15, 0.3, base_color.darkened(0.2))
+			_add_cylinder_module(station, Vector3(-0.3, 0.3, -0.3), 0.15, 0.3, base_color.darkened(0.2))
+			_add_cylinder_module(station, Vector3(0.3, 0.3, -0.3), 0.15, 0.3, base_color.darkened(0.2))
+			_add_cylinder_module(station, Vector3(-0.3, 0.3, 0.3), 0.15, 0.3, base_color.darkened(0.2))
+
+		Constants.NodeType.RESCUE, Constants.NodeType.COMMANDER:
+			# 구조 - 신호 발신기 (안테나 + 깜빡이는 불빛)
+			_add_cylinder_module(station, Vector3.ZERO, 0.3, 0.5, base_color)
+			_add_cylinder_module(station, Vector3(0, 0.5, 0), 0.05, 0.8, Color(0.6, 0.6, 0.7))
+			_add_sphere_module(station, Vector3(0, 1.0, 0), 0.12, Color(0.3, 1.0, 0.3))
+
+		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE:
+			# 장비/인양 - 화물 컨테이너들
+			_add_box_module(station, Vector3(-0.25, 0, 0), Vector3(0.4, 0.35, 0.5), base_color)
+			_add_box_module(station, Vector3(0.25, 0, 0), Vector3(0.4, 0.35, 0.5), base_color.darkened(0.15))
+			_add_box_module(station, Vector3(0, 0.3, 0), Vector3(0.3, 0.25, 0.4), base_color.lightened(0.1))
+
+		Constants.NodeType.DEPOT:
+			# 보급 정거장 - 큰 원형 + 도킹 암
+			_add_cylinder_module(station, Vector3.ZERO, 0.5, 0.3, base_color)
+			_add_box_module(station, Vector3(0.6, 0, 0), Vector3(0.3, 0.15, 0.1), base_color.darkened(0.2))
+			_add_box_module(station, Vector3(-0.6, 0, 0), Vector3(0.3, 0.15, 0.1), base_color.darkened(0.2))
+			_add_box_module(station, Vector3(0, 0, 0.6), Vector3(0.1, 0.15, 0.3), base_color.darkened(0.2))
+
+		Constants.NodeType.STORM:
+			# 폭풍 지역 - 손상된 스테이션
+			_add_box_module(station, Vector3.ZERO, Vector3(0.6, 0.4, 0.6), base_color)
+			_add_box_module(station, Vector3(0.2, 0.2, 0.15), Vector3(0.25, 0.15, 0.2), base_color.darkened(0.3))
+			# 손상 표시 (기울어진 파편)
+			var debris := _add_box_module(station, Vector3(-0.3, 0.1, 0.2), Vector3(0.2, 0.1, 0.15), Color(0.3, 0.3, 0.35))
+			debris.rotation_degrees = Vector3(15, 0, -20)
+
+		Constants.NodeType.BOSS:
+			# 보스 - 거대한 요새 스테이션
+			_add_box_module(station, Vector3.ZERO, Vector3(1.0, 0.5, 1.0), base_color)
+			_add_cylinder_module(station, Vector3(0, 0.4, 0), 0.4, 0.4, base_color.darkened(0.1))
+			_add_cylinder_module(station, Vector3(0.4, 0.3, 0.4), 0.2, 0.5, base_color.darkened(0.2))
+			_add_cylinder_module(station, Vector3(-0.4, 0.3, -0.4), 0.2, 0.5, base_color.darkened(0.2))
+			_add_cylinder_module(station, Vector3(0.4, 0.3, -0.4), 0.2, 0.5, base_color.darkened(0.2))
+			_add_cylinder_module(station, Vector3(-0.4, 0.3, 0.4), 0.2, 0.5, base_color.darkened(0.2))
+			_add_ring(station, Vector3(0, 0.2, 0), 0.7, 0.1, Color(0.8, 0.2, 0.2))
+
+		Constants.NodeType.REST:
+			# 휴식 - 안전한 정박지 (돔 형태)
+			_add_sphere_module(station, Vector3(0, 0.2, 0), 0.5, base_color)
+			_add_ring(station, Vector3(0, 0, 0), 0.6, 0.08, base_color.lightened(0.2))
+			_add_cylinder_module(station, Vector3(0, -0.3, 0), 0.3, 0.15, base_color.darkened(0.2))
+
+		Constants.NodeType.GATE:
+			# 탈출 게이트 - 워프 포털 (토러스 + 에너지)
+			_add_torus(station, Vector3.ZERO, 0.6, 0.15, base_color)
+			_add_torus(station, Vector3.ZERO, 0.45, 0.08, Color(0.5, 1.0, 1.0))
+			# 내부 에너지 디스크
+			var energy_disk := MeshInstance3D.new()
+			var disk := CylinderMesh.new()
+			disk.top_radius = 0.4
+			disk.bottom_radius = 0.4
+			disk.height = 0.02
+			var energy_mat := StandardMaterial3D.new()
+			energy_mat.albedo_color = Color(0.3, 0.8, 1.0, 0.5)
+			energy_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			energy_mat.emission_enabled = true
+			energy_mat.emission = Color(0.3, 0.8, 1.0)
+			energy_mat.emission_energy_multiplier = 2.0
+			disk.material = energy_mat
+			energy_disk.mesh = disk
+			station.add_child(energy_disk)
+
+		Constants.NodeType.BEACON:
+			# 비콘 - 신호 타워
+			_add_cylinder_module(station, Vector3.ZERO, 0.2, 0.8, base_color)
+			_add_sphere_module(station, Vector3(0, 0.5, 0), 0.15, Color(1.0, 0.9, 0.3))
+
+		_:
+			# 기본 - 단순 실린더
+			_add_cylinder_module(station, Vector3.ZERO, 0.4, 0.4, base_color)
+
+	return station
+
+
+func _add_cylinder_module(parent: Node3D, pos: Vector3, radius: float, height: float, color: Color) -> MeshInstance3D:
+	var mesh_inst := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = radius
+	cylinder.bottom_radius = radius
+	cylinder.height = height
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.metallic = 0.4
+	mat.roughness = 0.6
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 0.2
+	cylinder.material = mat
+
+	mesh_inst.mesh = cylinder
+	mesh_inst.position = pos
+	parent.add_child(mesh_inst)
+	return mesh_inst
+
+
+func _add_box_module(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
+	var mesh_inst := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.metallic = 0.4
+	mat.roughness = 0.6
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 0.2
+	box.material = mat
+
+	mesh_inst.mesh = box
+	mesh_inst.position = pos
+	parent.add_child(mesh_inst)
+	return mesh_inst
+
+
+func _add_sphere_module(parent: Node3D, pos: Vector3, radius: float, color: Color) -> MeshInstance3D:
+	var mesh_inst := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 1.0
+	sphere.material = mat
+
+	mesh_inst.mesh = sphere
+	mesh_inst.position = pos
+	parent.add_child(mesh_inst)
+	return mesh_inst
+
+
+func _add_ring(parent: Node3D, pos: Vector3, outer_radius: float, thickness: float, color: Color) -> MeshInstance3D:
+	var mesh_inst := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = outer_radius - thickness
+	torus.outer_radius = outer_radius
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.metallic = 0.5
+	mat.roughness = 0.5
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 0.3
+	torus.material = mat
+
+	mesh_inst.mesh = torus
+	mesh_inst.position = pos
+	mesh_inst.rotation_degrees.x = 90
+	parent.add_child(mesh_inst)
+	return mesh_inst
+
+
+func _add_torus(parent: Node3D, pos: Vector3, outer_radius: float, inner_radius: float, color: Color) -> MeshInstance3D:
+	var mesh_inst := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = outer_radius - inner_radius
+	torus.outer_radius = outer_radius
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.metallic = 0.6
+	mat.roughness = 0.4
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 0.5
+	torus.material = mat
+
+	mesh_inst.mesh = torus
+	mesh_inst.position = pos
+	mesh_inst.rotation_degrees.x = 90
+	parent.add_child(mesh_inst)
+	return mesh_inst
+
+
+func _add_station_details(node_obj: Node3D, node_type: int) -> void:
+	## 스테이션에 디테일 추가 (라이트, 안테나 등)
+	var base_color: Color = NODE_COLORS.get(node_type, Color.WHITE)
+
+	# 상단 라이트
+	var light := OmniLight3D.new()
+	light.name = "StationLight"
+	light.light_color = base_color.lightened(0.5)
+	light.light_energy = 0.5
+	light.omni_range = 3.0
+	light.position.y = 0.5
+	node_obj.add_child(light)
+
+	# 일부 타입에 추가 디테일
+	match node_type:
+		Constants.NodeType.RESCUE, Constants.NodeType.COMMANDER:
+			# 깜빡이는 비콘 라이트
+			var beacon_light := OmniLight3D.new()
+			beacon_light.name = "BeaconLight"
+			beacon_light.light_color = Color(0.3, 1.0, 0.3)
+			beacon_light.light_energy = 1.5
+			beacon_light.omni_range = 5.0
+			beacon_light.position.y = 1.0
+			node_obj.add_child(beacon_light)
+			# TODO: 애니메이션 추가
+
+		Constants.NodeType.GATE:
+			# 게이트 에너지 라이트
+			var gate_light := OmniLight3D.new()
+			gate_light.name = "GateLight"
+			gate_light.light_color = Color(0.3, 0.8, 1.0)
+			gate_light.light_energy = 2.0
+			gate_light.omni_range = 6.0
+			gate_light.position.y = 0
+			node_obj.add_child(gate_light)
+
+
+func _get_node_icon(node_type: int) -> String:
+	## 노드 타입별 아이콘 (이모지)
+	match node_type:
+		Constants.NodeType.START: return "🏠"
+		Constants.NodeType.BATTLE: return "⚔"
+		Constants.NodeType.COMMANDER, Constants.NodeType.RESCUE: return "🆘"
+		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE: return "📦"
+		Constants.NodeType.DEPOT: return "⛽"
+		Constants.NodeType.STORM: return "⚡"
+		Constants.NodeType.BOSS: return "💀"
+		Constants.NodeType.REST: return "🛏"
+		Constants.NodeType.GATE: return "🚀"
+		Constants.NodeType.BEACON: return "📡"
+		_: return "?"
+
+
+func _generate_station_name(node_id: String, node_type: int) -> String:
+	## 절차적 정거장 이름 생성
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(node_id)
+
+	var prefix_keys := ["outpost", "station", "relay", "haven", "point", "base", "platform"]
+	var greek := ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Theta", "Omega"]
+	var names := ["Kepler", "Nova", "Orion", "Vega", "Sirius", "Altair", "Rigel", "Polaris", "Deneb", "Arcturus"]
+
+	var name_type: int = rng.randi() % 4
+
+	match node_type:
+		Constants.NodeType.START:
+			return Localization.get_text("station_prefix.homebase") + " Alpha"
+		Constants.NodeType.GATE:
+			return Localization.get_text("station_prefix.warp_gate") + " " + greek[rng.randi() % greek.size()]
+		Constants.NodeType.BOSS:
+			return Localization.get_text("station_prefix.fortress") + " " + names[rng.randi() % names.size()]
+		Constants.NodeType.REST:
+			return Localization.get_text("station_prefix.haven") + " " + greek[rng.randi() % greek.size()]
+		_:
+			var prefix_key: String = prefix_keys[rng.randi() % prefix_keys.size()]
+			var prefix: String = Localization.get_text("station_prefix." + prefix_key)
+			match name_type:
+				0:
+					return prefix + " " + greek[rng.randi() % greek.size()]
+				1:
+					return names[rng.randi() % names.size()] + " " + str(rng.randi_range(1, 9))
+				2:
+					return prefix + " " + names[rng.randi() % names.size()]
+				_:
+					return greek[rng.randi() % greek.size()] + "-" + str(rng.randi_range(1, 99))
+
+
+func _get_node_label(node_type: int) -> String:
+	## 노드 타입 라벨 (다국어 지원)
+	match node_type:
+		Constants.NodeType.START: return Localization.get_text("node_type.start")
+		Constants.NodeType.BATTLE: return Localization.get_text("node_type.battle")
+		Constants.NodeType.COMMANDER, Constants.NodeType.RESCUE: return Localization.get_text("node_type.rescue")
+		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE: return Localization.get_text("node_type.salvage")
+		Constants.NodeType.DEPOT: return Localization.get_text("node_type.depot")
+		Constants.NodeType.STORM: return Localization.get_text("node_type.storm")
+		Constants.NodeType.BOSS: return Localization.get_text("node_type.boss")
+		Constants.NodeType.REST: return Localization.get_text("node_type.rest")
+		Constants.NodeType.GATE: return Localization.get_text("node_type.gate")
+		Constants.NodeType.BEACON: return Localization.get_text("node_type.beacon")
 		_: return "???"
 
 
@@ -568,42 +951,88 @@ func _build_connections() -> void:
 
 
 func _create_connection_line(from_pos: Vector3, to_pos: Vector3) -> Node3D:
+	## 점선 스타일의 항로 연결선
 	var line := Node3D.new()
-
-	# 튜브 메시로 연결선 생성
-	var mesh_instance := MeshInstance3D.new()
-	var cylinder := CylinderMesh.new()
+	line.name = "Route"
 
 	var direction := to_pos - from_pos
 	var length := direction.length()
 
-	cylinder.top_radius = 0.05
-	cylinder.bottom_radius = 0.05
-	cylinder.height = length
+	if length < 0.1:
+		return line
 
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.4, 0.4, 0.5, 0.8)
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	cylinder.material = material
+	var forward := direction.normalized()
 
-	mesh_instance.mesh = cylinder
+	# 점선 효과: 여러 개의 작은 세그먼트
+	var segment_length: float = 0.3
+	var gap_length: float = 0.2
+	var total_step: float = segment_length + gap_length
+	var segment_count: int = int(length / total_step)
 
-	# 위치 설정
-	line.position = (from_pos + to_pos) * 0.5
-	line.position.y = 0.1
+	for i in range(segment_count):
+		var t: float = float(i) / float(segment_count)
+		var segment_pos: Vector3 = from_pos.lerp(to_pos, t + 0.5 / float(segment_count))
+		segment_pos.y = 0.05
 
-	# 방향 회전 (look_at 대신 직접 계산)
-	if direction.length() > 0.01:
-		var forward := direction.normalized()
-		# 실린더는 Y축 방향이므로 forward를 Y축에 맞춤
+		var segment := MeshInstance3D.new()
+		var capsule := CapsuleMesh.new()
+		capsule.radius = 0.04
+		capsule.height = segment_length
+
+		# 거리에 따라 색상 그라데이션
+		var route_color := Color(0.3, 0.5, 0.7, 0.6).lerp(Color(0.5, 0.7, 0.9, 0.8), t)
+
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = route_color
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.emission_enabled = true
+		mat.emission = Color(0.3, 0.5, 0.7)
+		mat.emission_energy_multiplier = 0.3
+		capsule.material = mat
+
+		segment.mesh = capsule
+		segment.position = segment_pos
+
+		# 방향 회전
 		var angle := Vector3.UP.angle_to(forward)
-		var axis := Vector3.UP.cross(forward).normalized()
+		var axis := Vector3.UP.cross(forward)
 		if axis.length() > 0.001:
-			line.transform.basis = Basis(axis, angle)
+			segment.transform.basis = Basis(axis.normalized(), angle)
 
-	line.add_child(mesh_instance)
+		line.add_child(segment)
+
+	# 방향 화살표 (끝점 근처)
+	var arrow_pos: Vector3 = from_pos.lerp(to_pos, 0.7)
+	arrow_pos.y = 0.1
+	var arrow := _create_route_arrow(forward)
+	arrow.position = arrow_pos
+	line.add_child(arrow)
 
 	return line
+
+
+func _create_route_arrow(direction: Vector3) -> MeshInstance3D:
+	## 항로 방향 화살표
+	var arrow := MeshInstance3D.new()
+	var prism := PrismMesh.new()
+	prism.size = Vector3(0.15, 0.25, 0.15)
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.5, 0.7, 0.9, 0.8)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = Color(0.4, 0.6, 0.8)
+	mat.emission_energy_multiplier = 0.5
+	prism.material = mat
+
+	arrow.mesh = prism
+
+	# 방향으로 회전
+	var angle := Vector3.FORWARD.signed_angle_to(Vector3(direction.x, 0, direction.z).normalized(), Vector3.UP)
+	arrow.rotation.y = angle
+	arrow.rotation.x = -PI / 2  # 앞으로 눕히기
+
+	return arrow
 
 
 # ===== STORM WALL =====
@@ -620,22 +1049,73 @@ func _update_storm_wall() -> void:
 
 
 func _create_storm_wall_mesh() -> void:
-	# 스톰 벽 메시
-	var mesh_instance := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(50, 10, 2)
+	## 드라마틱한 스톰 성운 효과
 
-	var material := StandardMaterial3D.new()
-	material.albedo_color = storm_color
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.emission_enabled = true
-	material.emission = Color(0.5, 0.1, 0.6)
-	material.emission_energy_multiplier = 1.0
-	box.material = material
+	# 메인 스톰 벽 (여러 층)
+	for i in range(5):
+		var layer := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(60, 12 - i * 1.5, 3 + i * 0.5)
 
-	mesh_instance.mesh = box
-	mesh_instance.position.y = 5
-	storm_wall.add_child(mesh_instance)
+		var mat := StandardMaterial3D.new()
+		var alpha: float = 0.15 - i * 0.02
+		mat.albedo_color = Color(0.5 + i * 0.05, 0.1, 0.6 - i * 0.05, alpha)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.emission_enabled = true
+		mat.emission = Color(0.6, 0.1, 0.7)
+		mat.emission_energy_multiplier = 0.8 - i * 0.1
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		box.material = mat
+
+		layer.mesh = box
+		layer.position = Vector3(0, 4, -i * 1.5)
+		storm_wall.add_child(layer)
+
+	# 스톰 에너지 볼들
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 999
+	for i in range(12):
+		var orb := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		sphere.radius = rng.randf_range(0.5, 1.5)
+		sphere.height = sphere.radius * 2
+
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.7, 0.2, 0.9, 0.3)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.emission_enabled = true
+		mat.emission = Color(0.8, 0.3, 1.0)
+		mat.emission_energy_multiplier = 1.5
+		sphere.material = mat
+
+		orb.mesh = sphere
+		orb.position = Vector3(
+			rng.randf_range(-25, 25),
+			rng.randf_range(1, 8),
+			rng.randf_range(-3, 0)
+		)
+		storm_wall.add_child(orb)
+
+	# 스톰 라이트
+	var storm_light := OmniLight3D.new()
+	storm_light.name = "StormLight"
+	storm_light.light_color = Color(0.6, 0.2, 0.8)
+	storm_light.light_energy = 2.0
+	storm_light.omni_range = 20.0
+	storm_light.position = Vector3(0, 5, 0)
+	storm_wall.add_child(storm_light)
+
+	# 경고 텍스트
+	var warning := Label3D.new()
+	warning.name = "StormWarning"
+	warning.text = "⚠ " + Localization.get_text("star_system.storm_warning") + " ⚠"
+	warning.font_size = 72
+	warning.position = Vector3(0, 10, 1)
+	warning.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	warning.modulate = Color(1.0, 0.3, 0.5)
+	warning.outline_modulate = Color(0.3, 0, 0.2)
+	warning.outline_size = 8
+	storm_wall.add_child(warning)
 
 
 # ===== NODE VISUALS =====
@@ -649,8 +1129,8 @@ func _update_node_visuals() -> void:
 
 	for node_id in _node_objects:
 		var node_obj: Node3D = _node_objects[node_id]
-		var mesh: MeshInstance3D = node_obj.get_node_or_null("Mesh")
-		if mesh == null:
+		var mesh_container: Node3D = node_obj.get_node_or_null("Mesh")
+		if mesh_container == null:
 			continue
 
 		var node_data := _get_node_data(node_id)
@@ -658,38 +1138,81 @@ func _update_node_visuals() -> void:
 		var node_layer: int = node_data.get("layer", 0)
 		var base_color: Color = NODE_COLORS.get(node_type, Color.WHITE)
 
-		var material: StandardMaterial3D
-		if mesh.mesh and mesh.mesh.material:
-			material = mesh.mesh.material.duplicate()
-		else:
-			material = StandardMaterial3D.new()
+		# 상태별 색상/효과 결정
+		var target_color: Color = base_color
+		var emission_mult: float = 0.3
+		var is_dimmed: bool = false
 
 		# 스톰에 삼켜진 노드
 		if node_layer <= _storm_depth:
-			material.albedo_color = Color(0.2, 0.2, 0.2, 0.5)
-			material.emission_enabled = false
-			material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			target_color = Color(0.15, 0.1, 0.2)
+			emission_mult = 0.0
+			is_dimmed = true
 		# 현재 노드
 		elif node_id == _current_node_id:
-			material.albedo_color = Color.GOLD
-			material.emission = Color.GOLD
-			material.emission_energy_multiplier = 0.8
+			target_color = Color.GOLD
+			emission_mult = 1.0
 		# 선택된 노드
 		elif node_id == _selected_node_id:
-			material.albedo_color = Color.WHITE
-			material.emission = Color.WHITE
-			material.emission_energy_multiplier = 0.6
+			target_color = Color.WHITE
+			emission_mult = 0.8
 		# 접근 가능한 노드
 		elif node_id in accessible_ids:
-			material.albedo_color = base_color
-			material.emission = base_color
-			material.emission_energy_multiplier = 0.3
+			emission_mult = 0.5
 		# 접근 불가 노드
 		else:
-			material.albedo_color = base_color.darkened(0.6)
-			material.emission_enabled = false
+			target_color = base_color.darkened(0.5)
+			emission_mult = 0.1
 
-		mesh.material_override = material
+		# 모든 자식 메시에 적용
+		_apply_visual_state_recursive(mesh_container, target_color, emission_mult, is_dimmed)
+
+		# 타입 라벨 색상 업데이트
+		var type_label: Label3D = node_obj.get_node_or_null("TypeLabel")
+		if type_label:
+			if is_dimmed:
+				type_label.modulate = Color(0.3, 0.3, 0.3, 0.5)
+			elif node_id == _current_node_id:
+				type_label.modulate = Color.GOLD
+			elif node_id == _selected_node_id:
+				type_label.modulate = Color.WHITE
+			else:
+				type_label.modulate = base_color
+
+		# 이름 라벨 색상 업데이트
+		var name_label: Label3D = node_obj.get_node_or_null("NameLabel")
+		if name_label:
+			if is_dimmed:
+				name_label.modulate = Color(0.3, 0.3, 0.3, 0.3)
+			elif node_id == _current_node_id:
+				name_label.modulate = Color(1.0, 0.9, 0.6)
+			else:
+				name_label.modulate = Color(0.7, 0.8, 0.9, 0.9)
+
+		# 스테이션 라이트 업데이트
+		var station_light: OmniLight3D = node_obj.get_node_or_null("StationLight")
+		if station_light:
+			station_light.light_energy = 0.0 if is_dimmed else (1.0 if node_id == _current_node_id else 0.5)
+
+
+func _apply_visual_state_recursive(node: Node, color: Color, emission_mult: float, is_dimmed: bool) -> void:
+	## 노드의 모든 자식 메시에 시각 상태 적용
+	if node is MeshInstance3D:
+		var mesh_inst: MeshInstance3D = node
+		if mesh_inst.mesh and mesh_inst.mesh.material:
+			var mat: StandardMaterial3D = mesh_inst.mesh.material.duplicate()
+			if is_dimmed:
+				mat.albedo_color = mat.albedo_color.darkened(0.7)
+				mat.emission_enabled = false
+				mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			else:
+				# 원래 색상 비율 유지하면서 밝기만 조정
+				var brightness: float = color.v
+				mat.emission_energy_multiplier = emission_mult
+			mesh_inst.material_override = mat
+
+	for child in node.get_children():
+		_apply_visual_state_recursive(child, color, emission_mult, is_dimmed)
 
 
 # ===== CAMERA =====
@@ -857,15 +1380,18 @@ func _on_storm_advanced(new_depth: int) -> void:
 func _on_back_pressed() -> void:
 	# 메뉴로 돌아가기 확인
 	var confirm := ConfirmationDialog.new()
-	confirm.title = "Return to Menu?"
-	confirm.dialog_text = "Your progress will be saved."
+	confirm.title = Localization.get_text("dialog.return_to_menu_title")
+	confirm.dialog_text = Localization.get_text("dialog.return_to_menu_desc")
+	confirm.exclusive = false
 	add_child(confirm)
 	confirm.popup_centered()
 	confirm.confirmed.connect(func():
 		confirm.queue_free()
 		if GameState:
 			GameState.save_game()
-		get_tree().change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
+		var tree := get_tree()
+		if tree:
+			tree.change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
 	)
 	confirm.canceled.connect(func(): confirm.queue_free())
 
@@ -877,9 +1403,14 @@ func _on_pause_pressed() -> void:
 
 func _on_upgrade_pressed() -> void:
 	# 업그레이드 화면으로 전환
+	var tree := get_tree()
+	if tree == null:
+		push_warning("[SectorMap3D] Not in scene tree")
+		return
+
 	var upgrade_scene := "res://src/ui/campaign/UpgradeScreen.tscn"
 	if ResourceLoader.exists(upgrade_scene):
-		get_tree().change_scene_to_file(upgrade_scene)
+		tree.change_scene_to_file(upgrade_scene)
 	else:
 		push_warning("[SectorMap3D] UpgradeScreen.tscn not found")
 
@@ -887,8 +1418,9 @@ func _on_upgrade_pressed() -> void:
 func _on_next_turn_pressed() -> void:
 	# 턴 종료 확인
 	var confirm := ConfirmationDialog.new()
-	confirm.title = "End Turn?"
-	confirm.dialog_text = "The storm front will advance.\nNodes behind the front will be lost!"
+	confirm.title = Localization.get_text("dialog.end_turn_title")
+	confirm.dialog_text = Localization.get_text("dialog.end_turn_desc")
+	confirm.exclusive = false
 	add_child(confirm)
 	confirm.popup_centered()
 	confirm.confirmed.connect(func():
@@ -927,15 +1459,18 @@ func _advance_storm() -> void:
 
 func _show_storm_game_over() -> void:
 	var dialog := AcceptDialog.new()
-	dialog.title = "CONSUMED BY STORM"
-	dialog.dialog_text = "Your crew was caught by the advancing storm.\nYour journey ends here."
+	dialog.title = Localization.get_text("dialog.storm_consumed_title")
+	dialog.dialog_text = Localization.get_text("dialog.storm_consumed_desc")
+	dialog.exclusive = false
 	add_child(dialog)
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
 		if GameState:
 			GameState.end_run(false)
-		get_tree().change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
+		var tree := get_tree()
+		if tree:
+			tree.change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
 	)
 
 
@@ -956,7 +1491,7 @@ func _update_depth_label() -> void:
 	if not current_data.is_empty():
 		current_layer = current_data.get("layer", 0)
 
-	depth_label.text = "Depth: %d / Storm: %d" % [current_layer, _storm_depth]
+	depth_label.text = Localization.get_text("star_system.depth_label", [current_layer, _storm_depth])
 
 
 func _update_credits_label() -> void:
@@ -967,7 +1502,7 @@ func _update_credits_label() -> void:
 	if GameState and GameState.has_method("get_credits"):
 		credits = GameState.get_credits()
 
-	credits_label.text = "Credits: %d" % credits
+	credits_label.text = Localization.get_text("star_system.credits_label", [credits])
 
 
 func _update_team_slots() -> void:
@@ -1062,25 +1597,25 @@ func _hide_node_info() -> void:
 func _get_node_description(node_type: int) -> String:
 	match node_type:
 		Constants.NodeType.START:
-			return "Starting point of your journey."
+			return Localization.get_text("node_description.start")
 		Constants.NodeType.BATTLE:
-			return "Defend the station from enemy waves."
+			return Localization.get_text("node_description.battle")
 		Constants.NodeType.COMMANDER, Constants.NodeType.RESCUE:
-			return "Rescue survivors. A new team leader may join your crew."
+			return Localization.get_text("node_description.rescue")
 		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE:
-			return "Salvage equipment from the wreckage."
+			return Localization.get_text("node_description.salvage")
 		Constants.NodeType.DEPOT:
-			return "Supply depot. Free equipment available."
+			return Localization.get_text("node_description.depot")
 		Constants.NodeType.STORM:
-			return "Storm zone. Limited visibility, tougher enemies."
+			return Localization.get_text("node_description.storm")
 		Constants.NodeType.BOSS:
-			return "A powerful pirate commander awaits."
+			return Localization.get_text("node_description.boss")
 		Constants.NodeType.REST:
-			return "Safe haven. Recover your crew's health."
+			return Localization.get_text("node_description.rest")
 		Constants.NodeType.GATE:
-			return "The escape gate. Reach here to survive."
+			return Localization.get_text("node_description.gate")
 		Constants.NodeType.BEACON:
-			return "Activate the beacon for a checkpoint."
+			return Localization.get_text("node_description.beacon")
 		_:
 			return ""
 
@@ -1088,20 +1623,20 @@ func _get_node_description(node_type: int) -> String:
 func _get_node_reward_text(node_type: int) -> String:
 	match node_type:
 		Constants.NodeType.BATTLE:
-			return "2-4 Credits"
+			return Localization.get_text("node_reward.battle")
 		Constants.NodeType.COMMANDER, Constants.NodeType.RESCUE:
-			return "New Team Leader"
+			return Localization.get_text("node_reward.rescue")
 		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE:
-			return "Equipment"
+			return Localization.get_text("node_reward.salvage")
 		Constants.NodeType.DEPOT:
-			return "Free Equipment"
+			return Localization.get_text("node_reward.depot")
 		Constants.NodeType.STORM:
-			return "4-6 Credits"
+			return Localization.get_text("node_reward.storm")
 		Constants.NodeType.BOSS:
-			return "6-10 Credits"
+			return Localization.get_text("node_reward.boss")
 		Constants.NodeType.REST:
-			return "Full Recovery"
+			return Localization.get_text("node_reward.rest")
 		Constants.NodeType.GATE:
-			return "VICTORY"
+			return Localization.get_text("node_reward.gate")
 		_:
 			return ""

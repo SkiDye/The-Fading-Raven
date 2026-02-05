@@ -232,6 +232,10 @@ func _on_entity_died(entity: Node) -> void:
 	var pos: Vector2
 	if entity.has_method("get_center_position"):
 		pos = entity.call("get_center_position")
+	elif entity is Node3D:
+		# 3D 엔티티의 경우 XZ를 XY로 변환
+		var pos3d: Vector3 = entity.global_position
+		pos = Vector2(pos3d.x, pos3d.z)
 	else:
 		pos = entity.global_position
 

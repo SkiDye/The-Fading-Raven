@@ -27,7 +27,7 @@ signal combat_ended()
 @export var attack_cooldown: float = 1.0
 
 const HP_PER_MEMBER: int = 12
-const MEMBER_SPACING: float = 0.4
+const MEMBER_SPACING: float = 0.15  # 한 타일(1x1) 안에 8명 컴팩트 정사각형 배치
 
 
 # ===== STATE =====

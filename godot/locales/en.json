@@ -1,0 +1,205 @@
+{
+	"_meta": {
+		"locale": "en",
+		"name": "English",
+		"version": "1.0"
+	},
+
+	"common": {
+		"confirm": "Confirm",
+		"cancel": "Cancel",
+		"continue": "Continue",
+		"back": "Back",
+		"yes": "Yes",
+		"no": "No",
+		"close": "Close",
+		"save": "Save",
+		"load": "Load",
+		"credits": "Credits"
+	},
+
+	"main_menu": {
+		"title": "The Fading Raven",
+		"new_game": "New Game",
+		"continue_game": "Continue",
+		"settings": "Settings",
+		"quit": "Quit"
+	},
+
+	"settings": {
+		"title": "Settings",
+		"language": "Language",
+		"music_volume": "Music Volume",
+		"sfx_volume": "SFX Volume",
+		"fullscreen": "Fullscreen",
+		"reset_defaults": "Reset to Defaults"
+	},
+
+	"star_system": {
+		"title": "Star System Map",
+		"depth_label": "Depth: %d / Storm: %d",
+		"credits_label": "Credits: %d",
+		"next_turn": "Next Turn",
+		"commanders_available": "%d/%d Commanders Available",
+		"storm_warning": "STORM FRONT",
+		"storm_approaching": "The storm is approaching!"
+	},
+
+	"node_type": {
+		"start": "Start",
+		"battle": "Battle",
+		"rescue": "Rescue",
+		"commander": "Rescue",
+		"equipment": "Salvage",
+		"salvage": "Salvage",
+		"depot": "Depot",
+		"storm": "Storm",
+		"boss": "Boss",
+		"rest": "Rest",
+		"gate": "Gate",
+		"beacon": "Beacon"
+	},
+
+	"node_icon": {
+		"start": "🏠",
+		"battle": "⚔",
+		"rescue": "🆘",
+		"commander": "🆘",
+		"equipment": "📦",
+		"salvage": "📦",
+		"depot": "⛽",
+		"storm": "⚡",
+		"boss": "💀",
+		"rest": "🛏",
+		"gate": "🚀",
+		"beacon": "📡"
+	},
+
+	"node_description": {
+		"start": "Starting point of your journey.",
+		"battle": "Defend the station from enemy waves.",
+		"rescue": "Rescue survivors. A new team leader may join your crew.",
+		"commander": "Rescue survivors. A new team leader may join your crew.",
+		"equipment": "Salvage equipment from the wreckage.",
+		"salvage": "Salvage equipment from the wreckage.",
+		"depot": "Supply depot. Free equipment available.",
+		"storm": "Storm zone. Limited visibility, tougher enemies.",
+		"boss": "A powerful pirate commander awaits.",
+		"rest": "Safe haven. Recover your crew's health.",
+		"gate": "The escape gate. Reach here to survive.",
+		"beacon": "Activate the beacon for a checkpoint."
+	},
+
+	"node_reward": {
+		"battle": "2-4 Credits",
+		"rescue": "New Team Leader",
+		"commander": "New Team Leader",
+		"equipment": "Equipment",
+		"salvage": "Equipment",
+		"depot": "Free Equipment",
+		"storm": "4-6 Credits",
+		"boss": "6-10 Credits",
+		"rest": "Full Recovery",
+		"gate": "VICTORY!"
+	},
+
+	"station_prefix": {
+		"outpost": "Outpost",
+		"station": "Station",
+		"relay": "Relay",
+		"haven": "Haven",
+		"point": "Point",
+		"base": "Base",
+		"platform": "Platform",
+		"fortress": "Fortress",
+		"warp_gate": "Warp Gate",
+		"homebase": "Homebase"
+	},
+
+	"battle": {
+		"title": "Battle",
+		"wave": "Wave %d/%d",
+		"wave_incoming": "Wave %d Incoming (Pods: %d)",
+		"placement_phase": "Placement Phase",
+		"enemies": "Enemies: %d",
+		"deploy": "Deploy!",
+		"paused": "Paused",
+		"resume": "Resume",
+		"return_to_menu": "Menu",
+		"victory": "Victory!",
+		"defeat": "Defeat"
+	},
+
+	"battle_result": {
+		"title": "Battle Result",
+		"victory": "Victory",
+		"defeat": "Defeat",
+		"credits_earned": "Credits Earned",
+		"facilities_saved": "Facilities Saved",
+		"facilities_lost": "Facilities Lost",
+		"enemies_killed": "Enemies Killed",
+		"perfect_bonus": "Perfect Defense Bonus",
+		"new_crew": "New Team Leader",
+		"new_equipment": "Equipment Found",
+		"crew_status": "Crew Status",
+		"kia": "KIA"
+	},
+
+	"crew_class": {
+		"guardian": "Guardian",
+		"sentinel": "Sentinel",
+		"ranger": "Ranger",
+		"engineer": "Engineer",
+		"bionic": "Bionic",
+		"militia": "Militia"
+	},
+
+	"difficulty": {
+		"normal": "Normal",
+		"hard": "Hard",
+		"very_hard": "Very Hard",
+		"nightmare": "Nightmare"
+	},
+
+	"dialog": {
+		"return_to_menu_title": "Return to Menu?",
+		"return_to_menu_desc": "Your progress will be saved.",
+		"end_turn_title": "End Turn?",
+		"end_turn_desc": "The storm front will advance.\nNodes behind the front will be lost!",
+		"storm_consumed_title": "Consumed by Storm",
+		"storm_consumed_desc": "Your crew was caught by the advancing storm.\nYour journey ends here.",
+		"victory_title": "Victory!",
+		"victory_desc": "You have reached the escape gate!\nYour crew survives to fight another day.",
+		"rescue_success_title": "Survivor Rescued!",
+		"rescue_success_desc": "A new team leader has joined your crew!",
+		"rescue_empty_title": "Empty Station",
+		"rescue_empty_desc": "No survivors found. You received 2 credits.",
+		"salvage_title": "Salvage Found!",
+		"salvage_desc": "You found useful equipment!",
+		"rest_title": "Rest Stop",
+		"rest_desc": "Your crew has fully recovered."
+	},
+
+	"upgrade": {
+		"title": "Upgrades",
+		"class_rank": "Class Rank",
+		"skill_level": "Skill Level",
+		"cost": "Cost: %d",
+		"max_level": "Max Level"
+	},
+
+	"raven": {
+		"scout": "Scout",
+		"flare": "Flare",
+		"resupply": "Resupply",
+		"orbital_strike": "Orbital Strike",
+		"charges": "Charges: %d"
+	},
+
+	"toast": {
+		"class_unlocked": "New class unlocked: %s",
+		"equipment_unlocked": "New equipment unlocked: %s",
+		"difficulty_unlocked": "New difficulty unlocked: %s",
+		"achievement_unlocked": "Achievement unlocked: %s"
+	}
+}

@@ -45,20 +45,10 @@ static func get_formation_positions(count: int, type: FormationType, spacing: fl
 
 
 ## 클래스별 기본 포메이션 반환
-static func get_default_formation_for_class(class_id: String) -> FormationType:
-	match class_id:
-		"guardian":
-			return FormationType.LINE      # 방패병 - 일렬
-		"sentinel":
-			return FormationType.WEDGE     # 창병 - 쐐기형
-		"ranger":
-			return FormationType.STAGGERED # 사격병 - 지그재그
-		"engineer":
-			return FormationType.SQUARE    # 기술자 - 사각형
-		"bionic":
-			return FormationType.CIRCLE    # 바이오닉 - 원형
-		_:
-			return FormationType.SQUARE
+## 현재는 모든 클래스가 한 타일 안에 정사각형 배치
+static func get_default_formation_for_class(_class_id: String) -> FormationType:
+	# 모든 클래스 정사각형 배치 (한 타일 안에 컴팩트하게)
+	return FormationType.SQUARE
 
 
 ## 특정 인덱스의 멤버가 리더인지 확인

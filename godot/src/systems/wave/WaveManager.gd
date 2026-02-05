@@ -16,7 +16,7 @@ signal wave_preview_ready(wave_num: int, preview: Array)
 
 # ===== CONSTANTS =====
 
-const WAVE_TRANSITION_DELAY: float = 2.0  # 웨이브 간 딜레이
+const WAVE_TRANSITION_DELAY: float = 5.0  # 웨이브 간 딜레이 (2.0 → 5.0)
 
 const WaveGeneratorClass = preload("res://src/systems/wave/WaveGenerator.gd")
 const SpawnControllerClass = preload("res://src/systems/wave/SpawnController.gd")
@@ -229,17 +229,24 @@ func _on_entity_died(entity: Node) -> void:
 
 
 func _is_enemy(entity: Node) -> bool:
-	# EnemyUnit 클래스 체크
-	if entity.get_class() == "EnemyUnit":
-		return true
-
-	# 그룹 체크
+	# 그룹 체크 (가장 신뢰할 수 있음)
 	if entity.is_in_group("enemies"):
 		return true
 
 	# team 속성 체크
-	if entity.has_method("get") and entity.get("team") == 1:
+	if "team" in entity and entity.team == 1:
 		return true
+
+	# active_enemies에 포함되어 있는지 체크
+	if entity in active_enemies:
+		return true
+
+	# class_name 체크 (EnemyUnit, EnemyUnit3D)
+	var script: Script = entity.get_script()
+	if script != null:
+		var class_name_str: String = script.get_global_name()
+		if class_name_str in ["EnemyUnit", "EnemyUnit3D"]:
+			return true
 
 	return false
 

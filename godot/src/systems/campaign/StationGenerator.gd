@@ -168,15 +168,15 @@ func generate(seed: int, difficulty_score: float) -> StationLayout:
 
 
 func _get_size_config(difficulty_score: float) -> Dictionary:
-	## 난이도 점수에 따른 맵 크기 설정
+	## 난이도 점수에 따른 맵 크기 설정 (Bad North 스타일 - 더 넓은 맵)
 	if difficulty_score < 2.0:
-		return {"width": 9, "height": 9, "facility_count": 3}
+		return {"width": 16, "height": 14, "facility_count": 3}
 	elif difficulty_score < 3.0:
-		return {"width": 11, "height": 11, "facility_count": 4}
+		return {"width": 18, "height": 16, "facility_count": 4}
 	elif difficulty_score < 4.5:
-		return {"width": 13, "height": 13, "facility_count": 5}
+		return {"width": 20, "height": 18, "facility_count": 5}
 	else:
-		return {"width": 15, "height": 15, "facility_count": 6}
+		return {"width": 22, "height": 20, "facility_count": 6}
 
 
 func _create_empty_grid(w: int, h: int, default_value: Variant) -> Array:
@@ -415,25 +415,50 @@ func _setup_deploy_zones(data: StationLayout) -> void:
 
 
 func _generate_height_map(data: StationLayout) -> void:
-	## 고도 맵 생성 (중앙 고지대, 외곽 저지대)
+	## Bad North 스타일 고도 맵 - 중앙 고지대, 가장자리 저지대
 	var center := Vector2(data.width / 2.0, data.height / 2.0)
-	var max_dist := center.length()
+	var max_dist := center.length() * 0.8
 
 	for y in range(data.height):
 		for x in range(data.width):
 			var tile: Constants.TileType = data.tiles[y][x]
-			if tile != Constants.TileType.FLOOR:
+			if tile in [Constants.TileType.VOID, Constants.TileType.WALL]:
 				continue
 
 			var dist: float = Vector2(x, y).distance_to(center)
 			var ratio: float = dist / max_dist
 
-			if ratio < 0.3 and _rng.chance(0.25):
+			# 중앙 고지대 (60% 확률)
+			if ratio < 0.35 and _rng.chance(0.6):
 				data.height_map[y][x] = 1
-				data.tiles[y][x] = Constants.TileType.ELEVATED
-			elif ratio > 0.7 and _rng.chance(0.15):
+				if tile == Constants.TileType.FLOOR:
+					data.tiles[y][x] = Constants.TileType.ELEVATED
+			# 외곽 저지대 (40% 확률)
+			elif ratio > 0.7 and _rng.chance(0.4):
 				data.height_map[y][x] = -1
-				data.tiles[y][x] = Constants.TileType.LOWERED
+				if tile == Constants.TileType.FLOOR:
+					data.tiles[y][x] = Constants.TileType.LOWERED
+
+	_smooth_elevation(data)
+
+
+func _smooth_elevation(data: StationLayout) -> void:
+	## 고립된 고지대 제거 (최소 2개 이웃 필요)
+	for y in range(1, data.height - 1):
+		for x in range(1, data.width - 1):
+			if data.height_map[y][x] != 1:
+				continue
+
+			var neighbors := 0
+			for dy in [-1, 0, 1]:
+				for dx in [-1, 0, 1]:
+					if (dx != 0 or dy != 0) and data.height_map[y + dy][x + dx] == 1:
+						neighbors += 1
+
+			if neighbors < 2:
+				data.height_map[y][x] = 0
+				if data.tiles[y][x] == Constants.TileType.ELEVATED:
+					data.tiles[y][x] = Constants.TileType.FLOOR
 
 
 func _place_cover(data: StationLayout) -> void:

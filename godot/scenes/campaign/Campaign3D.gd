@@ -209,6 +209,7 @@ func _show_event_popup(title: String, description: String) -> void:
 	var popup := AcceptDialog.new()
 	popup.title = title
 	popup.dialog_text = description
+	popup.exclusive = false  # 다른 다이얼로그와 충돌 방지
 	add_child(popup)
 	popup.popup_centered()
 	popup.confirmed.connect(func(): popup.queue_free())
@@ -218,11 +219,14 @@ func _show_victory_screen() -> void:
 	var victory := AcceptDialog.new()
 	victory.title = "VICTORY!"
 	victory.dialog_text = "Congratulations! You have escaped the storm!"
+	victory.exclusive = false
 	add_child(victory)
 	victory.popup_centered()
 	victory.confirmed.connect(func():
 		victory.queue_free()
-		get_tree().change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
+		var tree := get_tree()
+		if tree:
+			tree.change_scene_to_file("res://src/ui/menus/MainMenu.tscn")
 	)
 
 

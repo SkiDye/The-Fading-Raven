@@ -17,7 +17,7 @@ signal departed()
 
 @export var approach_speed: float = 5.0
 @export var landing_duration: float = 1.0
-@export var trail_spawn_interval: float = 0.1
+@export var trail_spawn_interval: float = 0.2  # 트레일 간격 늘림 (이펙트 감소)
 
 
 # ===== STATE =====
@@ -92,6 +92,8 @@ func _load_model() -> void:
 		var model_scene: PackedScene = load(model_path)
 		if model_scene:
 			var model := model_scene.instantiate()
+			# 앞뒤 방향 수정 (해치가 진행 방향을 향하도록)
+			model.rotation_degrees.y = 180.0
 			model_container.add_child(model)
 			return
 
@@ -142,28 +144,28 @@ func _create_procedural_model() -> void:
 		leg.material_override = _create_material(Color(0.3, 0.3, 0.35))
 		model_container.add_child(leg)
 
-	# 해치 (전면)
+	# 해치 (전면) - 진행 방향(+Z)에 배치
 	var hatch := MeshInstance3D.new()
 	var hatch_mesh := BoxMesh.new()
 	hatch_mesh.size = Vector3(0.3, 0.5, 0.05)
 	hatch.mesh = hatch_mesh
-	hatch.position = Vector3(0, 0.5, -0.38)
+	hatch.position = Vector3(0, 0.5, 0.38)
 	hatch.material_override = _create_material(accent_color)
 	model_container.add_child(hatch)
 
-	# 엔진 글로우 (하단)
+	# 엔진 글로우 (하단) - 간소화
 	_engine_glow = MeshInstance3D.new()
 	_engine_glow.name = "EngineGlow"
 	var engine_mesh := CylinderMesh.new()
-	engine_mesh.top_radius = 0.25
-	engine_mesh.bottom_radius = 0.15
-	engine_mesh.height = 0.15
+	engine_mesh.top_radius = 0.2
+	engine_mesh.bottom_radius = 0.12
+	engine_mesh.height = 0.1
 	_engine_glow.mesh = engine_mesh
-	_engine_glow.position = Vector3(0, 0.08, 0)
-	var engine_mat := _create_material(Color(0.9, 0.5, 0.2))
+	_engine_glow.position = Vector3(0, 0.05, 0)
+	var engine_mat := _create_material(Color(0.8, 0.4, 0.15))
 	engine_mat.emission_enabled = true
-	engine_mat.emission = Color(0.9, 0.4, 0.1)
-	engine_mat.emission_energy_multiplier = 2.0
+	engine_mat.emission = Color(0.6, 0.3, 0.1)
+	engine_mat.emission_energy_multiplier = 0.8  # 이펙트 감소
 	_engine_glow.material_override = engine_mat
 	model_container.add_child(_engine_glow)
 
@@ -193,11 +195,11 @@ func start_approach() -> void:
 
 func _start_engine_effects() -> void:
 	if _engine_glow:
-		# 엔진 글로우 펄스 애니메이션
+		# 엔진 글로우 펄스 애니메이션 (간소화)
 		var tween := create_tween()
 		tween.set_loops()
-		tween.tween_property(_engine_glow, "scale", Vector3(1.3, 1.3, 1.3), 0.2)
-		tween.tween_property(_engine_glow, "scale", Vector3(1.0, 1.0, 1.0), 0.2)
+		tween.tween_property(_engine_glow, "scale", Vector3(1.1, 1.1, 1.1), 0.3)
+		tween.tween_property(_engine_glow, "scale", Vector3(1.0, 1.0, 1.0), 0.3)
 
 
 func _process_approach(delta: float) -> void:
@@ -237,26 +239,26 @@ func _create_simple_trail_particle() -> void:
 	particle.name = "TrailParticle"
 
 	var sphere := SphereMesh.new()
-	sphere.radius = 0.15
-	sphere.height = 0.3
+	sphere.radius = 0.08  # 크기 축소
+	sphere.height = 0.16
 
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.6, 0.2, 0.8)
+	mat.albedo_color = Color(0.8, 0.5, 0.2, 0.5)  # 투명도 증가
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.5, 0.1)
-	mat.emission_energy_multiplier = 2.0
+	mat.emission = Color(0.6, 0.3, 0.1)
+	mat.emission_energy_multiplier = 0.5  # 이펙트 감소
 	sphere.material = mat
 
 	particle.mesh = sphere
-	particle.global_position = global_position + Vector3(0, -0.3, 0)
+	particle.global_position = global_position + Vector3(0, -0.2, 0)
 
 	get_parent().add_child(particle)
 
 	# 페이드아웃 + 축소
 	var tween := particle.create_tween()
-	tween.tween_property(particle, "scale", Vector3.ZERO, 0.5)
-	tween.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.5)
+	tween.tween_property(particle, "scale", Vector3.ZERO, 0.4)
+	tween.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.4)
 	tween.tween_callback(particle.queue_free)
 
 
@@ -276,10 +278,8 @@ func _start_landing() -> void:
 
 
 func _on_landing_start() -> void:
-	# 먼지/연기 이펙트
-	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
-	if effects_mgr:
-		effects_mgr.spawn_explosion_3d(global_position, 0.5)
+	# 먼지/연기 이펙트 (간소화 - 착륙 시작 시에는 작은 효과만)
+	pass  # 착륙 완료 시에만 임팩트 효과 표시
 
 
 func _process_landing(delta: float) -> void:
@@ -291,22 +291,21 @@ func _process_landing(delta: float) -> void:
 
 
 func _on_landing_complete() -> void:
-	# 착륙 완료 이펙트
+	# 착륙 완료 이펙트 (간소화)
 	var effects_mgr := get_node_or_null("/root/EffectsManager3D")
 	if effects_mgr:
-		effects_mgr.screen_shake_3d(5.0, 0.3)
-		effects_mgr.spawn_impact_effect_3d(global_position, 2.0)
+		effects_mgr.screen_shake_3d(2.0, 0.2)  # 흔들림 감소
+		effects_mgr.spawn_impact_effect_3d(global_position, 1.0)  # 임팩트 감소
 	else:
-		# 폴백: EventBus로 화면 흔들림 요청
 		var event_bus := get_node_or_null("/root/EventBus")
 		if event_bus:
-			event_bus.screen_shake.emit(5.0, 0.3)
+			event_bus.screen_shake.emit(2.0, 0.2)
 
 	# 엔진 글로우 끄기
 	if _engine_glow:
 		var mat: StandardMaterial3D = _engine_glow.material_override
 		if mat:
-			mat.emission_energy_multiplier = 0.5
+			mat.emission_energy_multiplier = 0.2
 
 
 # ===== DEPLOY =====
@@ -363,13 +362,13 @@ func _restart_engine_for_depart() -> void:
 	if _engine_glow:
 		var mat: StandardMaterial3D = _engine_glow.material_override
 		if mat:
-			mat.emission_energy_multiplier = 3.0
+			mat.emission_energy_multiplier = 1.0  # 간소화
 
-		# 엔진 글로우 펄스
+		# 엔진 글로우 펄스 (간소화)
 		var tween := create_tween()
 		tween.set_loops()
-		tween.tween_property(_engine_glow, "scale", Vector3(1.5, 1.5, 1.5), 0.15)
-		tween.tween_property(_engine_glow, "scale", Vector3(1.0, 1.0, 1.0), 0.15)
+		tween.tween_property(_engine_glow, "scale", Vector3(1.15, 1.15, 1.15), 0.25)
+		tween.tween_property(_engine_glow, "scale", Vector3(1.0, 1.0, 1.0), 0.25)
 
 
 func _process_depart(delta: float) -> void:

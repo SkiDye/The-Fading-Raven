@@ -293,7 +293,7 @@ func _process_drone_carrier(delta: float) -> void:
 	_spawned_drones = _spawned_drones.filter(func(d): return is_instance_valid(d) and d.is_alive)
 
 	# Check max drones
-	var max_drones := enemy_data.max_drones if enemy_data else 6
+	var max_drones: int = enemy_data.max_drones if enemy_data else 6
 	if _spawned_drones.size() >= max_drones:
 		return
 
@@ -431,7 +431,7 @@ func throw_grenade(target_pos: Vector2) -> void:
 	if not can_throw_grenade():
 		return
 
-	var cooldown := enemy_data.grenade_cooldown if enemy_data else 8.0
+	var cooldown: float = enemy_data.grenade_cooldown if enemy_data else 8.0
 	_grenade_cooldown = cooldown
 
 	# Grenade delay before explosion
@@ -440,8 +440,8 @@ func throw_grenade(target_pos: Vector2) -> void:
 
 
 func _explode_grenade(target_pos: Vector2) -> void:
-	var damage := enemy_data.grenade_damage if enemy_data else 15
-	var radius := (enemy_data.grenade_radius * Constants.TILE_SIZE) if enemy_data else 48.0
+	var damage: int = enemy_data.grenade_damage if enemy_data else 15
+	var radius: float = (enemy_data.grenade_radius * Constants.TILE_SIZE) if enemy_data else 48.0
 
 	var crews := get_tree().get_nodes_in_group("crews")
 	for crew in crews:
@@ -482,7 +482,7 @@ func _process_boss(delta: float) -> void:
 
 
 func _boss_pulse() -> void:
-	var damage := enemy_data.pulse_damage
+	var damage: int = enemy_data.pulse_damage
 	var crews := get_tree().get_nodes_in_group("crews")
 
 	for crew in crews:

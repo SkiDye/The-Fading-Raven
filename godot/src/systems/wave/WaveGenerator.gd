@@ -227,17 +227,25 @@ func _generate_single_wave(
 
 
 func _calculate_budget(wave_index: int) -> int:
-	var base_budget: int = Constants.BALANCE.wave.base_budget
-	var budget_per_wave: float = Constants.BALANCE.wave.budget_per_wave
+	var base: int = Constants.BALANCE.wave.base_budget
+	var per_wave: float = Constants.BALANCE.wave.budget_per_wave
 
 	# 난이도별 기본 예산 조정 (Constants에서 가져옴)
 	var diff_mult: float = Constants.get_wave_budget_multiplier(difficulty)
 
-	# 웨이브/깊이 스케일링
-	var wave_mult: float = 1.0 + wave_index * budget_per_wave
-	var depth_mult: float = 1.0 + depth * 0.1
+	# 웨이브 스케일링
+	var wave_mult: float = 1.0 + wave_index * per_wave
 
-	return int(float(base_budget) * diff_mult * wave_mult * depth_mult)
+	# 초반 깊이 보정 (depth 1-2는 약하게)
+	var early_depth: Dictionary = Constants.BALANCE.wave.get("early_depth_budget", {})
+	var depth_mult: float = early_depth.get(depth, 1.0 + maxf(0, depth - 3) * 0.1)
+
+	# 첫 웨이브 보정
+	var first_mult: float = 1.0
+	if wave_index == 0:
+		first_mult = Constants.BALANCE.wave.get("first_wave_mult", 0.5)
+
+	return maxi(3, int(float(base) * diff_mult * wave_mult * depth_mult * first_mult))
 
 
 func _select_theme(wave_index: int, total_waves: int) -> String:

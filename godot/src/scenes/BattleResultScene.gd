@@ -64,6 +64,27 @@ func _ready() -> void:
 	if perfect_bonus_row:
 		perfect_bonus_row.visible = false
 
+	# GameState에서 전투 결과 로드
+	_load_result_from_game_state()
+
+
+func _load_result_from_game_state() -> void:
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state == null:
+		return
+
+	var result: Dictionary = {}
+
+	# battle_result 메서드가 있으면 사용
+	if game_state.has_method("get_battle_result"):
+		result = game_state.get_battle_result()
+	# 직접 속성 접근
+	elif "battle_result" in game_state:
+		result = game_state.battle_result
+
+	if not result.is_empty():
+		setup(result)
+
 
 # ===== PUBLIC API =====
 
@@ -73,6 +94,7 @@ func setup(result: Dictionary) -> void:
 
 	_update_header()
 	_update_stats()
+	_give_node_type_rewards()  # 노드 타입별 보상 처리
 	_update_rewards()
 	_update_crew_status()
 
@@ -88,10 +110,10 @@ func _update_header() -> void:
 
 	if result_tag:
 		if is_victory:
-			result_tag.text = "VICTORY"
+			result_tag.text = Localization.get_text("battle_result.victory")
 			result_tag.add_theme_color_override("font_color", Color(0.3, 0.9, 0.3))
 		else:
-			result_tag.text = "DEFEAT"
+			result_tag.text = Localization.get_text("battle_result.defeat")
 			result_tag.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3))
 
 
@@ -147,7 +169,7 @@ func _update_rewards() -> void:
 	# New crew
 	if new_crew != null:
 		var crew_item := _create_reward_item(
-			"New Team Leader",
+			Localization.get_text("battle_result.new_crew"),
 			CLASS_ICONS.get(new_crew.get("class_id", ""), "👤") + " " + new_crew.get("name", "Unknown"),
 			Color(0.3, 0.9, 0.3)
 		)
@@ -156,7 +178,7 @@ func _update_rewards() -> void:
 	# New equipment
 	if new_equipment != null:
 		var equip_item := _create_reward_item(
-			"Equipment Found",
+			Localization.get_text("battle_result.new_equipment"),
 			"⚙ " + new_equipment.get("name", "Unknown Item"),
 			Color(0.9, 0.7, 0.2)
 		)
@@ -249,7 +271,7 @@ func _create_crew_status_card(crew: Dictionary) -> Control:
 	# Status
 	var status_label := Label.new()
 	if is_dead:
-		status_label.text = "KIA"
+		status_label.text = Localization.get_text("battle_result.kia")
 		status_label.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3))
 	else:
 		status_label.text = "%d/%d" % [squad_size, max_squad]
@@ -273,7 +295,94 @@ func _create_crew_status_card(crew: Dictionary) -> Control:
 	return card
 
 
+# ===== NODE TYPE REWARDS =====
+
+func _give_node_type_rewards() -> void:
+	## 노드 타입에 따른 추가 보상 처리
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state == null:
+		return
+
+	var station: Dictionary = game_state.current_station
+	if station.is_empty():
+		return
+
+	var node_type: int = station.get("node_type", Constants.NodeType.BATTLE)
+	var is_victory: bool = _result_data.get("victory", false)
+
+	if not is_victory:
+		return
+
+	match node_type:
+		Constants.NodeType.RESCUE, Constants.NodeType.COMMANDER:
+			# 구조 미션 성공 - 새 팀장 추가
+			_add_rescued_crew()
+		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE:
+			# 장비 미션 성공 - 장비 보상
+			_add_equipment_reward()
+
+
+func _add_rescued_crew() -> void:
+	## 구조한 크루를 팀에 추가
+	var class_options := ["guardian", "sentinel", "ranger", "engineer", "bionic"]
+	var random_class: String = class_options[randi() % class_options.size()]
+
+	var new_crew := {
+		"id": "rescued_%d" % randi(),
+		"name": "Rescued Survivor",
+		"class_id": random_class,
+		"class_rank": 1,
+		"skill_level": 1,
+		"current_hp": 80,
+		"max_hp": 100,
+		"current_squad_size": 6,
+		"max_squad_size": 8,
+		"equipment": [],
+		"is_dead": false
+	}
+
+	_result_data["new_crew"] = new_crew
+
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state and game_state.has_method("add_crew"):
+		game_state.add_crew(new_crew)
+
+	print("[BattleResult] Added rescued crew: %s (%s)" % [new_crew.name, new_crew.class_id])
+
+
+func _add_equipment_reward() -> void:
+	## 장비 보상 추가
+	var equipment_options := [
+		{"id": "shield_booster", "name": "Shield Booster", "type": "passive"},
+		{"id": "rapid_reload", "name": "Rapid Reload", "type": "passive"},
+		{"id": "medkit", "name": "Emergency Medkit", "type": "active"},
+		{"id": "grenade", "name": "Frag Grenade", "type": "active"}
+	]
+
+	var random_equip: Dictionary = equipment_options[randi() % equipment_options.size()]
+
+	_result_data["new_equipment"] = random_equip
+
+	# TODO: GameState에 장비 추가 로직
+
+	print("[BattleResult] Added equipment reward: %s" % random_equip.name)
+
+
 # ===== HANDLERS =====
 
 func _on_continue_pressed() -> void:
 	continue_pressed.emit()
+
+	# 섹터맵으로 이동
+	var sector_map_scenes := [
+		"res://scenes/campaign/SectorMap3D.tscn",
+		"res://src/scenes/SectorMap3DScene.tscn"
+	]
+
+	for path in sector_map_scenes:
+		if ResourceLoader.exists(path):
+			get_tree().change_scene_to_file(path)
+			return
+
+	# 섹터맵 없으면 메인 메뉴로
+	get_tree().change_scene_to_file("res://src/ui/menus/MainMenu.tscn")

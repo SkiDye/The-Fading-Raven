@@ -156,9 +156,15 @@ var BALANCE: Dictionary = {
 
 	# 웨이브
 	"wave": {
-		"base_budget": 10,
-		"budget_per_wave": 0.2,
-		"spawn_interval": 5.0
+		"base_budget": 5,           # 10 → 5 (절반으로 감소)
+		"budget_per_wave": 0.3,     # 0.2 → 0.3 (웨이브별 증가)
+		"spawn_interval": 7.0,      # 5.0 → 7.0 (그룹 간 간격 증가)
+		"first_wave_mult": 0.5,     # 첫 웨이브는 절반
+		"early_depth_budget": {     # 초반 깊이 보정
+			1: 0.6,   # 깊이1: 60%
+			2: 0.8,   # 깊이2: 80%
+			3: 1.0    # 깊이3+: 100%
+		}
 	},
 
 	# 난이도별 설정

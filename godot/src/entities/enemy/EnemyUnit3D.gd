@@ -96,6 +96,8 @@ func _load_model() -> void:
 		var model_scene: PackedScene = load(model_path)
 		if model_scene:
 			var model := model_scene.instantiate()
+			# GLB 모델 크기를 프로시저럴 메시 크기에 맞춤
+			model.scale = Vector3(0.3, 0.3, 0.3)
 			model_container.add_child(model)
 			return
 

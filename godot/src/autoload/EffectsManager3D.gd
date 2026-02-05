@@ -102,10 +102,10 @@ func spawn_hit_effect_3d(position: Vector3, damage_type: int = 0) -> void:
 	else:
 		effect = _create_simple_hit_effect(damage_type)
 
-	effect.global_position = position
-
+	# 트리에 추가 후 global_position 설정
 	if effect.get_parent() == null:
 		_effects_container.add_child(effect)
+	effect.global_position = position
 
 
 ## 3D 폭발 이펙트 스폰
@@ -122,10 +122,10 @@ func spawn_explosion_3d(position: Vector3, radius: float = 1.0) -> void:
 	else:
 		effect = _create_simple_explosion(radius)
 
-	effect.global_position = position
-
+	# 트리에 추가 후 global_position 설정
 	if effect.get_parent() == null:
 		_effects_container.add_child(effect)
+	effect.global_position = position
 
 
 ## 3D 플로팅 텍스트 스폰
@@ -142,8 +142,9 @@ func spawn_floating_text_3d(text: String, position: Vector3, color: Color = Colo
 	else:
 		effect = _create_simple_floating_text(text, color)
 
-	effect.global_position = position
+	# 트리에 추가 후 global_position 설정
 	_effects_container.add_child(effect)
+	effect.global_position = position
 
 
 ## 3D 데미지 숫자 표시
@@ -184,8 +185,9 @@ func spawn_engine_trail_3d(position: Vector3, direction: Vector3, length: float 
 		return
 
 	var trail: Node3D = _create_engine_trail(direction, length)
-	trail.global_position = position
+	# add_child 먼저 호출 후 global_position 설정 (트리 안에 있어야 함)
 	_effects_container.add_child(trail)
+	trail.global_position = position
 
 
 ## 스킬 이펙트 스폰
