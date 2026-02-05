@@ -528,8 +528,16 @@ func _on_crew_placed(crew: Node, tile_pos: Vector2i) -> void:
 
 func _on_placement_crew_selected(crew: Node) -> void:
 	## PlacementPhase에서 크루 선택 시 시각적 동기화
+	## 주의: _select_crew → start_reposition_mode → crew_selected 재귀 방지
 	if crew is Node3D:
-		_select_crew(crew)
+		# 이미 선택된 크루면 무시 (재귀 방지)
+		if _selected_crew == crew:
+			return
+		# 시각적 동기화만 수행 (start_reposition_mode 호출하지 않음)
+		if _selected_crew and is_instance_valid(_selected_crew):
+			_set_crew_highlight(_selected_crew, false)
+		_selected_crew = crew
+		_set_crew_highlight(crew, true)
 
 
 func _start_combat() -> void:

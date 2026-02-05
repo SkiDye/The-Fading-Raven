@@ -52,6 +52,9 @@ var equipment_id: String = ""
 var _move_path: Array[Vector3] = []
 var _move_index: int = 0
 
+# 전투
+var _attack_timer: float = 0.0
+
 # 개별 멤버
 var _members: Array[SquadMember3D] = []
 var _formation_type: FormationSystem3D.FormationType = FormationSystem3D.FormationType.SQUARE
@@ -89,10 +92,14 @@ func _process(delta: float) -> void:
 	# 이동 처리
 	if is_moving and not _move_path.is_empty():
 		_process_movement(delta)
+		return  # 이동 중에는 자동 공격 안 함
 
 	# 전투 처리
 	if is_in_combat and current_target:
 		_process_combat(delta)
+	elif not is_in_combat:
+		# 자동 적 탐지 및 교전
+		_auto_engage_nearby_enemy()
 
 
 func _load_member_scene() -> void:
@@ -293,7 +300,7 @@ func command_attack(enemy: Node3D) -> void:
 			member.play_attack()
 
 
-func _process_combat(_delta: float) -> void:
+func _process_combat(delta: float) -> void:
 	if current_target == null or not is_instance_valid(current_target):
 		end_combat()
 		return
@@ -303,9 +310,20 @@ func _process_combat(_delta: float) -> void:
 		return
 
 	var distance := global_position.distance_to(current_target.global_position)
-	if distance > attack_range * 2:
+
+	# 공격 범위 밖이면 접근
+	if distance > attack_range:
 		var dir := (current_target.global_position - global_position).normalized()
-		global_position += dir * move_speed * get_process_delta_time()
+		global_position += dir * move_speed * delta
+		# 방향 회전
+		if dir.length() > 0.01:
+			look_at(global_position + Vector3(dir.x, 0, dir.z))
+	else:
+		# 공격 범위 내: 공격 실행
+		_attack_timer -= delta
+		if _attack_timer <= 0:
+			_perform_attack()
+			_attack_timer = attack_cooldown
 
 
 func end_combat() -> void:
@@ -316,6 +334,44 @@ func end_combat() -> void:
 	for member in _members:
 		if member.is_alive:
 			member.play_idle()
+
+
+func _perform_attack() -> void:
+	if current_target == null or not is_instance_valid(current_target):
+		return
+
+	# 데미지 적용 (생존 멤버 수에 비례)
+	var total_damage: int = attack_damage * members_alive
+	if current_target.has_method("take_damage"):
+		current_target.take_damage(total_damage, self)
+
+	# 공격 애니메이션
+	for member in _members:
+		if member.is_alive:
+			member.play_attack()
+
+
+func _auto_engage_nearby_enemy() -> void:
+	## 근처 적을 자동 탐지하여 교전
+	var detection_range: float = attack_range * 3.0  # 감지 범위
+
+	var enemies := get_tree().get_nodes_in_group("enemies")
+	var closest_enemy: Node3D = null
+	var closest_dist: float = detection_range
+
+	for enemy in enemies:
+		if not is_instance_valid(enemy):
+			continue
+		if enemy is Node3D:
+			if "is_alive" in enemy and not enemy.is_alive:
+				continue
+			var dist: float = global_position.distance_to(enemy.global_position)
+			if dist < closest_dist:
+				closest_dist = dist
+				closest_enemy = enemy
+
+	if closest_enemy:
+		command_attack(closest_enemy)
 
 
 # ===== DAMAGE =====

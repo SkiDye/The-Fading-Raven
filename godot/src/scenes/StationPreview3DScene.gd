@@ -25,8 +25,8 @@ const StationGeneratorClass = preload("res://src/systems/campaign/StationGenerat
 
 # ===== CHILD NODES =====
 
-@onready var camera: Camera3D = $Camera3D
 @onready var camera_pivot: Node3D = $CameraPivot
+@onready var camera: Camera3D = $CameraPivot/Camera3D
 @onready var station_container: Node3D = $StationContainer
 @onready var environment: WorldEnvironment = $WorldEnvironment
 
