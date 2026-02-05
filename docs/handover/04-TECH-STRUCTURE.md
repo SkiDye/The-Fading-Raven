@@ -105,9 +105,67 @@ SectorMap3D (Node3D)
 ```gdscript
 # IsometricCamera.gd
 const ISOMETRIC_ANGLE_X = -35.264  # arctan(1/√2)
-const ISOMETRIC_ANGLE_Y = 45.0
+var _target_rotation_y = 45.0     # Q/E로 회전 가능
 projection = PROJECTION_ORTHOGONAL
-size = 15.0  # 줌 레벨
+size = 10.0  # 기본 줌 레벨 (2026-02-05 조정)
+```
+
+### 조작
+| 키 | 동작 |
+|-----|------|
+| Q | 카메라 좌회전 45° |
+| E | 카메라 우회전 45° |
+| 마우스휠 | 줌 인/아웃 |
+| 마우스 가장자리 | 에지 패닝 |
+
+---
+
+## 조작 시스템 (Battle3DScene)
+
+### 입력 처리 흐름
+```
+BattleMap3D._input()
+  ├── 좌클릭 → tile_clicked.emit() → Battle3DScene._on_tile_clicked()
+  │                                    └── _find_crew_at_tile() → _select_crew()
+  └── 우클릭 → tile_right_clicked.emit() → Battle3DScene._on_tile_right_clicked()
+                                           ├── 배치 페이즈 → PlacementPhase.place_crew_at()
+                                           └── 전투 페이즈 → _move_crew_to()
+```
+
+### 주의사항
+- PlacementPhase는 클릭 시그널에 직접 연결하지 않음 (Battle3DScene에서 위임)
+- `crew_selected` 시그널 처리 시 재귀 루프 주의
+
+---
+
+## 전투 시스템 아키텍처
+
+### CrewSquad3D 상태 머신
+```
+_process()
+  ├── is_moving → _process_movement()
+  ├── is_in_combat → _process_combat()
+  │                    └── distance <= attack_range → _perform_attack()
+  └── else → _auto_engage_nearby_enemy()
+               └── 감지 범위(attack_range×3) 내 적 → command_attack()
+```
+
+### EnemyUnit3D 상태 머신
+```
+_process()
+  ├── is_moving → _process_movement()
+  │                 └── distance < attack_range → start_attack()
+  └── is_attacking → _process_attack()
+                      └── _attack_timer <= 0 → _perform_attack()
+```
+
+### 데미지 계산
+```gdscript
+# 아군 (CrewSquad3D)
+total_damage = attack_damage * members_alive
+
+# 적 (EnemyUnit3D)
+damage = attack_damage
 ```
 
 ---
