@@ -128,6 +128,12 @@ func _connect_signals() -> void:
 func _setup_ui() -> void:
 	if pause_overlay:
 		pause_overlay.visible = false
+		# 퍼즈 중에도 UI가 동작하도록 설정
+		pause_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	if resume_btn:
+		resume_btn.process_mode = Node.PROCESS_MODE_ALWAYS
+	if menu_btn:
+		menu_btn.process_mode = Node.PROCESS_MODE_ALWAYS
 
 	if deploy_button:
 		deploy_button.visible = true
@@ -157,8 +163,15 @@ func _initialize_battle() -> void:
 		if layout != null:
 			map_width = layout.width
 			map_height = layout.height
-	if camera and camera.has_method("center_on_map"):
-		camera.center_on_map(map_width, map_height, 1.0)
+	if camera:
+		# 카메라 드래그 모드를 회전으로 설정
+		if "drag_mode" in camera:
+			camera.drag_mode = "rotate"
+		# 엣지 패닝 비활성화 (전투맵에서는 불필요)
+		if "edge_pan_enabled" in camera:
+			camera.edge_pan_enabled = false
+		if camera.has_method("center_on_map"):
+			camera.center_on_map(map_width, map_height, 1.0)
 
 	print("[Battle3D] Initialized! Crews: %d" % _crews.size())
 
@@ -212,6 +225,9 @@ func _spawn_rescue_ally_if_needed() -> void:
 			ally.set_meta("is_rescue_target", true)
 			ally.set_meta("cannot_move", true)
 			_crews.append(ally)
+			# 사망 시그널 연결
+			if ally.has_signal("squad_eliminated"):
+				ally.squad_eliminated.connect(_on_crew_eliminated.bind(ally))
 			print("[Battle3D] Spawned rescue target ally")
 
 
@@ -248,6 +264,9 @@ func _spawn_test_crews() -> void:
 			crew.set_meta("squad_data", squad_data)
 			_crews.append(crew)
 			_create_crew_slot_ui(crew, i)
+			# 사망 시그널 연결
+			if crew.has_signal("squad_eliminated"):
+				crew.squad_eliminated.connect(_on_crew_eliminated.bind(crew))
 
 
 func _start_placement_phase() -> void:
@@ -311,6 +330,34 @@ func _create_crew_slot_ui(crew: Node3D, index: int) -> void:
 
 	slot.set_meta("crew", crew)
 	crew_slots.add_child(slot)
+
+
+func _update_crew_slot_ui() -> void:
+	## 크루 슬롯 UI 업데이트 (사망 표시 등)
+	if crew_slots == null:
+		return
+
+	for slot in crew_slots.get_children():
+		if not slot.has_meta("crew"):
+			continue
+
+		var crew: Node3D = slot.get_meta("crew")
+		var is_dead: bool = false
+
+		if not is_instance_valid(crew):
+			is_dead = true
+		elif "is_alive" in crew and not crew.is_alive:
+			is_dead = true
+
+		if is_dead:
+			# 사망한 크루 슬롯 어둡게 표시
+			slot.modulate = Color(0.4, 0.3, 0.3, 0.7)
+			# 슬롯 내 버튼 비활성화
+			for child in slot.get_children():
+				if child is VBoxContainer:
+					for subchild in child.get_children():
+						if subchild is Button:
+							subchild.disabled = true
 
 
 func _process(_delta: float) -> void:
@@ -395,11 +442,17 @@ func _check_wave_completion() -> void:
 # ===== SELECTION =====
 
 func _select_crew(crew: Node3D) -> void:
+	# 이전 선택 해제
 	if _selected_crew and is_instance_valid(_selected_crew):
 		if _selected_crew.has_method("deselect"):
 			_selected_crew.deselect()
 		else:
 			_set_crew_highlight(_selected_crew, false)
+
+	# 유효하지 않거나 죽은 크루는 선택 불가
+	if crew and (not is_instance_valid(crew) or ("is_alive" in crew and not crew.is_alive)):
+		_selected_crew = null
+		return
 
 	_selected_crew = crew
 
@@ -418,7 +471,10 @@ func _select_crew(crew: Node3D) -> void:
 
 func _select_crew_by_index(index: int) -> void:
 	if index < _crews.size():
-		_select_crew(_crews[index])
+1		var crew: Node3D = _crews[index]
+		# 유효하고 살아있는 크루만 선택
+		if is_instance_valid(crew) and (not "is_alive" in crew or crew.is_alive):
+			_select_crew(crew)
 
 
 func _set_crew_highlight(crew: Node3D, highlighted: bool) -> void:
@@ -468,9 +524,12 @@ func _on_tile_right_clicked(tile_pos: Vector2i) -> void:
 
 
 func _find_crew_at_tile(tile_pos: Vector2i) -> Node3D:
-	## 해당 타일 위치에 있는 크루 찾기
+	## 해당 타일 위치에 있는 살아있는 크루 찾기
 	for crew in _crews:
 		if not is_instance_valid(crew):
+			continue
+		# 죽은 크루 제외
+		if "is_alive" in crew and not crew.is_alive:
 			continue
 
 		var crew_tile := _get_crew_tile(crew)
@@ -661,6 +720,27 @@ func _on_pod_landed(pod: Node3D, target_tile: Vector2i) -> void:
 	print("[Battle3D] Drop pod landed at %s" % target_tile)
 
 
+func _on_crew_eliminated(crew: Node3D) -> void:
+	## 크루 사망 처리
+	print("[Battle3D] Crew eliminated")
+
+	# 선택된 크루가 죽었으면 선택 해제
+	if _selected_crew == crew:
+		_select_crew(null)
+
+	# UI 업데이트
+	_update_crew_slot_ui()
+
+	# 모든 크루 사망 체크
+	var alive_count: int = 0
+	for c in _crews:
+		if is_instance_valid(c) and "is_alive" in c and c.is_alive:
+			alive_count += 1
+
+	if alive_count == 0:
+		_on_battle_defeat()
+
+
 func _on_wave_spawn_complete() -> void:
 	print("[Battle3D] All drop pods for wave %d deployed" % _wave_number)
 	_wave_spawning = false  # 스폰 완료
@@ -674,6 +754,9 @@ func _on_wave_cleared() -> void:
 	else:
 		_wave_number += 1
 		print("[Battle3D] Wave %d starting..." % _wave_number)
+
+		# 다음 웨이브 스폰 대기 중 플래그 설정 (중복 호출 방지)
+		_wave_spawning = true
 
 		# 다음 웨이브 딜레이
 		get_tree().create_timer(2.0).timeout.connect(_spawn_wave_enemies)

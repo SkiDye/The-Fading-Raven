@@ -169,7 +169,7 @@ func use_raven_ability(ability: int) -> bool:
 	if charges > 0:  # -1은 무제한
 		current_run.raven_charges[ability] = charges - 1
 
-	EventBus.raven_ability_used.emit(ability)
+	# 주의: raven_ability_used는 RavenPanel에서 이미 emit됨 (재귀 방지)
 	raven_charges_changed.emit(ability, current_run.raven_charges[ability])
 	return true
 

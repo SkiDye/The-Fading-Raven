@@ -152,5 +152,5 @@ grow_horizontal = 2
 grow_vertical = 0
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
-text = "[A/D] or [Drag] Rotate | [R/F] or [Scroll] Zoom"
+text = "[Q/E] Rotate 45° | [Drag] Rotate | [Scroll] Zoom"
 horizontal_alignment = 1

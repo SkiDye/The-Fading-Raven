@@ -63,7 +63,7 @@ script = ExtResource("4_battle")
 
 [node name="PlacementPhase" type="Node" parent="."]
 script = ExtResource("5_placement")
-auto_slow_motion = true
+auto_slow_motion = false
 slow_motion_scale = 0.3
 
 [node name="UI" type="CanvasLayer" parent="."]

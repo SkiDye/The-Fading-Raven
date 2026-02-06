@@ -71,9 +71,15 @@ var _selected_node_id: String = ""
 var _storm_depth: int = 0
 
 var _camera_target: Vector3 = Vector3.ZERO
-var _camera_zoom: float = 12.0  # 더 가깝게 시작
+var _camera_zoom: float = 15.0  # Battle3D와 동일
+var _camera_rotation: float = 45.0  # 현재 회전 각도
+var _target_rotation: float = 45.0  # 목표 회전 각도
 var _is_dragging: bool = false
 var _drag_start: Vector2 = Vector2.ZERO
+var _drag_distance: float = 0.0  # 드래그 거리 추적
+const DRAG_THRESHOLD: float = 5.0  # 드래그 판정 임계값
+const ISOMETRIC_ANGLE: float = 35.264  # arctan(1/sqrt(2))
+const ORBIT_DISTANCE: float = 20.0  # 카메라 공전 거리
 
 
 # ===== LIFECYCLE =====
@@ -145,8 +151,9 @@ func _setup_camera() -> void:
 
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = _camera_zoom
-	camera.rotation_degrees = Vector3(-45, 0, 0)
-	camera.position = Vector3(0, 15, 12)  # Y 낮춤 (30 → 15)
+	# Battle3D와 동일한 아이소메트릭 각도
+	camera.rotation_degrees = Vector3(-ISOMETRIC_ANGLE, _camera_rotation, 0)
+	_update_camera_orbit_position()
 	camera.far = 200.0
 
 
@@ -1230,12 +1237,26 @@ func _process_camera(delta: float) -> void:
 	if camera == null:
 		return
 
-	# 부드러운 이동
-	var target_pos := Vector3(_camera_target.x, 30, _camera_target.z + 20)
-	camera.position = camera.position.lerp(target_pos, 5.0 * delta)
+	# 부드러운 회전
+	_camera_rotation = lerpf(_camera_rotation, _target_rotation, 8.0 * delta)
+	camera.rotation_degrees = Vector3(-ISOMETRIC_ANGLE, _camera_rotation, 0)
+
+	# 공전 위치 계산 (타겟 중심으로)
+	_update_camera_orbit_position()
 
 	# 부드러운 줌
 	camera.size = lerpf(camera.size, _camera_zoom, 5.0 * delta)
+
+
+func _update_camera_orbit_position() -> void:
+	## 카메라 공전 위치 계산 (Battle3D 스타일)
+	var angle_rad := deg_to_rad(_camera_rotation)
+	var offset := Vector3(
+		sin(angle_rad) * ORBIT_DISTANCE + _camera_target.x,
+		ORBIT_DISTANCE * 0.8,
+		cos(angle_rad) * ORBIT_DISTANCE + _camera_target.z
+	)
+	camera.position = offset
 
 
 func _handle_camera_input(event: InputEvent) -> void:
@@ -1245,45 +1266,77 @@ func _handle_camera_input(event: InputEvent) -> void:
 			_camera_zoom = clampf(_camera_zoom - camera_zoom_speed, 10.0, 40.0)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_camera_zoom = clampf(_camera_zoom + camera_zoom_speed, 10.0, 40.0)
-		elif event.button_index == MOUSE_BUTTON_MIDDLE:
-			_is_dragging = event.pressed
+		# 왼쪽 또는 중간 버튼으로 드래그
+		elif event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_MIDDLE:
 			if event.pressed:
+				_is_dragging = true
 				_drag_start = event.position
+				_drag_distance = 0.0
+			else:
+				_is_dragging = false
 
-	# 마우스 드래그 이동
+	# 마우스 드래그 이동 (회전 방향 보정)
 	if event is InputEventMouseMotion and _is_dragging:
 		var delta: Vector2 = event.position - _drag_start
+		_drag_distance += delta.length()
 		_drag_start = event.position
-		_camera_target.x -= delta.x * 0.05 * _camera_zoom / 20.0
-		_camera_target.z -= delta.y * 0.05 * _camera_zoom / 20.0
+		# 회전 각도에 따라 이동 방향 보정
+		var angle_rad := deg_to_rad(_camera_rotation)
+		var world_delta := Vector3(
+			-delta.x * cos(angle_rad) - delta.y * sin(angle_rad),
+			0,
+			delta.x * sin(angle_rad) - delta.y * cos(angle_rad)
+		) * 0.03 * _camera_zoom / 15.0
+		_camera_target += world_delta
 
-	# 키보드 이동
+	# 키보드 입력
 	if event is InputEventKey and event.pressed:
-		var move := Vector3.ZERO
-		match event.keycode:
-			KEY_W, KEY_UP:
-				move.z = -1
-			KEY_S, KEY_DOWN:
-				move.z = 1
-			KEY_A, KEY_LEFT:
-				move.x = -1
-			KEY_D, KEY_RIGHT:
-				move.x = 1
+		# Q/E: 45도 스냅 회전 (Battle3D와 동일)
+		if event.keycode == KEY_Q:
+			_target_rotation -= 45.0
+		elif event.keycode == KEY_E:
+			_target_rotation += 45.0
+		else:
+			# WASD: 이동 (회전 방향 보정)
+			var move := Vector3.ZERO
+			match event.keycode:
+				KEY_W, KEY_UP:
+					move.z = -1
+				KEY_S, KEY_DOWN:
+					move.z = 1
+				KEY_A, KEY_LEFT:
+					move.x = -1
+				KEY_D, KEY_RIGHT:
+					move.x = 1
 
-		if move != Vector3.ZERO:
-			_camera_target += move * camera_speed * 0.1
+			if move != Vector3.ZERO:
+				# 카메라 회전에 맞춰 이동 방향 보정
+				var angle_rad := deg_to_rad(_camera_rotation)
+				var rotated_move := Vector3(
+					move.x * cos(angle_rad) - move.z * sin(angle_rad),
+					0,
+					move.x * sin(angle_rad) + move.z * cos(angle_rad)
+				)
+				_camera_target += rotated_move * camera_speed * 0.1
 
 
 # ===== INPUT =====
 
 func _handle_node_selection(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed:
+	# 왼쪽 버튼 릴리스 시 드래그가 아니었으면 노드 선택
+	if event is InputEventMouseButton and not event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			_raycast_node_selection(event.position)
+			if _drag_distance < DRAG_THRESHOLD:
+				_raycast_node_selection(event.position)
 
 	# U 키 - 업그레이드 화면
 	if event is InputEventKey and event.pressed and event.keycode == KEY_U:
 		_on_upgrade_pressed()
+
+	# ENTER/SPACE 키 - 선택된 노드 진입
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER or event.keycode == KEY_SPACE:
+			_on_enter_pressed()
 
 
 func _raycast_node_selection(screen_pos: Vector2) -> void:
@@ -1319,28 +1372,14 @@ func _on_node_input_event(_camera: Node, event: InputEvent, _position: Vector3, 
 			_on_node_clicked(node_id)
 
 
-var _last_click_time: int = 0
-var _last_click_node: String = ""
-const DOUBLE_CLICK_TIME: int = 400
-
 func _on_node_clicked(node_id: String) -> void:
-	var current_time: int = Time.get_ticks_msec()
-
-	# 더블클릭 체크
-	if node_id == _last_click_node and (current_time - _last_click_time) < DOUBLE_CLICK_TIME:
-		# 더블클릭 - 진입 시도
-		if _can_enter_node(node_id):
-			node_entered.emit(node_id)
-			if EventBus:
-				EventBus.sector_node_entered.emit(node_id)
-		_last_click_node = ""
-		return
-
-	_last_click_time = current_time
-	_last_click_node = node_id
-
-	# 단일 클릭 - 선택
+	## 노드 클릭 - 선택만 (진입은 ENTER 버튼으로)
 	select_node(node_id)
+
+	# 선택된 노드로 카메라 이동
+	if _node_objects.has(node_id):
+		var node_obj: Node3D = _node_objects[node_id]
+		_camera_target = node_obj.global_position
 
 
 # ===== HELPERS =====
@@ -1583,8 +1622,19 @@ func _show_node_info(node_id: String) -> void:
 
 	var node_type: int = node_data.get("type", Constants.NodeType.BATTLE)
 
+	# 스테이션 이름 가져오기
+	var station_name: String = ""
+	if _node_objects.has(node_id):
+		var node_obj: Node3D = _node_objects[node_id]
+		station_name = node_obj.get_meta("station_name", "")
+
 	if node_title:
-		node_title.text = _get_node_label(node_type)
+		# 스테이션 이름 + 타입
+		var type_label: String = _get_node_label(node_type)
+		if station_name != "":
+			node_title.text = "%s\n[%s]" % [station_name, type_label]
+		else:
+			node_title.text = type_label
 
 	if node_desc:
 		node_desc.text = _get_node_description(node_type)
@@ -1593,7 +1643,9 @@ func _show_node_info(node_id: String) -> void:
 		reward_value.text = _get_node_reward_text(node_type)
 
 	if enter_btn:
-		enter_btn.disabled = not _can_enter_node(node_id)
+		var can_enter: bool = _can_enter_node(node_id)
+		enter_btn.disabled = not can_enter
+		enter_btn.text = "ENTER [Space]" if can_enter else "Cannot Enter"
 
 	node_info_panel.visible = true
 

@@ -29,6 +29,10 @@ signal zoom_changed(new_zoom: float)
 @export var edge_pan_margin: float = 50.0
 @export var edge_pan_speed: float = 15.0
 
+@export_group("Drag Mode")
+## "pan" = 마우스 드래그로 이동, "rotate" = 마우스 드래그로 회전
+@export var drag_mode: String = "pan"
+
 @export_group("Bounds")
 @export var use_bounds: bool = true
 @export var bounds_min: Vector2 = Vector2(-50, -50)
@@ -40,6 +44,8 @@ signal zoom_changed(new_zoom: float)
 var _target_zoom: float = 10.0  # 더 가깝게 시작
 var _target_position: Vector3 = Vector3.ZERO
 var _target_rotation_y: float = 45.0  # Y축 회전 (기본 45도)
+var _orbit_center: Vector3 = Vector3.ZERO  # 공전 중심점
+var _orbit_distance: float = 15.0  # 공전 반경
 var _is_panning: bool = false
 var _pan_start_mouse: Vector2
 var _pan_start_position: Vector3
@@ -133,12 +139,16 @@ func _smooth_rotation(delta: float) -> void:
 	var new_y: float = lerpf(current_y, _target_rotation_y, pan_smoothing * delta)
 	rotation_degrees = Vector3(-isometric_angle, new_y, 0)
 
+	# 공전 위치 업데이트 (맵 중심 기준)
+	_update_orbit_position(new_y)
+
 
 # ===== PAN =====
 
 func _handle_pan_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_MIDDLE:
+		# 마우스 왼쪽 또는 중간 버튼으로 드래그
+		if event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_MIDDLE:
 			if event.pressed:
 				_is_panning = true
 				_pan_start_mouse = event.position
@@ -147,10 +157,16 @@ func _handle_pan_input(event: InputEvent) -> void:
 				_is_panning = false
 
 	if event is InputEventMouseMotion and _is_panning:
-		var delta_mouse: Vector2 = event.position - _pan_start_mouse
-		# 카메라 방향에 맞춰 이동 (아이소메트릭 보정)
-		var pan_dir := _screen_to_world_direction(delta_mouse)
-		_target_position = _pan_start_position - pan_dir * 0.05 * size
+		if drag_mode == "rotate":
+			# 회전 모드: X 이동량으로 Y축 회전
+			var delta_x: float = event.position.x - _pan_start_mouse.x
+			_pan_start_mouse = event.position
+			_target_rotation_y += delta_x * 0.3
+		else:
+			# 패닝 모드: 카메라 이동
+			var delta_mouse: Vector2 = event.position - _pan_start_mouse
+			var pan_dir := _screen_to_world_direction(delta_mouse)
+			_target_position = _pan_start_position - pan_dir * 0.05 * size
 
 
 func _handle_keyboard_pan(event: InputEvent) -> void:
@@ -238,7 +254,21 @@ func focus_on_tile(tile_x: int, tile_y: int, tile_size: float = 1.0) -> void:
 ## 맵 중앙으로 이동
 func center_on_map(width: int, height: int, tile_size: float = 1.0) -> void:
 	var center := Vector3(width * tile_size * 0.5, 0, height * tile_size * 0.5)
-	move_to(center)
+	_orbit_center = center
+	_orbit_distance = maxf(width, height) * tile_size * 0.7
+	_update_orbit_position(_target_rotation_y)
+
+
+func _update_orbit_position(y_rotation: float) -> void:
+	## 공전 위치 계산 (맵 중심 기준)
+	var angle_rad := deg_to_rad(y_rotation)
+	var offset := Vector3(
+		sin(angle_rad) * _orbit_distance,
+		_orbit_distance * 0.8,  # 높이
+		cos(angle_rad) * _orbit_distance
+	)
+	_target_position = _orbit_center + offset
+	global_position = _target_position
 
 
 ## 경계 설정

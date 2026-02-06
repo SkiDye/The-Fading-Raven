@@ -16,7 +16,7 @@ signal valid_positions_updated(positions: Array)
 # ===== CONFIGURATION =====
 
 @export var placement_time_limit: float = 0.0  # 0 = 무제한
-@export var auto_slow_motion: bool = true
+@export var auto_slow_motion: bool = false  # 비활성화
 @export var slow_motion_scale: float = 0.3
 
 
@@ -75,10 +75,6 @@ func start_pre_battle_placement(crews: Array, spawn_area: Array[Vector2i] = []) 
 	else:
 		valid_placement_tiles = spawn_area
 
-	# 슬로우 모션
-	if auto_slow_motion:
-		Engine.time_scale = slow_motion_scale
-
 	# 첫 번째 크루 자동 선택
 	if not available_crews.is_empty():
 		selected_crew = available_crews[0]
@@ -103,9 +99,6 @@ func start_reposition_mode(crew: Node) -> void:
 
 	# 이동 가능 범위 계산
 	_calculate_movement_range(crew)
-
-	if auto_slow_motion:
-		Engine.time_scale = slow_motion_scale
 
 	crew_selected.emit(crew)
 	valid_positions_updated.emit(valid_placement_tiles)

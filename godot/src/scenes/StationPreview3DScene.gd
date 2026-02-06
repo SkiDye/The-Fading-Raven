@@ -14,8 +14,8 @@ signal back_pressed()
 
 const ROTATION_SPEED: float = 60.0  # degrees per second
 const ZOOM_SPEED: float = 2.0
-const MIN_ZOOM: float = 8.0
-const MAX_ZOOM: float = 25.0
+const MIN_ZOOM: float = 10.0
+const MAX_ZOOM: float = 40.0  # 더 넓은 범위 허용
 
 
 # ===== PRELOADS =====
@@ -45,12 +45,13 @@ const StationGeneratorClass = preload("res://src/systems/campaign/StationGenerat
 
 var _station_data: Variant = null  # StationLayout
 var _node_data: Dictionary = {}    # Sector node data
-var _rotation_angle: float = 0.0
-var _zoom_level: float = 10.0  # 더 가깝게 시작
-var _is_rotating_left: bool = false
-var _is_rotating_right: bool = false
+var _rotation_angle: float = 45.0  # 초기 45도 (Battle3D와 동일)
+var _target_rotation: float = 45.0  # 목표 회전 각도
+var _zoom_level: float = 15.0  # Battle3D와 동일
 var _is_dragging: bool = false
 var _drag_start: Vector2 = Vector2.ZERO
+
+const ISOMETRIC_ANGLE: float = 35.264  # arctan(1/sqrt(2))
 
 # Tile meshes for preview
 var _tile_meshes: Dictionary = {}
@@ -109,9 +110,11 @@ func _setup_camera() -> void:
 
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = _zoom_level
-	camera.rotation_degrees = Vector3(-35.264, 0, 0)
-	camera.position = Vector3(0, 0, 15)  # 더 가깝게
-	camera.far = 100.0
+	# 카메라는 회전 없이 pivot에서 떨어진 거리에만 배치
+	# 회전은 pivot이 담당 (orbit camera 패턴)
+	camera.rotation_degrees = Vector3.ZERO
+	camera.position = Vector3(0, 0, 30)  # pivot 앞쪽으로 30유닛 거리
+	camera.far = 200.0
 
 
 func _connect_signals() -> void:
@@ -356,20 +359,33 @@ func _create_entry_marker(entry_point: Vector2i) -> Node3D:
 # ===== CAMERA CONTROL =====
 
 func _center_camera() -> void:
+	if camera_pivot == null or _station_data == null:
+		return
+
+	# 스테이션은 _build_preview()에서 (0,0,0) 중심으로 빌드됨
+	# pivot을 원점에 배치하고 기울기 적용
+	camera_pivot.position = Vector3.ZERO
+
+	# Battle3D와 동일한 아이소메트릭 각도
+	_rotation_angle = 45.0
+	_target_rotation = 45.0
+	camera_pivot.rotation_degrees = Vector3(-ISOMETRIC_ANGLE, _rotation_angle, 0)
+
+	# 스테이션 크기에 맞춰 줌 레벨 자동 조정 (전체가 보이도록)
+	var width: int = _station_data.width if "width" in _station_data else 15
+	var height: int = _station_data.height if "height" in _station_data else 15
+	var max_dim: float = maxf(width, height)
+	_zoom_level = clampf(max_dim * 1.2, MIN_ZOOM, MAX_ZOOM)  # 여유있게 보이도록
+	if camera:
+		camera.size = _zoom_level
+
+
+func _process_rotation(_delta: float) -> void:
+	# 부드러운 45도 스냅 회전 (Battle3D 스타일)
+	_rotation_angle = lerpf(_rotation_angle, _target_rotation, 8.0 * _delta)
+
 	if camera_pivot:
-		camera_pivot.position = Vector3.ZERO
-		_rotation_angle = 45.0
-		camera_pivot.rotation_degrees.y = _rotation_angle
-
-
-func _process_rotation(delta: float) -> void:
-	if _is_rotating_left:
-		_rotation_angle -= ROTATION_SPEED * delta
-	if _is_rotating_right:
-		_rotation_angle += ROTATION_SPEED * delta
-
-	if camera_pivot:
-		camera_pivot.rotation_degrees.y = _rotation_angle
+		camera_pivot.rotation_degrees = Vector3(-ISOMETRIC_ANGLE, _rotation_angle, 0)
 
 
 func _process_camera(delta: float) -> void:
@@ -378,15 +394,15 @@ func _process_camera(delta: float) -> void:
 
 
 func _handle_input(event: InputEvent) -> void:
-	# 키보드 회전
-	if event is InputEventKey:
-		if event.keycode == KEY_A or event.keycode == KEY_LEFT:
-			_is_rotating_left = event.pressed
-		elif event.keycode == KEY_D or event.keycode == KEY_RIGHT:
-			_is_rotating_right = event.pressed
-		elif event.keycode == KEY_R and event.pressed:
+	# 키보드: Q/E로 45도 스냅 회전 (Battle3D와 동일)
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_Q:
+			_target_rotation -= 45.0
+		elif event.keycode == KEY_E:
+			_target_rotation += 45.0
+		elif event.keycode == KEY_R:
 			_zoom_level = clampf(_zoom_level - ZOOM_SPEED, MIN_ZOOM, MAX_ZOOM)
-		elif event.keycode == KEY_F and event.pressed:
+		elif event.keycode == KEY_F:
 			_zoom_level = clampf(_zoom_level + ZOOM_SPEED, MIN_ZOOM, MAX_ZOOM)
 
 	# 마우스 줌
@@ -400,11 +416,11 @@ func _handle_input(event: InputEvent) -> void:
 			if event.pressed:
 				_drag_start = event.position
 
-	# 마우스 드래그 회전
+	# 마우스 드래그 회전 (부드러운 회전)
 	if event is InputEventMouseMotion and _is_dragging:
 		var delta_x: float = event.position.x - _drag_start.x
 		_drag_start = event.position
-		_rotation_angle += delta_x * 0.5
+		_target_rotation += delta_x * 0.5
 
 
 # ===== UI UPDATE =====

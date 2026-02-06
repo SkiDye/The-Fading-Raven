@@ -32,8 +32,18 @@ var is_attacking: bool = false
 var current_target: Node = null
 var team: int = 1  # 1 = 적
 
+# 방어 스탯 (막기/회피 추가)
+var armor: float = 0.0
+var evasion: float = 0.0
+var block_chance: float = 0.0  # 막기 확률
+var block_reduction: float = 0.5  # 막기 시 데미지 감소율
+
+## 개별 멤버 타겟팅 (Bad North 스타일)
+var current_member_target: SquadMember3D = null
+
 var _attack_timer: float = 0.0
 var _target_position: Vector3 = Vector3.ZERO
+var _projectile_scene: PackedScene
 
 
 # ===== CHILD NODES =====
@@ -49,7 +59,14 @@ func _ready() -> void:
 	current_hp = max_hp
 	add_to_group("enemies")
 	add_to_group("units")
+	_load_projectile_scene()
 	_load_model()
+
+
+func _load_projectile_scene() -> void:
+	var path := "res://src/entities/projectile/Projectile3D.tscn"
+	if ResourceLoader.exists(path):
+		_projectile_scene = load(path)
 
 
 func _process(delta: float) -> void:
@@ -69,10 +86,15 @@ func _process(delta: float) -> void:
 func initialize(data: Dictionary) -> void:
 	if data.has("enemy_id"):
 		enemy_id = data.enemy_id
-	if data.has("max_hp"):
-		max_hp = data.max_hp
 	if data.has("tile_position"):
 		tile_position = data.tile_position
+
+	# 리소스에서 적 스탯 로드
+	_load_enemy_stats()
+
+	# data에서 오버라이드 (선택적)
+	if data.has("max_hp"):
+		max_hp = data.max_hp
 	if data.has("move_speed"):
 		move_speed = data.move_speed
 	if data.has("attack_damage"):
@@ -80,6 +102,58 @@ func initialize(data: Dictionary) -> void:
 
 	current_hp = max_hp
 	_load_model()
+
+
+func _load_enemy_stats() -> void:
+	var enemy_data: Resource = Constants.get_enemy(enemy_id)
+	if enemy_data == null:
+		push_warning("EnemyUnit3D: Enemy data not found for '%s', using defaults" % enemy_id)
+		_apply_default_defense_stats()
+		return
+
+	# 리소스 스탯 적용
+	if "hp" in enemy_data:
+		max_hp = enemy_data.hp
+	if "damage" in enemy_data:
+		attack_damage = enemy_data.damage
+	if "attack_range" in enemy_data:
+		attack_range = enemy_data.attack_range
+	if "move_speed" in enemy_data:
+		move_speed = enemy_data.move_speed
+	if "attack_speed" in enemy_data and enemy_data.attack_speed > 0:
+		attack_cooldown = 1.0 / enemy_data.attack_speed
+	if "armor" in enemy_data:
+		armor = enemy_data.armor
+	if "evasion" in enemy_data:
+		evasion = enemy_data.evasion
+
+	# 방어 스탯 적용
+	_apply_default_defense_stats()
+
+
+func _apply_default_defense_stats() -> void:
+	## 적 유형별 방어 스탯
+	match enemy_id:
+		"shield_trooper":
+			block_chance = 0.5  # 높은 막기
+			evasion = 0.05
+			block_reduction = 0.7
+		"brute":
+			block_chance = 0.3
+			evasion = 0.0  # 느려서 회피 못함
+			block_reduction = 0.6
+		"jumper":
+			block_chance = 0.1
+			evasion = 0.4  # 높은 회피
+			block_reduction = 0.4
+		"rusher":
+			block_chance = 0.05
+			evasion = 0.2
+			block_reduction = 0.4
+		_:
+			block_chance = 0.1
+			evasion = 0.15
+			block_reduction = 0.5
 
 
 func _load_model() -> void:
@@ -90,25 +164,48 @@ func _load_model() -> void:
 	for child in model_container.get_children():
 		child.queue_free()
 
-	var model_path := "res://assets/models/enemies/%s.glb" % enemy_id
-
-	if ResourceLoader.exists(model_path):
-		var model_scene: PackedScene = load(model_path)
-		if model_scene:
-			var model := model_scene.instantiate()
-			# GLB 모델 크기를 프로시저럴 메시 크기에 맞춤
-			model.scale = Vector3(0.3, 0.3, 0.3)
-			model_container.add_child(model)
+	# GLB 모델 로드 시도
+	var glb_path := "res://assets/models/enemies/%s.glb" % enemy_id
+	if FileAccess.file_exists(glb_path):
+		if _load_glb_model(glb_path):
 			return
 
-	# GLB 없으면 프로시저럴 메시 생성
+	# 폴백: 프로시저럴 메시 생성
 	_create_procedural_model()
+
+
+func _load_glb_model(path: String) -> bool:
+	## GLB 모델 로드
+	var scene: PackedScene = load(path)
+	if scene == null:
+		return false
+
+	var model: Node3D = scene.instantiate()
+	if model == null:
+		return false
+
+	# 적 타입별 스케일 조정
+	var scale_mult: float = 0.4
+	match enemy_id:
+		"rusher":
+			scale_mult = 0.25  # 러셔는 더 작게
+		"brute", "heavy_trooper":
+			scale_mult = 0.5  # 큰 적은 더 크게
+		_:
+			scale_mult = 0.4
+
+	model.scale = Vector3.ONE * scale_mult
+	# 모델 중심이 피벗이므로 Y 오프셋으로 바닥 위에 배치
+	model.position = Vector3(0, 0.2 * scale_mult / 0.4, 0)
+	model_container.add_child(model)
+	return true
 
 
 # ===== AI =====
 
 func set_target(target: Node) -> void:
 	current_target = target
+	current_member_target = null  # 멤버 타겟 초기화
 
 	if target and is_instance_valid(target):
 		if "global_position" in target:
@@ -161,13 +258,19 @@ func start_attack() -> void:
 func _process_attack(delta: float) -> void:
 	if current_target == null or not is_instance_valid(current_target):
 		is_attacking = false
+		current_member_target = null
 		return
 
 	# 타겟이 죽었는지 확인
 	if "is_alive" in current_target and not current_target.is_alive:
 		is_attacking = false
 		current_target = null
+		current_member_target = null
 		return
+
+	# 개별 멤버 타겟팅 (근접 공격 시)
+	if current_member_target == null or not current_member_target.is_alive:
+		current_member_target = _find_nearest_member()
 
 	# 공격 쿨다운
 	if _attack_timer <= 0:
@@ -175,25 +278,195 @@ func _process_attack(delta: float) -> void:
 		_attack_timer = attack_cooldown
 
 
+func _find_nearest_member() -> SquadMember3D:
+	## 타겟 분대에서 가장 가까운 살아있는 멤버 찾기
+	if current_target == null or not is_instance_valid(current_target):
+		return null
+
+	if not current_target is CrewSquad3D:
+		return null
+
+	var squad: CrewSquad3D = current_target as CrewSquad3D
+	var nearest: SquadMember3D = null
+	var nearest_dist: float = INF
+
+	for member in squad._members:
+		if not member.is_alive:
+			continue
+		var dist: float = global_position.distance_to(member.global_position)
+		if dist < nearest_dist:
+			nearest_dist = dist
+			nearest = member
+
+	return nearest
+
+
 func _perform_attack() -> void:
-	if current_target and current_target.has_method("take_damage"):
+	if current_target == null or not is_instance_valid(current_target):
+		return
+
+	# 적 유형별 공격 방식
+	match enemy_id:
+		"gunner", "sniper", "heavy_trooper":
+			# 원거리: 투사체 발사
+			_spawn_ranged_attack()
+		_:
+			# 근거리: 즉시 데미지 + 이펙트
+			_spawn_melee_attack()
+
+
+func _spawn_ranged_attack() -> void:
+	## 원거리 공격: 투사체 생성
+	if current_target == null or not is_instance_valid(current_target):
+		return
+
+	if _projectile_scene:
+		var projectile: Projectile3D = _projectile_scene.instantiate()
+		get_tree().current_scene.add_child(projectile)
+
+		var from_pos: Vector3 = global_position + Vector3(0, 0.4, 0)
+		var target_pos: Vector3 = current_target.global_position + Vector3(0, 0.3, 0)
+		# 발사 편차 추가 (±0.45 범위 - 적은 부정확함)
+		var spread := Vector3(
+			randf_range(-0.45, 0.45),
+			randf_range(-0.15, 0.15),
+			randf_range(-0.45, 0.45)
+		)
+		projectile.launch(from_pos, target_pos + spread, attack_damage, self)
+
+		# 적 투사체 색상 변경 (빨간색)
+		var mesh: MeshInstance3D = projectile.get_node_or_null("Mesh")
+		if mesh and mesh.material_override:
+			var mat: StandardMaterial3D = mesh.material_override.duplicate()
+			mat.emission = Color(1, 0.2, 0.2)
+			mesh.material_override = mat
+	else:
+		# 폴백: 즉시 데미지
+		if current_target.has_method("take_damage"):
+			current_target.take_damage(attack_damage, self)
+
+
+func _spawn_melee_attack() -> void:
+	## 근거리 공격: 개별 멤버 타겟팅
+	if current_target == null or not is_instance_valid(current_target):
+		return
+
+	# 개별 멤버가 있으면 그 멤버 공격
+	if current_member_target and current_member_target.is_alive:
+		current_member_target.take_individual_damage(attack_damage, self)
+		_spawn_melee_effect_at(current_member_target.global_position)
+	elif current_target.has_method("take_damage"):
+		# 폴백: 분대 전체에 데미지
 		current_target.take_damage(attack_damage, self)
+		_spawn_melee_effect()
+
+
+func _spawn_melee_effect() -> void:
+	## 근접 공격 슬래시 이펙트
+	if current_target == null or not is_instance_valid(current_target):
+		return
+	_spawn_melee_effect_at(current_target.global_position)
+
+
+func _spawn_melee_effect_at(target_pos: Vector3) -> void:
+	## 지정 위치에 슬래시 이펙트 생성
+	if not is_inside_tree():
+		return
+
+	# 적 공격은 빨간색 계열
+	var effect_color := Color(0.9, 0.2, 0.2, 0.8)
+
+	# 슬래시 이펙트 생성
+	var effect := MeshInstance3D.new()
+	var slash_mesh := BoxMesh.new()
+	slash_mesh.size = Vector3(0.5, 0.04, 0.08)
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = effect_color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = effect_color
+	mat.emission_energy_multiplier = 2.0
+	effect.mesh = slash_mesh
+	effect.material_override = mat
+
+	# 위치 저장 (트리 추가 전)
+	var effect_pos: Vector3 = target_pos + Vector3(0, 0.3, 0)
+	var my_pos: Vector3 = global_position
+
+	# 트리에 추가 후 위치/회전 설정
+	get_tree().current_scene.add_child(effect)
+	effect.global_position = effect_pos
+	effect.look_at(my_pos)
+	effect.rotate_y(randf_range(-0.3, 0.3))
+
+	# 슬래시 애니메이션
+	var tween := effect.create_tween()
+	tween.tween_property(effect, "scale", Vector3(1.4, 1.4, 1.4), 0.1)
+	tween.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.2)
+	tween.tween_callback(effect.queue_free)
 
 
 # ===== DAMAGE =====
 
 func take_damage(amount: int, _source: Node = null) -> void:
+	## 데미지 처리 (막기/회피 포함)
 	if not is_alive:
 		return
 
-	current_hp -= amount
+	# 1. 회피 체크
+	if randf() < evasion:
+		_play_evade_effect()
+		return
+
+	# 2. 막기 체크
+	var final_damage: int = amount
+	if randf() < block_chance:
+		final_damage = int(amount * (1.0 - block_reduction))
+		_play_block_effect()
+
+	current_hp -= final_damage
 	current_hp = maxi(current_hp, 0)
 
 	health_changed.emit(current_hp, max_hp)
 	_update_health_bar()
+	_flash_damage()
 
 	if current_hp <= 0:
 		_die()
+
+
+func take_individual_damage(amount: int, attacker: Node = null) -> void:
+	## 개별 멤버로부터 데미지 (1:1 전투 시스템용)
+	take_damage(amount, attacker)
+
+
+func _play_evade_effect() -> void:
+	## 회피 이펙트
+	var side_dir: float = 1.0 if randf() > 0.5 else -1.0
+	var tween := create_tween()
+	tween.tween_property(self, "global_position:x", global_position.x + side_dir * 0.2, 0.1)
+	tween.tween_property(self, "global_position:x", global_position.x, 0.15)
+
+
+func _play_block_effect() -> void:
+	## 막기 이펙트
+	var tween := create_tween()
+	tween.tween_property(self, "global_position:z", global_position.z + 0.1, 0.05)
+	tween.tween_property(self, "global_position:z", global_position.z, 0.1)
+
+
+func _flash_damage() -> void:
+	## 피격 플래시
+	if model_container and model_container.get_child_count() > 0:
+		var first_mesh: MeshInstance3D = model_container.get_child(0) as MeshInstance3D
+		if first_mesh and first_mesh.material_override:
+			var mat: StandardMaterial3D = first_mesh.material_override
+			var original_color: Color = mat.albedo_color
+			mat.albedo_color = Color(1, 0.4, 0.4)
+			await get_tree().create_timer(0.1).timeout
+			if is_instance_valid(self) and first_mesh and first_mesh.material_override:
+				mat.albedo_color = original_color
 
 
 func _die() -> void:

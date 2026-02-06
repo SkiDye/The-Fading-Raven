@@ -34,7 +34,7 @@ class BattleResult:
 # ===== CONFIGURATION =====
 
 @export var slow_motion_factor: float = 0.3
-@export var enable_auto_slow_on_select: bool = true
+@export var enable_auto_slow_on_select: bool = false  # 비활성화
 
 
 # ===== PRELOADS =====
@@ -208,8 +208,6 @@ func _process(delta: float) -> void:
 		return
 
 	var actual_delta := delta
-	if is_slow_motion:
-		actual_delta *= slow_motion_factor
 
 	# Emergency Evac 처리
 	if is_evacuating:

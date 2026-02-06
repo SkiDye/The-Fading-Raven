@@ -181,19 +181,61 @@ func _on_body_entered(body: Node3D) -> void:
 
 	# 유효한 타겟인지 확인
 	if _is_valid_hit_target(body):
-		_hit(body)
+		_hit(body as Node)
 
 
 func _on_area_entered(area: Area3D) -> void:
 	if not is_active:
 		return
 
+	# 개별 멤버 히트박스 확인 (SquadMember3D)
+	if area.has_meta("owner_member"):
+		var member: SquadMember3D = area.get_meta("owner_member")
+		if member and is_instance_valid(member) and member.is_alive:
+			# 소스가 같은 팀이면 무시
+			if _is_same_team_member(member):
+				return
+			_hit_member(member)
+			return
+
 	var parent := area.get_parent()
 	if parent == source:
 		return
 
 	if _is_valid_hit_target(parent):
-		_hit(parent)
+		_hit(parent as Node)
+
+
+func _is_same_team_member(member: SquadMember3D) -> bool:
+	## 같은 팀 멤버인지 확인
+	if source == null:
+		return false
+
+	# 소스가 CrewSquad3D이고 멤버가 그 분대 소속이면
+	if source.is_in_group("crews"):
+		if member.parent_squad == source:
+			return true
+		# 다른 아군 분대 멤버도 제외
+		if member.parent_squad and member.parent_squad.is_in_group("crews"):
+			return true
+
+	return false
+
+
+func _hit_member(member: SquadMember3D) -> void:
+	## 개별 멤버에 히트 처리
+	if not is_active:
+		return
+
+	is_active = false
+
+	# 개별 멤버에 데미지
+	member.take_individual_damage(damage, source)
+
+	hit_target.emit(member)
+
+	_spawn_hit_effect()
+	_destroy()
 
 
 func _is_valid_hit_target(node: Node) -> bool:
@@ -215,17 +257,17 @@ func _is_valid_hit_target(node: Node) -> bool:
 
 # ===== HIT =====
 
-func _hit(hit_target: Node) -> void:
+func _hit(hit_node: Node) -> void:
 	if not is_active:
 		return
 
 	is_active = false
 
 	# 데미지 적용
-	if hit_target.has_method("take_damage"):
-		hit_target.take_damage(damage, source)
+	if hit_node.has_method("take_damage"):
+		hit_node.take_damage(damage, source)
 
-	hit_target.emit(hit_target)
+	hit_target.emit(hit_node)
 
 	# 이펙트
 	_spawn_hit_effect()
@@ -282,8 +324,34 @@ func _expire() -> void:
 # ===== EFFECTS =====
 
 func _spawn_hit_effect() -> void:
-	# 충돌 이펙트 생성
-	EventBus.hit_effect_requested.emit(global_position)
+	# 충돌 이펙트 생성 (간단한 플래시)
+	if not is_inside_tree():
+		return
+
+	var flash := MeshInstance3D.new()
+	var flash_mesh := SphereMesh.new()
+	flash_mesh.radius = 0.15
+	flash_mesh.height = 0.3
+	flash.mesh = flash_mesh
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1, 0.8, 0.3, 0.8)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = Color(1, 0.8, 0.3)
+	mat.emission_energy_multiplier = 3.0
+	flash.material_override = mat
+
+	# 현재 위치 저장 (트리에서 제거되기 전)
+	var spawn_pos: Vector3 = global_position
+
+	get_tree().current_scene.add_child(flash)
+	flash.global_position = spawn_pos
+
+	var tween := flash.create_tween()
+	tween.tween_property(flash, "scale", Vector3(2, 2, 2), 0.1)
+	tween.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.15)
+	tween.tween_callback(flash.queue_free)
 
 	if impact_particles:
 		impact_particles.emitting = true

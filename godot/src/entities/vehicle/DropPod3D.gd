@@ -92,18 +92,34 @@ func _load_model() -> void:
 	for child in model_container.get_children():
 		child.queue_free()
 
-	var model_path := "res://assets/models/vehicles/boarding_pod.glb"
-
-	if ResourceLoader.exists(model_path):
-		var model_scene: PackedScene = load(model_path)
-		if model_scene:
-			var model := model_scene.instantiate()
-			# 앞뒤 방향 수정 (해치가 진행 방향을 향하도록)
-			model.rotation_degrees.y = 180.0
-			model_container.add_child(model)
+	# GLB 모델 로드 시도
+	var glb_path := "res://assets/models/vehicles/boarding_pod.glb"
+	if FileAccess.file_exists(glb_path):
+		if _load_glb_model(glb_path):
 			return
 
+	# 폴백: 프로시저럴 메시 생성
 	_create_procedural_model()
+
+
+func _load_glb_model(path: String) -> bool:
+	## GLB 모델 로드
+	var scene: PackedScene = load(path)
+	if scene == null:
+		return false
+
+	var model: Node3D = scene.instantiate()
+	if model == null:
+		return false
+
+	model.scale = Vector3.ONE * 0.5  # 크기 조절
+	model.position = Vector3(0, 0, 0)
+	model_container.add_child(model)
+
+	# 엔진 글로우 노드 찾기 (있으면)
+	_engine_glow = model.get_node_or_null("EngineGlow") as MeshInstance3D
+
+	return true
 
 
 func _create_procedural_model() -> void:
@@ -150,12 +166,12 @@ func _create_procedural_model() -> void:
 		leg.material_override = _create_material(Color(0.3, 0.3, 0.35))
 		model_container.add_child(leg)
 
-	# 해치 (전면) - 진행 방향(+Z)에 배치
+	# 해치 (전면) - look_at()은 -Z가 전면이므로 -Z에 배치
 	var hatch := MeshInstance3D.new()
 	var hatch_mesh := BoxMesh.new()
 	hatch_mesh.size = Vector3(0.3, 0.5, 0.05)
 	hatch.mesh = hatch_mesh
-	hatch.position = Vector3(0, 0.5, 0.38)
+	hatch.position = Vector3(0, 0.5, -0.38)  # -Z가 전면
 	hatch.material_override = _create_material(accent_color)
 	model_container.add_child(hatch)
 
@@ -348,7 +364,8 @@ func _animate_hatch_open() -> void:
 
 	if hatch:
 		var tween := create_tween()
-		tween.tween_property(hatch, "rotation_degrees:x", -90, 0.5)
+		# 해치가 -Z에 있으므로 +90도로 열림 (바깥쪽으로)
+		tween.tween_property(hatch, "rotation_degrees:x", 90, 0.5)
 
 
 # ===== DEPART =====
