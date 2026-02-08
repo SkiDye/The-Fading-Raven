@@ -47,6 +47,11 @@ var _use_drop_pods: bool = true  # 드롭팟 사용 여부
 var _battle_ended: bool = false  # 전투 종료 플래그
 var _wave_spawning: bool = false  # 웨이브 스폰 진행 중
 
+# ===== PLACEMENT STATE =====
+var _pending_squads: Array = []  # 배치 대기 중인 분대 데이터
+var _placed_count: int = 0  # 배치 완료된 크루 수
+var _placement_tiles: Array[Vector2i] = []  # 배치 가능 타일
+
 
 # ===== LIFECYCLE =====
 
@@ -241,32 +246,29 @@ func _spawn_test_crews() -> void:
 
 	if game_state and not game_state.battle_squads.is_empty():
 		squads_to_spawn = game_state.battle_squads
-		print("[Battle3D] Spawning %d squads from GameState" % squads_to_spawn.size())
+		print("[Battle3D] Loading %d squads from GameState" % squads_to_spawn.size())
+	elif game_state and game_state.has_method("get_crews") and not game_state.get_crews().is_empty():
+		# 폴백: battle_squads가 비어있으면 전체 크루 사용
+		squads_to_spawn = game_state.get_crews().slice(0, 4)
+		print("[Battle3D] Fallback: using %d crews from GameState" % squads_to_spawn.size())
 	else:
-		push_warning("[Battle3D] No battle_squads in GameState!")
-		return
+		# 테스트용 기본 분대
+		squads_to_spawn = [
+			{"class_id": "guardian"},
+			{"class_id": "ranger"}
+		]
+		print("[Battle3D] Using default test squads")
 
-	var spawn_positions := [
-		Vector2i(5, 6),
-		Vector2i(6, 7),
-		Vector2i(7, 8),
-		Vector2i(8, 6)
-	]
+	# 크루를 바로 스폰하지 않고 대기 목록에 저장
+	_pending_squads = squads_to_spawn.duplicate()
+	_placed_count = 0
 
-	for i in range(squads_to_spawn.size()):
-		var squad_data: Dictionary = squads_to_spawn[i] if squads_to_spawn[i] is Dictionary else {}
-		var class_id: String = squad_data.get("class_id", "militia")
-		var spawn_pos: Vector2i = spawn_positions[i % spawn_positions.size()]
+	# 배치 대기 UI 생성
+	for i in range(_pending_squads.size()):
+		var squad_data: Dictionary = _pending_squads[i] if _pending_squads[i] is Dictionary else {}
+		_create_pending_crew_slot_ui(squad_data, i)
 
-		var crew: Node3D = battle_map.spawn_crew(spawn_pos, class_id)
-		if crew:
-			crew.set_meta("index", i)
-			crew.set_meta("squad_data", squad_data)
-			_crews.append(crew)
-			_create_crew_slot_ui(crew, i)
-			# 사망 시그널 연결
-			if crew.has_signal("squad_eliminated"):
-				crew.squad_eliminated.connect(_on_crew_eliminated.bind(crew))
+	print("[Battle3D] %d squads waiting for placement" % _pending_squads.size())
 
 
 func _start_placement_phase() -> void:
@@ -274,17 +276,70 @@ func _start_placement_phase() -> void:
 
 	if placement_label:
 		placement_label.visible = true
+		placement_label.text = "SELECT A SQUAD AND RIGHT-CLICK TO PLACE"
 	if deploy_button:
 		deploy_button.visible = true
+		deploy_button.disabled = true  # 최소 1명 배치 전까지 비활성화
+		deploy_button.text = "DEPLOY (0/%d)" % _pending_squads.size()
 
-	if placement_phase:
-		var spawn_area: Array[Vector2i] = []
-		for y in range(3, 10):
-			for x in range(3, 12):
-				spawn_area.append(Vector2i(x, y))
+	# 배치 가능 영역 계산 및 표시
+	_calculate_placement_area()
+	_show_placement_area()
 
-		placement_phase.initialize(battle_map, null, battle_controller)
-		placement_phase.start_pre_battle_placement(_crews, spawn_area)
+	# 첫 번째 분대 자동 선택
+	if not _pending_squads.is_empty():
+		_select_pending_squad(0)
+
+
+func _create_pending_crew_slot_ui(squad_data: Dictionary, index: int) -> void:
+	## 배치 대기 중인 분대 슬롯 UI 생성
+	if crew_slots == null:
+		return
+
+	var class_id: String = squad_data.get("class_id", "militia")
+
+	var slot := PanelContainer.new()
+	slot.custom_minimum_size = Vector2(100, 90)
+	slot.name = "PendingSlot_%d" % index
+
+	# 스타일 설정 (미배치 상태)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.25, 0.35, 0.9)
+	style.border_color = Color(0.4, 0.6, 0.8)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	slot.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	slot.add_child(vbox)
+
+	var name_label := Label.new()
+	name_label.text = "[%d] %s" % [index + 1, class_id.to_upper()]
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.add_theme_font_size_override("font_size", 14)
+	name_label.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
+	vbox.add_child(name_label)
+
+	var status_label := Label.new()
+	status_label.name = "StatusLabel"
+	status_label.text = "WAITING"
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_label.add_theme_font_size_override("font_size", 11)
+	status_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
+	vbox.add_child(status_label)
+
+	var place_btn := Button.new()
+	place_btn.name = "PlaceBtn"
+	place_btn.text = "SELECT"
+	place_btn.custom_minimum_size = Vector2(90, 30)
+	place_btn.pressed.connect(func(): _select_pending_squad(index))
+	vbox.add_child(place_btn)
+
+	slot.set_meta("squad_index", index)
+	slot.set_meta("squad_data", squad_data)
+	slot.set_meta("is_placed", false)
+	crew_slots.add_child(slot)
 
 
 func _create_crew_slot_ui(crew: Node3D, index: int) -> void:
@@ -332,6 +387,180 @@ func _create_crew_slot_ui(crew: Node3D, index: int) -> void:
 	crew_slots.add_child(slot)
 
 
+func _calculate_placement_area() -> void:
+	## 배치 가능 영역 계산
+	_placement_tiles.clear()
+
+	var map_width: int = 20
+	var map_height: int = 16
+
+	if battle_map and battle_map.has_method("get_map_size"):
+		var size: Vector2i = battle_map.get_map_size()
+		map_width = size.x
+		map_height = size.y
+
+	# 맵 중앙-하단 영역을 배치 가능 구역으로 (적 스폰 반대편)
+	var start_x: int = 3
+	var end_x: int = map_width - 3
+	var start_y: int = map_height / 2
+	var end_y: int = map_height - 2
+
+	for y in range(start_y, end_y):
+		for x in range(start_x, end_x):
+			var tile_pos := Vector2i(x, y)
+			# 걸을 수 있는 타일인지 확인
+			if battle_map and battle_map.has_method("is_tile_walkable"):
+				if battle_map.is_tile_walkable(tile_pos):
+					_placement_tiles.append(tile_pos)
+			else:
+				_placement_tiles.append(tile_pos)
+
+
+func _show_placement_area() -> void:
+	## 배치 가능 영역 시각화
+	if battle_map and battle_map.has_method("show_move_range"):
+		battle_map.show_move_range(_placement_tiles, Color(0.2, 0.7, 0.3, 0.4))
+
+
+func _hide_placement_area() -> void:
+	## 배치 영역 숨기기
+	if battle_map and battle_map.has_method("clear_range_display"):
+		battle_map.clear_range_display()
+
+
+var _selected_pending_index: int = -1
+
+func _select_pending_squad(index: int) -> void:
+	## 배치할 분대 선택
+	if index < 0 or index >= _pending_squads.size():
+		return
+
+	# 이미 배치된 분대인지 확인
+	var slot: PanelContainer = crew_slots.get_node_or_null("PendingSlot_%d" % index)
+	if slot and slot.get_meta("is_placed", false):
+		# 이미 배치된 분대 재선택 시 재배치 모드
+		var crew: Node3D = slot.get_meta("crew", null)
+		if crew and is_instance_valid(crew):
+			_select_crew(crew)
+		return
+
+	_selected_pending_index = index
+
+	# UI 업데이트 - 선택된 슬롯 하이라이트
+	for i in range(_pending_squads.size()):
+		var s: PanelContainer = crew_slots.get_node_or_null("PendingSlot_%d" % i)
+		if s == null:
+			continue
+
+		var style := s.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+		if i == index and not s.get_meta("is_placed", false):
+			style.border_color = Color(0.3, 1.0, 0.4)
+			style.set_border_width_all(3)
+		elif s.get_meta("is_placed", false):
+			style.border_color = Color(0.4, 0.8, 0.4)
+			style.bg_color = Color(0.15, 0.3, 0.2, 0.9)
+		else:
+			style.border_color = Color(0.4, 0.6, 0.8)
+			style.set_border_width_all(2)
+		s.add_theme_stylebox_override("panel", style)
+
+	var squad_data: Dictionary = _pending_squads[index]
+	var class_id: String = squad_data.get("class_id", "militia")
+	print("[Battle3D] Selected squad %d: %s - Right-click to place" % [index + 1, class_id])
+
+	if placement_label:
+		placement_label.text = "RIGHT-CLICK TO PLACE: %s" % class_id.to_upper()
+
+
+func _place_pending_squad_at(tile_pos: Vector2i) -> void:
+	## 선택된 대기 분대를 타일에 배치
+	if _selected_pending_index < 0 or _selected_pending_index >= _pending_squads.size():
+		return
+
+	if not tile_pos in _placement_tiles:
+		print("[Battle3D] Invalid placement position: ", tile_pos)
+		return
+
+	# 해당 타일에 이미 크루가 있는지 확인
+	for crew in _crews:
+		if is_instance_valid(crew):
+			var crew_tile := _get_crew_tile(crew)
+			if crew_tile == tile_pos:
+				print("[Battle3D] Tile already occupied")
+				return
+
+	var squad_data: Dictionary = _pending_squads[_selected_pending_index]
+	var class_id: String = squad_data.get("class_id", "militia")
+
+	# 크루 스폰
+	var crew: Node3D = battle_map.spawn_crew(tile_pos, class_id)
+	if crew == null:
+		return
+
+	crew.set_meta("index", _selected_pending_index)
+	crew.set_meta("squad_data", squad_data)
+	_crews.append(crew)
+
+	# 사망 시그널 연결
+	if crew.has_signal("squad_eliminated"):
+		crew.squad_eliminated.connect(_on_crew_eliminated.bind(crew))
+
+	# 슬롯 UI 업데이트
+	var slot: PanelContainer = crew_slots.get_node_or_null("PendingSlot_%d" % _selected_pending_index)
+	if slot:
+		slot.set_meta("is_placed", true)
+		slot.set_meta("crew", crew)
+
+		var status_label: Label = slot.get_node_or_null("VBoxContainer/StatusLabel")
+		if status_label == null:
+			# VBoxContainer가 아닌 직접 자식일 수도 있음
+			for child in slot.get_children():
+				if child is VBoxContainer:
+					status_label = child.get_node_or_null("StatusLabel")
+					break
+		if status_label:
+			status_label.text = "PLACED"
+			status_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+
+		var place_btn: Button = slot.get_node_or_null("VBoxContainer/PlaceBtn")
+		if place_btn == null:
+			for child in slot.get_children():
+				if child is VBoxContainer:
+					place_btn = child.get_node_or_null("PlaceBtn")
+					break
+		if place_btn:
+			place_btn.text = "REPOSITION"
+
+		# 스타일 변경
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.15, 0.3, 0.2, 0.9)
+		style.border_color = Color(0.4, 0.8, 0.4)
+		style.set_border_width_all(2)
+		style.set_corner_radius_all(8)
+		slot.add_theme_stylebox_override("panel", style)
+
+	_placed_count += 1
+	print("[Battle3D] Placed %s at %s (%d/%d)" % [class_id, tile_pos, _placed_count, _pending_squads.size()])
+
+	# DEPLOY 버튼 업데이트
+	if deploy_button:
+		deploy_button.text = "DEPLOY (%d/%d)" % [_placed_count, _pending_squads.size()]
+		deploy_button.disabled = _placed_count == 0
+
+	# 다음 미배치 분대 자동 선택
+	_selected_pending_index = -1
+	for i in range(_pending_squads.size()):
+		var s: PanelContainer = crew_slots.get_node_or_null("PendingSlot_%d" % i)
+		if s and not s.get_meta("is_placed", false):
+			_select_pending_squad(i)
+			break
+
+	# 모두 배치되었으면 안내 메시지
+	if _selected_pending_index == -1:
+		if placement_label:
+			placement_label.text = "ALL SQUADS PLACED - CLICK DEPLOY TO START"
+
+
 func _update_crew_slot_ui() -> void:
 	## 크루 슬롯 UI 업데이트 (사망 표시 등)
 	if crew_slots == null:
@@ -374,19 +603,48 @@ func _input(event: InputEvent) -> void:
 			KEY_ESCAPE:
 				_toggle_pause()
 			KEY_SPACE:
-				if not _is_placement_phase:
+				if _is_placement_phase:
+					_on_deploy_pressed()  # 스페이스바로 배치 확정
+				else:
 					_toggle_pause()
+			KEY_ENTER, KEY_KP_ENTER:
+				if _is_placement_phase:
+					_on_deploy_pressed()  # 엔터로 배치 확정
 			KEY_1:
-				_select_crew_by_index(0)
+				_select_squad_by_key(0)
 			KEY_2:
-				_select_crew_by_index(1)
+				_select_squad_by_key(1)
 			KEY_3:
-				_select_crew_by_index(2)
+				_select_squad_by_key(2)
 			KEY_4:
-				_select_crew_by_index(3)
+				_select_squad_by_key(3)
 			KEY_Q:
-				if _selected_crew:
+				if _selected_crew and not _is_placement_phase:
 					_use_crew_skill(_selected_crew)
+
+
+func _select_squad_by_key(index: int) -> void:
+	## 숫자 키로 분대 선택 (배치/전투 모두)
+	if _is_placement_phase:
+		# 배치 페이즈: 대기 분대 또는 배치된 분대 선택
+		if index < _pending_squads.size():
+			var slot: PanelContainer = crew_slots.get_node_or_null("PendingSlot_%d" % index)
+			if slot:
+				if slot.get_meta("is_placed", false):
+					# 이미 배치된 분대 → 재배치 모드
+					var crew: Node3D = slot.get_meta("crew", null)
+					if crew and is_instance_valid(crew):
+						_selected_pending_index = -1
+						_select_crew(crew)
+						if placement_label:
+							var class_id: String = crew.get_class_id() if crew.has_method("get_class_id") else crew.get_meta("class_id", "unknown")
+							placement_label.text = "RIGHT-CLICK TO REPOSITION: %s" % class_id.to_upper()
+				else:
+					# 미배치 분대 → 배치 모드
+					_select_pending_squad(index)
+	else:
+		# 전투 페이즈: 크루 선택
+		_select_crew_by_index(index)
 
 
 func _update_ui() -> void:
@@ -494,12 +752,23 @@ func _on_tile_clicked(tile_pos: Vector2i) -> void:
 	var crew_at_tile := _find_crew_at_tile(tile_pos)
 	if crew_at_tile:
 		_select_crew(crew_at_tile)
-		# 배치 페이즈에서 선택 동기화
-		if _is_placement_phase and placement_phase:
-			placement_phase.select_crew(crew_at_tile)
+		# 배치 페이즈에서 재배치 모드
+		if _is_placement_phase:
+			_selected_pending_index = -1  # 대기 분대 선택 해제
+			if placement_label:
+				var class_id: String = crew_at_tile.get_class_id() if crew_at_tile.has_method("get_class_id") else crew_at_tile.get_meta("class_id", "unknown")
+				placement_label.text = "RIGHT-CLICK TO REPOSITION: %s" % class_id.to_upper()
 	else:
 		# 빈 타일 클릭 시 선택 해제
 		_select_crew(null)
+		# 대기 분대가 선택되어 있으면 유지
+		if _is_placement_phase and _selected_pending_index < 0:
+			# 미배치 분대가 있으면 첫 번째 선택
+			for i in range(_pending_squads.size()):
+				var s: PanelContainer = crew_slots.get_node_or_null("PendingSlot_%d" % i)
+				if s and not s.get_meta("is_placed", false):
+					_select_pending_squad(i)
+					break
 
 
 func _on_tile_right_clicked(tile_pos: Vector2i) -> void:
@@ -507,20 +776,47 @@ func _on_tile_right_clicked(tile_pos: Vector2i) -> void:
 	print("[Battle3D] Tile right-clicked: ", tile_pos)
 
 	if _is_placement_phase:
-		# 배치 페이즈: PlacementPhase.place_crew_at 사용
-		if placement_phase:
-			var crew_to_place: Node = _selected_crew
-			# 선택된 크루 없으면 PlacementPhase의 selected_crew 사용
-			if crew_to_place == null and placement_phase.selected_crew:
-				crew_to_place = placement_phase.selected_crew
-			if crew_to_place:
-				placement_phase.place_crew_at(crew_to_place, tile_pos)
+		# 배치 페이즈: 대기 분대 배치 또는 기존 크루 재배치
+		if _selected_pending_index >= 0:
+			# 대기 분대 배치
+			_place_pending_squad_at(tile_pos)
+		elif _selected_crew != null:
+			# 기존 크루 재배치
+			_reposition_crew_at(tile_pos)
 		return
 
 	# 전투 페이즈: 선택된 크루 이동
 	if _selected_crew == null:
 		return
 	_move_crew_to(tile_pos)
+
+
+func _reposition_crew_at(tile_pos: Vector2i) -> void:
+	## 배치된 크루를 다른 위치로 재배치
+	if _selected_crew == null:
+		return
+
+	if not tile_pos in _placement_tiles:
+		print("[Battle3D] Invalid reposition: outside placement area")
+		return
+
+	# 해당 타일에 다른 크루가 있는지 확인
+	for crew in _crews:
+		if crew != _selected_crew and is_instance_valid(crew):
+			var crew_tile := _get_crew_tile(crew)
+			if crew_tile == tile_pos:
+				print("[Battle3D] Tile already occupied by another crew")
+				return
+
+	# 크루 위치 업데이트
+	if battle_map and battle_map.has_method("tile_to_world"):
+		var world_pos: Vector3 = battle_map.tile_to_world(tile_pos)
+		_selected_crew.position = world_pos
+
+	_selected_crew.set_meta("tile_pos", tile_pos)
+
+	var class_id: String = _selected_crew.get_class_id() if _selected_crew.has_method("get_class_id") else _selected_crew.get_meta("class_id", "unknown")
+	print("[Battle3D] Repositioned %s to %s" % [class_id, tile_pos])
 
 
 func _find_crew_at_tile(tile_pos: Vector2i) -> Node3D:
@@ -573,8 +869,20 @@ func _move_crew_to(tile_pos: Vector2i) -> void:
 # ===== PLACEMENT =====
 
 func _on_deploy_pressed() -> void:
-	if placement_phase and placement_phase.confirm_placement():
-		_start_combat()
+	# 최소 1명은 배치해야 함
+	if _placed_count == 0:
+		print("[Battle3D] Cannot deploy: No squads placed!")
+		return
+
+	# 미배치 분대 경고 (배치는 허용)
+	if _placed_count < _pending_squads.size():
+		print("[Battle3D] Warning: %d/%d squads placed" % [_placed_count, _pending_squads.size()])
+
+	# 배치 영역 숨기기
+	_hide_placement_area()
+
+	# 전투 시작
+	_start_combat()
 
 
 func _on_placement_ended() -> void:

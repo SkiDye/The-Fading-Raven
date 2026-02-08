@@ -354,7 +354,7 @@ func _on_node_entered_transition(node_id: String) -> void:
 			_current_node_id = node_id
 			_update_node_visuals()
 
-		# 모든 전투 노드 → StationPreview → Battle
+		# 모든 전투 노드 → 바로 Battle3D로 이동 (미리보기/분대선택 건너뜀)
 		Constants.NodeType.BATTLE, Constants.NodeType.STORM, Constants.NodeType.BOSS, \
 		Constants.NodeType.RESCUE, Constants.NodeType.COMMANDER, \
 		Constants.NodeType.EQUIPMENT, Constants.NodeType.SALVAGE:
@@ -367,9 +367,18 @@ func _on_node_entered_transition(node_id: String) -> void:
 				}
 				GameState.set_current_station(station_data)
 
-			var preview_scene := "res://scenes/campaign/StationPreview3D.tscn"
-			if ResourceLoader.exists(preview_scene):
-				get_tree().change_scene_to_file(preview_scene)
+			# 모든 가용 분대를 battle_squads에 설정 (분대 선택 건너뜀)
+			if GameState and GameState.has_method("get_crews"):
+				var all_crews: Array = GameState.get_crews()
+				# 최대 4팀까지만 전투 참여
+				var battle_crews: Array = all_crews.slice(0, mini(4, all_crews.size()))
+				GameState.battle_squads = battle_crews
+				print("[SectorMap3D] Auto-assigned %d squads to battle" % battle_crews.size())
+
+			# 바로 Battle3D로 이동
+			var battle_scene := "res://scenes/battle/Battle3D.tscn"
+			if ResourceLoader.exists(battle_scene):
+				get_tree().change_scene_to_file(battle_scene)
 
 		Constants.NodeType.DEPOT:
 			# 보급 정거장 - 무료 장비 (전투 없음)

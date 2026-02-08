@@ -1,5 +1,6 @@
 # Godot
 .godot/
+tools/
 *.import
 export_presets.cfg
 *.translation
@@ -19,6 +20,9 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Python venv
+AIdiffusers-clivenv/
 
 # Temp files
 *.tmp
